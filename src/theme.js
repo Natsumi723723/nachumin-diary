@@ -57,6 +57,11 @@ export const css = `
     background: ${bgUrl} #f6bedd; background-size: 240px 240px;
     color: #4a3140;
   }
+  /* スワイプで戻る用ラッパー（ルーム全体を包む縦フレックス） */
+  .swipe-wrap {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    will-change: transform;
+  }
   /* header */
   .hd {
     display: flex; align-items: center; gap: 8px;

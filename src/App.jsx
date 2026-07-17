@@ -11,6 +11,7 @@ import { css } from "./theme.js";
 import DiaryRoom from "./DiaryRoom.jsx";
 import TalkRoom from "./TalkRoom.jsx";
 import TodoRoom from "./TodoRoom.jsx";
+import SwipeBack from "./SwipeBack.jsx";
 
 export default function App() {
   const [rooms, setRooms] = useState(null);
@@ -384,11 +385,16 @@ export default function App() {
         showToast,
         pinned
       };
-      content = room.type === "diary"
+      const roomEl = room.type === "diary"
         ? <DiaryRoom key={room.id} {...common} syncSignal={diarySync} />
         : room.type === "todo"
           ? <TodoRoom key={room.id} {...common} onTodoComplete={onTodoComplete} onTodoUncomplete={onTodoUncomplete} />
           : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
+      content = (
+        <SwipeBack key={room.id} onBack={() => setView({ screen: "home" })}>
+          {roomEl}
+        </SwipeBack>
+      );
     }
   } else {
     content = (
