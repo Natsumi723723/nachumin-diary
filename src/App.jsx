@@ -300,10 +300,12 @@ export default function App() {
             )
           ) : (
             sorted.map((r) => {
-              // トーク型: 1行目=話者、2行目=投稿内容 / 日記型: 1行目=ルーム名、2行目=内容
+              // 1行目=ルーム名。2行目はトーク型なら「話者名: 内容」、日記型は内容のみ
               const isTalk = r.type === "talk";
-              const line1 = isTalk ? (r.previewName || r.name) : r.name;
-              const line2 = r.preview || (isTalk ? "かけあいを書こう💗" : "日記を書こう💗");
+              const line1 = r.name;
+              const line2 = r.preview
+                ? (isTalk && r.previewName ? `${r.previewName}: ${r.preview}` : r.preview)
+                : (isTalk ? "かけあいを書こう💗" : "日記を書こう💗");
               return (
                 <div
                   className="room-row" key={r.id}
