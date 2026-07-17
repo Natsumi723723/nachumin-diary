@@ -86,7 +86,7 @@ export default function MemberEditor({ members, onChange, onClose, showToast }) 
             {members.length === 0 && <p className="panel-note">まだメンバーがいません。追加してね💗</p>}
             {members.map((m, i) => (
               <div className="mem-row" key={m.id}>
-                <MIcon icon={m.icon} size={30} />
+                <MIcon icon={m.icon} size={30} color={m.color} />
                 <span className="mem-name">{m.name}</span>
                 <span className="mem-dot" style={{ background: m.color }} />
                 <button className="mem-btn" disabled={i === 0} onClick={() => move(i, -1)} aria-label="上へ">↑</button>
@@ -110,7 +110,7 @@ export default function MemberEditor({ members, onChange, onClose, showToast }) 
             />
             <div className="f-label">アイコン</div>
             <div className="icon-preview">
-              <MIcon icon={member.icon} size={44} />
+              <MIcon icon={member.icon} size={44} color={member.color} />
               <input
                 className="f-input" style={{ width: 90, textAlign: "center" }}
                 maxLength={8} placeholder="絵文字"

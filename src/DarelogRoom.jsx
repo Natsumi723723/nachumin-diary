@@ -237,7 +237,7 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
                                   aria-label={mb?.name || "記録"}
                                   style={{ borderColor: mb?.color || "#f0a6cf" }}
                                 >
-                                  <MIcon icon={mb?.icon} size={22} />
+                                  <MIcon icon={mb?.icon} size={22} color={mb?.color} />
                                   {r.memo && r.memo.trim() && <span className="dl-dot" />}
                                 </button>
                               );
@@ -286,7 +286,7 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
                       style={{ borderColor: on ? "#e0629f" : m.color }}
                       onClick={() => toggleMember(m.id)}
                     >
-                      <MIcon icon={m.icon} size={30} />
+                      <MIcon icon={m.icon} size={30} color={m.color} />
                       <span className="dl-pick-name">{m.name}</span>
                       {on && <span className="dl-pick-check">✓</span>}
                     </button>
@@ -306,7 +306,7 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
         <div className="overlay" onClick={() => setMenu(null)}>
           <div className="panel" onClick={(e) => e.stopPropagation()}>
             <h3>
-              <MIcon icon={memberOf(menu.memberId)?.icon} size={22} /> {memberOf(menu.memberId)?.name || "？"}
+              <MIcon icon={memberOf(menu.memberId)?.icon} size={22} color={memberOf(menu.memberId)?.color} /> {memberOf(menu.memberId)?.name || "？"}
               <span style={{ fontSize: 12, color: "#b06992", marginLeft: 6 }}>
                 {SLOTS.find((s) => s.key === menu.slot)?.emoji}{keyToDisp(menu.dateKey)}
               </span>
