@@ -1,15 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
-  get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID
+  get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID, DECL_KEY
 } from "./storage.js";
 import {
   keyToDisp, homeDate, uid, escapeRegExp, todayKey, nowTime, applyDeclToEntryText
 } from "./format.js";
+import { dumpAll, restoreAll } from "./backup.js";
 import { css } from "./theme.js";
 import DiaryRoom from "./DiaryRoom.jsx";
 import TalkRoom from "./TalkRoom.jsx";
-
-const DECL_KEY = "declaration-v1";
 
 export default function App() {
   const [rooms, setRooms] = useState(null);
@@ -23,6 +22,10 @@ export default function App() {
   const [declModal, setDeclModal] = useState(null); // null | 'view' | 'edit'
   const [declDraft, setDeclDraft] = useState("");
   const [diarySync, setDiarySync] = useState(0); // 開いている日記ルームへ再読込を通知
+  const [backupOpen, setBackupOpen] = useState(false);
+  const [backupText, setBackupText] = useState("");
+  const [restoreText, setRestoreText] = useState("");
+  const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState("");
   const toastTimer = useRef(null);
 
@@ -201,6 +204,80 @@ export default function App() {
     }
   };
 
+  /* ---------- 全体バックアップ / 復元 ---------- */
+  const openBackup = async () => {
+    setRestoreText("");
+    setCopied(false);
+    try {
+      const dump = await dumpAll();
+      setBackupText(JSON.stringify(dump, null, 2));
+    } catch (e) {
+      setBackupText("");
+    }
+    setBackupOpen(true);
+  };
+
+  const downloadBackup = () => {
+    try {
+      const blob = new Blob([backupText], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `nachumin-diary-backup-${todayKey()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      showToast("バックアップを保存したよ💗 iCloud/ファイルに入れておくと安心");
+    } catch (e) {
+      showToast("保存できない環境みたい。コピーを使ってね");
+    }
+  };
+
+  const copyBackup = async () => {
+    try {
+      await navigator.clipboard.writeText(backupText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      showToast("コピーできませんでした。全選択して手動でコピーしてね");
+    }
+  };
+
+  const onBackupFile = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => setRestoreText(String(reader.result || ""));
+    reader.onerror = () => showToast("ファイルを読めませんでした");
+    reader.readAsText(f);
+    e.target.value = "";
+  };
+
+  const doRestore = async () => {
+    let obj;
+    try {
+      obj = JSON.parse(restoreText);
+    } catch (e) {
+      showToast("バックアップの形式が読めませんでした 🥺");
+      return;
+    }
+    try {
+      const res = await restoreAll(obj);
+      setRooms(res.rooms);
+      if (obj.declaration && obj.declaration.dateKey === todayKey() && !decl) {
+        await set(DECL_KEY, obj.declaration);
+        setDecl(obj.declaration.text);
+      }
+      setDiarySync((s) => s + 1);
+      setBackupOpen(false);
+      setRestoreText("");
+      showToast(`復元完了💗 ${res.addedRooms}ルーム / ${res.addedItems}件を追加`);
+    } catch (e) {
+      showToast("これはこのアプリのバックアップではないみたい 🥺");
+    }
+  };
+
   /* ---------- render ---------- */
   if (!rooms) {
     return (
@@ -255,6 +332,11 @@ export default function App() {
           </div>
           <button
             className="icon-btn" style={{ marginLeft: "auto" }}
+            aria-label="バックアップ"
+            onClick={openBackup}
+          >💾</button>
+          <button
+            className="icon-btn"
             aria-label="新しいルーム"
             onClick={() => setModal({ mode: "new", name: "", emoji: "", type: "talk" })}
           >➕</button>
@@ -382,6 +464,39 @@ export default function App() {
                 </button>
               )}
               <button className="p-close" onClick={() => { setModal(null); setRoomDel(false); }}>閉じる</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 全体バックアップ / 復元 modal */}
+      {backupOpen && (
+        <div className="overlay" onClick={() => setBackupOpen(false)}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>💾 まるごとバックアップ</h3>
+            <p className="panel-note">
+              全ルーム・全メンバー・宣言をまるごと1ファイルに保存します。<br />
+              端末が変わっても、このファイルから元どおり復元できます。
+            </p>
+            <div className="panel-btns">
+              <button className="p-copy" onClick={downloadBackup}>💾 ファイルに保存</button>
+              <button className="p-dl" onClick={copyBackup}>{copied ? "コピーしたよ💗" : "コピー"}</button>
+            </div>
+            <div className="f-label" style={{ marginTop: 6 }}>復元する（バックアップから読み込み）</div>
+            <p className="panel-note">既存のデータは消さず、足りない分だけ追加します（安全マージ）</p>
+            <label className="upload-btn" style={{ alignSelf: "flex-start" }}>
+              📂 バックアップファイルを選ぶ
+              <input type="file" accept=".json,application/json,text/plain" onChange={onBackupFile} />
+            </label>
+            <textarea
+              placeholder="または、コピーしたバックアップをここに貼り付け"
+              value={restoreText}
+              onChange={(e) => setRestoreText(e.target.value)}
+              style={{ minHeight: 120 }}
+            />
+            <div className="panel-btns">
+              <button className="p-copy" disabled={!restoreText.trim()} onClick={doRestore}>復元する</button>
+              <button className="p-close" onClick={() => { setBackupOpen(false); setRestoreText(""); }}>閉じる</button>
             </div>
           </div>
         </div>

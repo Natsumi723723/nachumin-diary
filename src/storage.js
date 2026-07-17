@@ -14,6 +14,8 @@ export const ROOMS_KEY = "rooms-v1";
 export const roomDataKey = (id) => `room-data-v1:${id}`;
 // ルーム削除時の退避先(ハード削除しない)
 export const trashKey = (id) => `trash-v1:${id}:${Date.now()}`;
+// 今日の宣言
+export const DECL_KEY = "declaration-v1";
 
 export const DIARY_ROOM_ID = "diary-main";
 
