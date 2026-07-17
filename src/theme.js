@@ -29,12 +29,23 @@ const bgSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240' 
 </svg>`;
 export const bgUrl = `url("data:image/svg+xml,${encodeURIComponent(bgSvg)}")`;
 
-// トーク型メンバーの吹き出し色プリセット（文字色 #4a3140 が読める明るさに限定）
+// トーク型メンバーの吹き出し色プリセット（黄色は不使用。白・黒も選べる）
 export const PALETTE = [
-  "#fff5fa", "#ffd9ec", "#ffc4e1", "#ff9fd0",
-  "#ffe27a", "#ffd1a6", "#d4f0ff", "#c9f5f2",
-  "#d9ffe3", "#e8dcff", "#f0f0f0", "#ffffff"
+  "#ffffff", "#fff5fa", "#ffd9ec", "#ffc4e1",
+  "#ff9fd0", "#e0629f", "#d4f0ff", "#c9f5f2",
+  "#d9ffe3", "#e8dcff", "#f0f0f0", "#2b2430"
 ];
+
+// 背景色に応じて読みやすい文字色を返す（暗い背景なら明るい文字）
+export const textOn = (bg) => {
+  const c = String(bg).replace("#", "");
+  if (c.length < 6) return "#4a3140";
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  const L = 0.299 * r + 0.587 * g + 0.114 * b;
+  return L < 140 ? "#fff5fa" : "#4a3140";
+};
 
 export const css = `
   * { box-sizing: border-box; }
@@ -67,6 +78,28 @@ export const css = `
     border: none; background: transparent; color: #c2478f;
     font-size: 22px; font-weight: 700; cursor: pointer; padding: 0 4px;
     flex-shrink: 0;
+  }
+  /* 今日の宣言（ピン留めバー） */
+  .pin {
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    padding: 7px 14px; cursor: pointer;
+    background: linear-gradient(90deg, #ffe0f1, #ffd0ea);
+    border-bottom: 1px solid #f3b9d9;
+    box-shadow: inset 0 -1px 0 rgba(255,255,255,.4);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .pin:active { filter: brightness(.98); }
+  .pin-ic { font-size: 15px; flex-shrink: 0; }
+  .pin-txt, .pin-ph {
+    flex: 1; min-width: 0;
+    font-size: 12.5px; font-weight: 700; color: #a4356f;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pin-ph { color: #c47aa2; font-weight: 600; }
+  .decl-full {
+    white-space: pre-wrap; font-size: 15px; line-height: 1.7;
+    color: #4a3140; background: #fff; border: 1.5px solid #f0a6cf;
+    border-radius: 12px; padding: 12px 14px;
   }
   /* modal */
   .overlay {
@@ -163,7 +196,7 @@ export const css = `
     background: rgba(255,245,250,.85); border-radius: 14px;
     padding: 14px; margin: 40px 24px; white-space: pre-wrap;
   }
-  .hl { background: #ffe27a; border-radius: 3px; padding: 0 1px; }
+  .hl { background: #e0629f; color: #fff; border-radius: 3px; padding: 0 2px; }
   /* diary bubbles */
   .row { display: flex; justify-content: flex-end; align-items: flex-end;
     gap: 6px; margin-bottom: 16px; }

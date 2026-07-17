@@ -6,7 +6,7 @@ import {
 } from "./format.js";
 
 /* 日記型ルーム: 1日=1吹き出し（現行仕様そのまま） */
-export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToast }) {
+export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToast, pinned, syncSignal }) {
   const [entries, setEntries] = useState({}); // { "2026-07-16": {text, time} }
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState(todayKey());
@@ -36,6 +36,15 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
       }
     })();
   }, [room.id]);
+
+  // 宣言バーなどから日記データが外部更新されたら読み直す
+  useEffect(() => {
+    if (!syncSignal) return;
+    (async () => {
+      const v = await get(roomDataKey(room.id));
+      if (v) setEntries(typeof v === "string" ? JSON.parse(v) : v);
+    })();
+  }, [syncSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const persist = async (next) => {
     setEntries(next);
@@ -135,19 +144,36 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     if (taRef.current) taRef.current.style.height = "auto";
   };
 
+  // 編集中は広く、通常は最大140pxまで自動伸縮
+  const growCap = () => (editing ? Math.round(window.innerHeight * 0.45) : 140);
+  const resizeTa = () => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, growCap()) + "px";
+  };
+
   const startEdit = (k) => {
     setEditing(k);
     setConfirmDel(false);
     setDraft(entries[k].text);
     setQuery("");
     setSearchOpen(false);
-    setTimeout(() => taRef.current && taRef.current.focus(), 50);
+    setTimeout(() => {
+      if (taRef.current) {
+        taRef.current.focus();
+        taRef.current.style.height = "auto";
+        taRef.current.style.height =
+          Math.min(taRef.current.scrollHeight, Math.round(window.innerHeight * 0.45)) + "px";
+      }
+    }, 50);
   };
 
   const cancelEdit = () => {
     setEditing(null);
     setConfirmDel(false);
     setDraft("");
+    if (taRef.current) taRef.current.style.height = "auto";
   };
 
   const deleteEntry = () => {
@@ -165,7 +191,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     setDraft(e.target.value);
     const el = e.target;
     el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 140) + "px";
+    el.style.height = Math.min(el.scrollHeight, growCap()) + "px";
   };
 
   const keys = Object.keys(entries).sort();
@@ -220,6 +246,8 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
           onClick={() => { setSearchOpen(!searchOpen); setQuery(""); }}
         >{searchOpen ? "✕" : "🔍"}</button>
       </div>
+
+      {pinned}
 
       {searchOpen && (
         <div className="search-row">
@@ -292,7 +320,8 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
         )}
         <div className="in-row">
           <textarea
-            ref={taRef} className="ta" rows={1}
+            ref={taRef} className="ta" rows={editing ? 4 : 1}
+            style={{ maxHeight: editing ? "45vh" : "140px" }}
             placeholder={editing ? "内容を書きなおしてね" : "今日あったことを書く…"}
             value={draft} onChange={autoGrow}
           />

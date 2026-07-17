@@ -1,11 +1,15 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
-  get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey
+  get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID
 } from "./storage.js";
-import { keyToDisp, homeDate, uid, escapeRegExp } from "./format.js";
+import {
+  keyToDisp, homeDate, uid, escapeRegExp, todayKey, nowTime, applyDeclToEntryText
+} from "./format.js";
 import { css } from "./theme.js";
 import DiaryRoom from "./DiaryRoom.jsx";
-import TalkRoom, { MIcon } from "./TalkRoom.jsx";
+import TalkRoom from "./TalkRoom.jsx";
+
+const DECL_KEY = "declaration-v1";
 
 export default function App() {
   const [rooms, setRooms] = useState(null);
@@ -15,6 +19,10 @@ export default function App() {
   const [cache, setCache] = useState(null); // { roomId: data } 横断検索用
   const [modal, setModal] = useState(null); // {mode:'new'|'edit', name, emoji, type, roomId?}
   const [roomDel, setRoomDel] = useState(false);
+  const [decl, setDecl] = useState(""); // 今日の宣言（空=未設定）
+  const [declModal, setDeclModal] = useState(null); // null | 'view' | 'edit'
+  const [declDraft, setDeclDraft] = useState("");
+  const [diarySync, setDiarySync] = useState(0); // 開いている日記ルームへ再読込を通知
   const [toast, setToast] = useState("");
   const toastTimer = useRef(null);
 
@@ -24,11 +32,13 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(""), ms);
   };
 
-  /* 起動時: ルーム読込（旧データがあれば「日記」ルームへ自動移行） */
+  /* 起動時: ルーム読込（旧データがあれば「日記」ルームへ自動移行）+ 今日の宣言 */
   useEffect(() => {
     (async () => {
       try {
         setRooms(await loadRooms());
+        const d = await get(DECL_KEY);
+        if (d && d.dateKey === todayKey()) setDecl(d.text);
       } catch (e) {
         showToast("データの読み込みに失敗しました");
         setRooms([]);
@@ -47,6 +57,45 @@ export default function App() {
       set(ROOMS_KEY, next).catch(() => showToast("保存に失敗しました"));
       return next;
     });
+  };
+
+  /* ---------- 今日の宣言 ---------- */
+  const applyDeclaration = async (raw) => {
+    const text = raw.trim();
+    if (!text) return;
+    const today = todayKey();
+    try {
+      await set(DECL_KEY, { dateKey: today, text });
+      setDecl(text);
+      // 日記ルームの当日吹き出しの先頭に「🎬 今日のコマ」を記録
+      const key = roomDataKey(DIARY_ROOM_ID);
+      let data = await get(key);
+      data = data && typeof data === "object" ? data : {};
+      const existing = data[today];
+      const newText = applyDeclToEntryText(existing ? existing.text : "", text);
+      data = { ...data, [today]: { text: newText, time: existing ? existing.time : nowTime() } };
+      await set(key, data);
+      // rooms メタ更新（日記ルームが無ければ作り直す）
+      const ks = Object.keys(data).sort();
+      const lastKey = ks[ks.length - 1];
+      const preview = data[lastKey].text.split("\n")[0].slice(0, 40);
+      setRooms((prev) => {
+        let next = prev;
+        if (!prev.find((r) => r.id === DIARY_ROOM_ID)) {
+          next = [...prev, {
+            id: DIARY_ROOM_ID, type: "diary", name: "日記", emoji: "💗",
+            members: [], createdAt: Date.now(), lastAt: 0, preview: ""
+          }];
+        }
+        next = next.map((r) => (r.id === DIARY_ROOM_ID ? { ...r, preview, lastAt: Date.now() } : r));
+        set(ROOMS_KEY, next);
+        return next;
+      });
+      setDiarySync((s) => s + 1);
+      showToast("今日のコマをピン留めしたよ🩷");
+    } catch (e) {
+      showToast("宣言の保存に失敗しました");
+    }
   };
 
   /* 横断検索: 検索を開いたら全ルームのデータを読み込む */
@@ -161,23 +210,37 @@ export default function App() {
     );
   }
 
+  // すべてのルーム画面の最上部に出す「今日の宣言」バー
+  const pinned = (
+    <div
+      className="pin"
+      onClick={() => { setDeclDraft(decl); setDeclModal(decl ? "view" : "edit"); }}
+      role="button"
+    >
+      <span className="pin-ic">{decl ? "📌" : "🩷"}</span>
+      {decl
+        ? <span className="pin-txt">{decl}</span>
+        : <span className="pin-ph">今日のコマをえらぶ🩷</span>}
+    </div>
+  );
+
   let content;
   if (view.screen === "room") {
     const room = rooms.find((r) => r.id === view.roomId);
     if (!room) {
       content = null;
-      // ルームが消えていたらホームへ
-      if (view.screen === "room") setTimeout(() => setView({ screen: "home" }), 0);
+      setTimeout(() => setView({ screen: "home" }), 0);
     } else {
       const common = {
         room,
         onBack: () => setView({ screen: "home" }),
         onMeta: (patch) => updateRoom(room.id, patch),
         initialQuery: view.q,
-        showToast
+        showToast,
+        pinned
       };
       content = room.type === "diary"
-        ? <DiaryRoom key={room.id} {...common} />
+        ? <DiaryRoom key={room.id} {...common} syncSignal={diarySync} />
         : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
     }
   } else {
@@ -236,16 +299,20 @@ export default function App() {
               ))
             )
           ) : (
-            <>
-              {sorted.map((r) => (
+            sorted.map((r) => {
+              // トーク型: 1行目=話者、2行目=投稿内容 / 日記型: 1行目=ルーム名、2行目=内容
+              const isTalk = r.type === "talk";
+              const line1 = isTalk ? (r.previewName || r.name) : r.name;
+              const line2 = r.preview || (isTalk ? "かけあいを書こう💗" : "日記を書こう💗");
+              return (
                 <div
                   className="room-row" key={r.id}
                   onClick={() => setView({ screen: "room", roomId: r.id })}
                 >
                   <div className="r-ic">{r.emoji}</div>
                   <div className="r-main">
-                    <div className="r-name">{r.name}</div>
-                    <div className="r-prev">{r.preview || (r.type === "diary" ? "日記を書こう💗" : "かけあいを書こう💗")}</div>
+                    <div className="r-name">{line1}</div>
+                    <div className="r-prev">{line2}</div>
                   </div>
                   <div className="r-side">
                     <span className="r-date">{homeDate(r.lastAt)}</span>
@@ -259,11 +326,8 @@ export default function App() {
                     >⋯</button>
                   </div>
                 </div>
-              ))}
-              <div className="empty" style={{ margin: "24px 24px" }}>
-                ➕ からルームを追加できるよ{"\n"}日記型: 1日1吹き出しの日記{"\n"}トーク型: キャラのかけあい・会話メモ
-              </div>
-            </>
+              );
+            })
           )}
         </div>
       </>
@@ -317,6 +381,43 @@ export default function App() {
               )}
               <button className="p-close" onClick={() => { setModal(null); setRoomDel(false); }}>閉じる</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 今日の宣言 modal */}
+      {declModal && (
+        <div className="overlay" onClick={() => setDeclModal(null)}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>🩷 今日のコマ</h3>
+            {declModal === "view" ? (
+              <>
+                <div className="decl-full">{decl}</div>
+                <p className="panel-note">その日1日だけピン留め。日記にも記録されています🎬</p>
+                <div className="panel-btns">
+                  <button className="p-copy" onClick={() => { setDeclDraft(decl); setDeclModal("edit"); }}>書きなおす</button>
+                  <button className="p-close" onClick={() => setDeclModal(null)}>閉じる</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <textarea
+                  autoFocus
+                  style={{ minHeight: 120 }}
+                  placeholder="今日は愛全開の私でいる！"
+                  value={declDraft}
+                  onChange={(e) => setDeclDraft(e.target.value)}
+                />
+                <p className="panel-note">その日1日だけ表示。決定すると今日の日記の先頭に🎬として残ります</p>
+                <div className="panel-btns">
+                  <button
+                    className="p-copy" disabled={!declDraft.trim()}
+                    onClick={() => { applyDeclaration(declDraft); setDeclModal(null); }}
+                  >決定</button>
+                  <button className="p-close" onClick={() => setDeclModal(null)}>閉じる</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

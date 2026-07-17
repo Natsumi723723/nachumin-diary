@@ -73,7 +73,7 @@ export const talkToText = (messages, nameOf) => {
       if (out.length) out.push("");
       out.push(`🩷${keyToDisp(cur)}🩷`);
     }
-    out.push(`${nameOf(m.memberId)}「${m.text}」`);
+    out.push(`${m.time ? m.time + " " : ""}${nameOf(m.memberId)}「${m.text}」`);
   }
   return out.join("\n");
 };
@@ -81,12 +81,12 @@ export const talkToText = (messages, nameOf) => {
 export const parseTalkText = (raw) => {
   const msgs = [];
   let dateKey = todayKey();
-  let cur = null; // { dateKey, name, lines }
+  let cur = null; // { dateKey, name, time, lines }
   const flush = () => {
     if (!cur) return;
     let text = cur.lines.join("\n").trim();
     if (text.endsWith("」")) text = text.slice(0, -1);
-    if (text) msgs.push({ dateKey: cur.dateKey, name: cur.name, text });
+    if (text) msgs.push({ dateKey: cur.dateKey, name: cur.name, time: cur.time, text });
     cur = null;
   };
   for (const line of raw.split("\n")) {
@@ -99,9 +99,10 @@ export const parseTalkText = (raw) => {
       continue;
     }
     if (!cur) {
-      const sm = line.match(/^(.+?)「([\s\S]*)$/u);
+      // 先頭に任意の時刻(H:MM)が付いていれば取り出す
+      const sm = line.match(/^(?:(\d{1,2}:\d{2})\s+)?(.+?)「([\s\S]*)$/u);
       if (!sm) continue; // 話者行以外の迷子行は無視
-      cur = { dateKey, name: sm[1].trim(), lines: [sm[2]] };
+      cur = { dateKey, name: sm[2].trim(), time: sm[1] || "", lines: [sm[3]] };
     } else {
       cur.lines.push(line);
     }
@@ -113,4 +114,21 @@ export const parseTalkText = (raw) => {
   }
   flush();
   return msgs;
+};
+
+/* ---------- 今日の宣言（日記への自動記録用） ---------- */
+export const DECL_MARKER = "🎬 今日のコマ: ";
+
+export const stripDeclLine = (text) =>
+  (text || "")
+    .split("\n")
+    .filter((l) => !l.startsWith(DECL_MARKER))
+    .join("\n")
+    .replace(/^\n+/, "");
+
+// 日記吹き出しの先頭に宣言行を差し込む（既存の宣言行は置き換え）
+export const applyDeclToEntryText = (text, decl) => {
+  const body = stripDeclLine(text).trim();
+  const line = DECL_MARKER + decl;
+  return body ? `${line}\n\n${body}` : line;
 };
