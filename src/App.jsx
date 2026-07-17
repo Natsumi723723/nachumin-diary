@@ -11,6 +11,7 @@ import { css } from "./theme.js";
 import DiaryRoom from "./DiaryRoom.jsx";
 import TalkRoom from "./TalkRoom.jsx";
 import TodoRoom from "./TodoRoom.jsx";
+import DarelogRoom from "./DarelogRoom.jsx";
 import SwipeBack from "./SwipeBack.jsx";
 
 export default function App() {
@@ -199,6 +200,15 @@ export default function App() {
             hits.push({ snippet: `${t.done ? "☑" : "☐"} ${t.text.split("\n")[0]}`, date: keyToDisp(t.dateKey) });
           }
         }
+      } else if (r.type === "darelog") {
+        const recs = data && Array.isArray(data.records) ? data.records : [];
+        const nameOf = (id) => r.members?.find((m) => m.id === id)?.name || "";
+        for (const rec of recs) {
+          const nm = nameOf(rec.memberId);
+          if ((nm + (rec.memo || "") + keyToDisp(rec.dateKey)).toLowerCase().includes(q)) {
+            hits.push({ snippet: `${nm}${rec.memo ? `: ${rec.memo}` : ""}`, date: keyToDisp(rec.dateKey) });
+          }
+        }
       } else {
         const ms = data && Array.isArray(data.messages) ? data.messages : [];
         const nameOf = (id) => r.members?.find((m) => m.id === id)?.name || "";
@@ -234,10 +244,19 @@ export default function App() {
       showToast("ルーム名を入れてね");
       return;
     }
+    const defaultEmoji = { diary: "💗", todo: "✅", darelog: "🌗", talk: "🩷" }[modal.type] || "🩷";
+    // だれログは初期人格を用意（記録のハードルをゼロに）
+    const initMembers = modal.type === "darelog"
+      ? [
+          { id: uid(), name: "ヒカルくん", color: "#d4f0ff", icon: { type: "emoji", value: "🌊" }, side: "left" },
+          { id: uid(), name: "柊くん", color: "#d9ffe3", icon: { type: "emoji", value: "🌿" }, side: "left" },
+          { id: uid(), name: "ひかりちゃん", color: "#ffd9ec", icon: { type: "emoji", value: "🌸" }, side: "right" }
+        ]
+      : [];
     const room = {
       id: uid(), type: modal.type, name,
-      emoji: modal.emoji.trim() || (modal.type === "diary" ? "💗" : modal.type === "todo" ? "✅" : "🩷"),
-      members: [], createdAt: Date.now(), lastAt: 0, preview: ""
+      emoji: modal.emoji.trim() || defaultEmoji,
+      members: initMembers, createdAt: Date.now(), lastAt: 0, preview: ""
     };
     saveRooms([...rooms, room]);
     setModal(null);
@@ -389,7 +408,9 @@ export default function App() {
         ? <DiaryRoom key={room.id} {...common} syncSignal={diarySync} />
         : room.type === "todo"
           ? <TodoRoom key={room.id} {...common} onTodoComplete={onTodoComplete} onTodoUncomplete={onTodoUncomplete} />
-          : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
+          : room.type === "darelog"
+            ? <DarelogRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />
+            : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
       content = (
         <SwipeBack key={room.id} onBack={() => setView({ screen: "home" })}>
           {roomEl}
@@ -461,7 +482,10 @@ export default function App() {
               // 1行目=ルーム名。2行目はトーク型なら「話者名: 内容」、日記型は内容のみ
               const isTalk = r.type === "talk";
               const isTodo = r.type === "todo";
-              const emptyMsg = isTalk ? "かけあいを書こう💗" : isTodo ? "やることを追加しよう💗" : "日記を書こう💗";
+              const emptyMsg = isTalk ? "かけあいを書こう💗"
+                : isTodo ? "やることを追加しよう💗"
+                : r.type === "darelog" ? "朝昼夜の記録をつけよう💗"
+                : "日記を書こう💗";
               const line1 = r.name;
               const line2 = r.preview
                 ? (isTalk && r.previewName ? `${r.previewName}: ${r.preview}` : r.preview)
@@ -537,6 +561,11 @@ export default function App() {
                 disabled={modal.mode === "edit"}
                 onClick={() => setModal((o) => ({ ...o, type: "todo" }))}
               >✅ TODO<small>やること</small></button>
+              <button
+                className={"type-chip" + (modal.type === "darelog" ? " on" : "")}
+                disabled={modal.mode === "edit"}
+                onClick={() => setModal((o) => ({ ...o, type: "darelog" }))}
+              >🌗 だれログ<small>朝昼夜の記録</small></button>
             </div>
             <div className="panel-btns">
               <button className="p-copy" onClick={modal.mode === "new" ? createRoom : saveEdit}>

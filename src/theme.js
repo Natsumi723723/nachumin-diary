@@ -143,9 +143,9 @@ export const css = `
     font-family: inherit; width: 100%;
   }
   .f-input:focus { border-color: #e0629f; }
-  .type-row { display: flex; gap: 8px; }
+  .type-row { display: flex; gap: 8px; flex-wrap: wrap; }
   .type-chip {
-    flex: 1; border: 1.5px solid #f0a6cf; background: #fff; color: #b04a86;
+    flex: 1 1 44%; border: 1.5px solid #f0a6cf; background: #fff; color: #b04a86;
     border-radius: 14px; padding: 10px 8px; font-size: 12.5px; font-weight: 700;
     cursor: pointer; text-align: center; line-height: 1.5;
   }
@@ -305,6 +305,61 @@ export const css = `
     100% { transform: scale(1) rotate(0); opacity: 1; }
   }
   .todo-time { font-size: 9.5px; color: #7d5570; margin-top: 6px; flex-shrink: 0; }
+  /* だれログ: 表 */
+  .dl-scroll { flex: 1; overflow-y: auto; padding: 6px 10px 24px; }
+  .dl-table { width: 100%; border-collapse: separate; border-spacing: 4px; }
+  .dl-slothead {
+    position: sticky; top: 0; z-index: 2;
+    background: rgba(255,240,249,.96); color: #a4356f;
+    font-size: 12px; font-weight: 700; padding: 4px 0; border-radius: 10px;
+    line-height: 1.25; text-align: center; width: 27%;
+  }
+  .dl-datecol {
+    width: 19%; text-align: center; vertical-align: middle;
+    background: rgba(255,245,250,.7); border-radius: 10px; padding: 2px;
+  }
+  thead .dl-datecol { position: sticky; top: 0; z-index: 2; background: rgba(255,240,249,.96); }
+  .dl-md { display: block; font-size: 13px; font-weight: 700; color: #a4356f; }
+  .dl-wd { display: block; font-size: 10px; color: #b06992; }
+  .dl-todayrow .dl-datecol {
+    background: #ffd9ec; box-shadow: 0 0 0 1.5px #e0629f inset;
+  }
+  .dl-cell {
+    min-height: 42px; height: 42px; vertical-align: middle;
+    background: rgba(255,255,255,.55); border-radius: 12px; padding: 3px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dl-cell.empty { cursor: pointer; }
+  .dl-cell.today.empty {
+    background: transparent; border: 1.5px dashed #e9a8cc;
+  }
+  .dl-cell.current { box-shadow: 0 0 0 2px #f7a8d3 inset; background: #fff0f8; }
+  .dl-plus { color: #e0629f; font-size: 17px; font-weight: 700; display: block; text-align: center; }
+  .dl-icons { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; justify-content: center; }
+  .dl-icon {
+    position: relative; border: 1.5px solid #f0a6cf; background: #fff;
+    border-radius: 50%; padding: 1px; cursor: pointer; line-height: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dl-icon:active { transform: scale(.92); }
+  .dl-dot {
+    position: absolute; top: -2px; right: -2px; width: 8px; height: 8px;
+    background: #e0629f; border: 1.5px solid #fff5fa; border-radius: 50%;
+  }
+  .dl-add-sm {
+    border: 1.5px dashed #e9a8cc; background: transparent; color: #c47aa2;
+    border-radius: 50%; width: 24px; height: 24px; font-size: 14px;
+    cursor: pointer; flex-shrink: 0; padding: 0;
+  }
+  .dl-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dl-pick {
+    position: relative; display: flex; align-items: center; gap: 6px;
+    border: 2px solid #f0a6cf; background: #fff; border-radius: 999px;
+    padding: 4px 12px 4px 4px; cursor: pointer;
+  }
+  .dl-pick.on { background: #ffe4f1; }
+  .dl-pick-name { font-size: 13px; font-weight: 700; color: #a4356f; }
+  .dl-pick-check { color: #e0629f; font-weight: 900; font-size: 13px; }
   /* edit banner */
   .banner {
     display: flex; align-items: center; gap: 8px;

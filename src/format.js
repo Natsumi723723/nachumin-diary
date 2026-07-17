@@ -11,6 +11,11 @@ export const pad = (n) => String(n).padStart(2, "0");
 export const toKey = (d) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 export const keyToDisp = (k) => k.split("-").join("/");
+export const keyToDate = (k) => {
+  const [y, m, d] = k.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+export const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 export const todayKey = () => toKey(logicalNow());
 export const yesterdayKey = () => {
   const d = logicalNow();
@@ -125,6 +130,99 @@ export const parseTalkText = (raw) => {
   flush();
   return msgs;
 };
+
+/* ---------- だれログ型（朝昼夜の人格記録） ---------- */
+export const SLOTS = [
+  { key: "morning", label: "朝", emoji: "🌅" },
+  { key: "noon", label: "昼", emoji: "☀️" },
+  { key: "night", label: "夜", emoji: "🌙" }
+];
+// 29時制: 5:00-10:59=朝 / 11:00-16:59=昼 / 17:00-4:59=夜
+export const slotOfNow = () => {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 11) return "morning";
+  if (h >= 11 && h < 17) return "noon";
+  return "night";
+};
+const slotOrder = { morning: 0, noon: 1, night: 2 };
+
+export const darelogToText = (records, members) => {
+  const nameOf = (id) => members.find((m) => m.id === id)?.name || "？";
+  const byDate = {};
+  for (const r of records) {
+    (byDate[r.dateKey] ||= { morning: [], noon: [], night: [] })[r.slot].push(r);
+  }
+  const lines = [];
+  for (const dk of Object.keys(byDate).sort()) {
+    const parts = [];
+    for (const s of SLOTS) {
+      const rs = byDate[dk][s.key];
+      if (!rs.length) continue;
+      const names = rs
+        .map((r) => nameOf(r.memberId) + (r.memo && r.memo.trim() ? `(${r.memo.trim()})` : ""))
+        .join("・");
+      parts.push(`${s.emoji}${s.label}:${names}`);
+    }
+    if (parts.length) lines.push(`🩷${keyToDisp(dk)}🩷 ${parts.join(" / ")}`);
+  }
+  return lines.join("\n");
+};
+
+// "🩷2026/07/17🩷 🌅朝:ヒカルくん / ☀️昼:柊くん(メモ) / 🌙夜:ひかりちゃん・柊くん"
+export const parseDarelogText = (raw) => {
+  const out = [];
+  const slotFrom = (s) => (s.includes("朝") ? "morning" : s.includes("昼") ? "noon" : s.includes("夜") ? "night" : null);
+  for (const line of raw.split("\n")) {
+    const m = line.match(/^🩷?\s*(\d{4})[/-](\d{1,2})[/-](\d{1,2})\s*🩷?\s*(.*)$/u);
+    if (!m) continue;
+    const dateKey = `${m[1]}-${pad(Number(m[2]))}-${pad(Number(m[3]))}`;
+    const rest = m[4];
+    if (!rest.trim()) continue;
+    for (const part of rest.split("/")) {
+      const ci = part.indexOf(":");
+      const ci2 = part.indexOf("：");
+      const idx = ci === -1 ? ci2 : ci2 === -1 ? ci : Math.min(ci, ci2);
+      if (idx === -1) continue;
+      const slot = slotFrom(part.slice(0, idx));
+      if (!slot) continue;
+      const names = part.slice(idx + 1);
+      for (const nm of names.split("・")) {
+        const mm = nm.trim().match(/^(.+?)(?:[(（]([\s\S]*)[)）])?$/u);
+        if (!mm) continue;
+        const name = mm[1].trim();
+        if (!name) continue;
+        out.push({ dateKey, slot, name, memo: (mm[2] || "").trim() });
+      }
+    }
+  }
+  return out;
+};
+
+// レコード配列を「日付→時間帯→[レコード]」に畳む
+export const groupDarelog = (records) => {
+  const map = {};
+  for (const r of records) {
+    (map[r.dateKey] ||= { morning: [], noon: [], night: [] })[r.slot].push(r);
+  }
+  return map;
+};
+
+// 表示する日付の並び（古い順・下が今日）。最低35日ぶん＋記録のある最古日まで
+export const darelogDateRows = (records, todayK) => {
+  let earliest = todayK;
+  for (const r of records) if (r.dateKey < earliest) earliest = r.dateKey;
+  const end = keyToDate(todayK);
+  const min = keyToDate(todayK);
+  min.setDate(min.getDate() - 34);
+  const startD = keyToDate(earliest) < min ? keyToDate(earliest) : min;
+  const rows = [];
+  for (let cur = new Date(startD); toKey(cur) <= todayK; cur.setDate(cur.getDate() + 1)) {
+    rows.push(toKey(cur));
+  }
+  return rows;
+};
+
+export { slotOrder };
 
 /* ---------- TODO型 エクスポート/インポート ---------- */
 export const todoToText = (todos) => {
