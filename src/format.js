@@ -1,16 +1,24 @@
-/* ---------- date helpers ---------- */
+/* ---------- date helpers ----------
+   1日の区切りは深夜5:00。0:00〜4:59に書いたものは「前日」の日付になる。
+   （時刻そのものの表示は実時刻のまま） */
+const DAY_START_HOUR = 5;
+const DAY_OFFSET_MS = DAY_START_HOUR * 60 * 60 * 1000;
+const logicalNow = () => new Date(Date.now() - DAY_OFFSET_MS);
+// タイムスタンプが属する「論理的な日」のDate
+const logicalDay = (ts) => new Date(ts - DAY_OFFSET_MS);
+
 export const pad = (n) => String(n).padStart(2, "0");
 export const toKey = (d) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 export const keyToDisp = (k) => k.split("-").join("/");
-export const todayKey = () => toKey(new Date());
+export const todayKey = () => toKey(logicalNow());
 export const yesterdayKey = () => {
-  const d = new Date();
+  const d = logicalNow();
   d.setDate(d.getDate() - 1);
   return toKey(d);
 };
 export const nowTime = () => {
-  const d = new Date();
+  const d = new Date(); // 時刻は実時刻
   return `${d.getHours()}:${pad(d.getMinutes())}`;
 };
 export const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -20,16 +28,18 @@ export const uid = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2) + Date.now().toString(36);
 
-// ルーム一覧の日時表示: 今日→H:MM / 昨日→昨日 / それ以外→M/D
+// ルーム一覧の日時表示: 今日→H:MM(実時刻) / 昨日→昨日 / それ以外→M/D
+// 日付の判定は5:00始まりの論理日で行う
 export const homeDate = (ts) => {
   if (!ts) return "";
-  const d = new Date(ts);
-  const now = new Date();
-  if (toKey(d) === toKey(now)) return `${d.getHours()}:${pad(d.getMinutes())}`;
-  const y = new Date(now);
-  y.setDate(now.getDate() - 1);
-  if (toKey(d) === toKey(y)) return "昨日";
-  return `${d.getMonth() + 1}/${d.getDate()}`;
+  const real = new Date(ts);
+  const dl = logicalDay(ts);
+  const nowl = logicalNow();
+  if (toKey(dl) === toKey(nowl)) return `${real.getHours()}:${pad(real.getMinutes())}`;
+  const y = new Date(nowl);
+  y.setDate(nowl.getDate() - 1);
+  if (toKey(dl) === toKey(y)) return "昨日";
+  return `${dl.getMonth() + 1}/${dl.getDate()}`;
 };
 
 /* ---------- 日記型 エクスポート/インポート（現行形式そのまま） ---------- */
