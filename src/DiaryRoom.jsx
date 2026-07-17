@@ -156,16 +156,19 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
   const startEdit = (k) => {
     setEditing(k);
     setConfirmDel(false);
-    setDraft(entries[k].text);
+    // 末尾に改行を足して、カーソルを次の行の先頭に置く（続きを書きやすく）
+    setDraft(entries[k].text + "\n");
     setQuery("");
     setSearchOpen(false);
     setTimeout(() => {
-      if (taRef.current) {
-        taRef.current.focus();
-        taRef.current.style.height = "auto";
-        taRef.current.style.height =
-          Math.min(taRef.current.scrollHeight, Math.round(window.innerHeight * 0.45)) + "px";
-      }
+      const el = taRef.current;
+      if (!el) return;
+      el.focus();
+      el.style.height = "auto";
+      el.style.height = Math.min(el.scrollHeight, Math.round(window.innerHeight * 0.45)) + "px";
+      const end = el.value.length;
+      el.setSelectionRange(end, end);
+      el.scrollTop = el.scrollHeight;
     }, 50);
   };
 

@@ -3,12 +3,14 @@ import {
   get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID, DECL_KEY
 } from "./storage.js";
 import {
-  keyToDisp, homeDate, uid, escapeRegExp, todayKey, nowTime, applyDeclToEntryText
+  keyToDisp, homeDate, uid, escapeRegExp, todayKey, nowTime,
+  applyDeclToEntryText, addDoneLine, removeDoneLine
 } from "./format.js";
 import { dumpAll, restoreAll } from "./backup.js";
 import { css } from "./theme.js";
 import DiaryRoom from "./DiaryRoom.jsx";
 import TalkRoom from "./TalkRoom.jsx";
+import TodoRoom from "./TodoRoom.jsx";
 
 export default function App() {
   const [rooms, setRooms] = useState(null);
@@ -39,7 +41,12 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        setRooms(await loadRooms());
+        const loaded = await loadRooms();
+        // 起動時は日記ルームを直接開く（無ければ一覧）
+        if (loaded.some((r) => r.id === DIARY_ROOM_ID)) {
+          setView({ screen: "room", roomId: DIARY_ROOM_ID });
+        }
+        setRooms(loaded);
         const d = await get(DECL_KEY);
         if (d && d.dateKey === todayKey()) setDecl(d.text);
       } catch (e) {
@@ -48,6 +55,51 @@ export default function App() {
       }
     })();
   }, []);
+
+  /* 日記の当日エントリを書き換える共通処理（宣言・TODO完了ログで使用）
+     transform(既存テキスト|null) → 新テキスト / "" で当日エントリ削除 / null で何もしない */
+  const writeDiaryEntry = async (dateKey, transform) => {
+    const key = roomDataKey(DIARY_ROOM_ID);
+    let data = await get(key);
+    data = data && typeof data === "object" ? data : {};
+    const existing = data[dateKey];
+    const newText = transform(existing ? existing.text : null);
+    if (newText === null || newText === undefined) return;
+    if (newText === "") {
+      if (!existing) return;
+      const copy = { ...data };
+      delete copy[dateKey];
+      data = copy;
+    } else {
+      data = { ...data, [dateKey]: { text: newText, time: existing ? existing.time : nowTime() } };
+    }
+    await set(key, data);
+    const ks = Object.keys(data).sort();
+    const lastKey = ks[ks.length - 1];
+    const preview = lastKey ? data[lastKey].text.split("\n")[0].slice(0, 40) : "";
+    setRooms((prev) => {
+      let next = prev;
+      if (!prev.find((r) => r.id === DIARY_ROOM_ID)) {
+        next = [...prev, {
+          id: DIARY_ROOM_ID, type: "diary", name: "日記", emoji: "💗",
+          members: [], createdAt: Date.now(), lastAt: 0, preview: ""
+        }];
+      }
+      next = next.map((r) => (r.id === DIARY_ROOM_ID ? { ...r, preview, lastAt: Date.now() } : r));
+      set(ROOMS_KEY, next);
+      return next;
+    });
+    setDiarySync((s) => s + 1);
+  };
+
+  // TODO完了 → 完了した日の日記に「🩷 できたこと」を追記
+  const onTodoComplete = ({ text, time, dateKey }) => {
+    writeDiaryEntry(dateKey, (ex) => addDoneLine(ex || "", text, time));
+  };
+  // TODO未完了に戻す → 日記側の対応行を削除（無ければ何もしない）
+  const onTodoUncomplete = ({ text, time, dateKey }) => {
+    writeDiaryEntry(dateKey, (ex) => (ex == null ? null : removeDoneLine(ex, text, time)));
+  };
 
   const saveRooms = (next) => {
     setRooms(next);
@@ -112,7 +164,16 @@ export default function App() {
   }, [searchOpen, rooms]);
 
   const sorted = useMemo(
-    () => (rooms ? [...rooms].sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0)) : []),
+    () =>
+      rooms
+        ? [...rooms].sort((a, b) => {
+            // TODOルームは一番上にピン留め
+            const at = a.type === "todo" ? 1 : 0;
+            const bt = b.type === "todo" ? 1 : 0;
+            if (at !== bt) return bt - at;
+            return (b.lastAt || 0) - (a.lastAt || 0);
+          })
+        : [],
     [rooms]
   );
 
@@ -128,6 +189,13 @@ export default function App() {
         for (const k of Object.keys(es).sort()) {
           if ((es[k].text + keyToDisp(k)).toLowerCase().includes(q)) {
             hits.push({ snippet: es[k].text.split("\n")[0], date: keyToDisp(k) });
+          }
+        }
+      } else if (r.type === "todo") {
+        const ts = data && Array.isArray(data.todos) ? data.todos : [];
+        for (const t of ts) {
+          if ((t.text + keyToDisp(t.dateKey)).toLowerCase().includes(q)) {
+            hits.push({ snippet: `${t.done ? "☑" : "☐"} ${t.text.split("\n")[0]}`, date: keyToDisp(t.dateKey) });
           }
         }
       } else {
@@ -167,7 +235,7 @@ export default function App() {
     }
     const room = {
       id: uid(), type: modal.type, name,
-      emoji: modal.emoji.trim() || (modal.type === "diary" ? "💗" : "🩷"),
+      emoji: modal.emoji.trim() || (modal.type === "diary" ? "💗" : modal.type === "todo" ? "✅" : "🩷"),
       members: [], createdAt: Date.now(), lastAt: 0, preview: ""
     };
     saveRooms([...rooms, room]);
@@ -318,7 +386,9 @@ export default function App() {
       };
       content = room.type === "diary"
         ? <DiaryRoom key={room.id} {...common} syncSignal={diarySync} />
-        : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
+        : room.type === "todo"
+          ? <TodoRoom key={room.id} {...common} onTodoComplete={onTodoComplete} onTodoUncomplete={onTodoUncomplete} />
+          : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
     }
   } else {
     content = (
@@ -384,10 +454,12 @@ export default function App() {
             sorted.map((r) => {
               // 1行目=ルーム名。2行目はトーク型なら「話者名: 内容」、日記型は内容のみ
               const isTalk = r.type === "talk";
+              const isTodo = r.type === "todo";
+              const emptyMsg = isTalk ? "かけあいを書こう💗" : isTodo ? "やることを追加しよう💗" : "日記を書こう💗";
               const line1 = r.name;
               const line2 = r.preview
                 ? (isTalk && r.previewName ? `${r.previewName}: ${r.preview}` : r.preview)
-                : (isTalk ? "かけあいを書こう💗" : "日記を書こう💗");
+                : emptyMsg;
               return (
                 <div
                   className="room-row" key={r.id}
@@ -395,10 +467,11 @@ export default function App() {
                 >
                   <div className="r-ic">{r.emoji}</div>
                   <div className="r-main">
-                    <div className="r-name">{line1}</div>
+                    <div className="r-name">{isTodo ? `📌 ${line1}` : line1}</div>
                     <div className="r-prev">{line2}</div>
                   </div>
                   <div className="r-side">
+                    {isTodo && r.todoOpen > 0 && <span className="r-badge">{r.todoOpen}</span>}
                     <span className="r-date">{homeDate(r.lastAt)}</span>
                     <button
                       className="r-more" aria-label="ルーム設定"
@@ -447,12 +520,17 @@ export default function App() {
                 className={"type-chip" + (modal.type === "diary" ? " on" : "")}
                 disabled={modal.mode === "edit"}
                 onClick={() => setModal((o) => ({ ...o, type: "diary" }))}
-              >📖 日記型<small>1日=1吹き出し・追記式</small></button>
+              >📖 日記<small>1日=1吹き出し</small></button>
               <button
                 className={"type-chip" + (modal.type === "talk" ? " on" : "")}
                 disabled={modal.mode === "edit"}
                 onClick={() => setModal((o) => ({ ...o, type: "talk" }))}
-              >💬 トーク型<small>話者ごとに吹き出し</small></button>
+              >💬 トーク<small>話者ごと</small></button>
+              <button
+                className={"type-chip" + (modal.type === "todo" ? " on" : "")}
+                disabled={modal.mode === "edit"}
+                onClick={() => setModal((o) => ({ ...o, type: "todo" }))}
+              >✅ TODO<small>やること</small></button>
             </div>
             <div className="panel-btns">
               <button className="p-copy" onClick={modal.mode === "new" ? createRoom : saveEdit}>

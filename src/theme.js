@@ -251,6 +251,55 @@ export const css = `
     clip-path: polygon(0 0, 100% 30%, 20% 100%);
   }
   .mtime { font-size: 9.5px; color: #7d5570; flex-shrink: 0; margin-bottom: 2px; }
+  /* TODO: タブ */
+  .tabs {
+    display: flex; gap: 6px; padding: 8px 12px; flex-shrink: 0;
+    background: rgba(255,240,249,.85); border-bottom: 1px solid #f3b9d9;
+  }
+  .tab {
+    border: 1.5px solid #f0a6cf; background: #fff; color: #b04a86;
+    border-radius: 999px; padding: 5px 16px; font-size: 12.5px;
+    font-weight: 700; cursor: pointer;
+  }
+  .tab.on { background: #e0629f; border-color: #e0629f; color: #fff; }
+  /* TODO: 行 */
+  .todo-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 11px; }
+  .todo-check {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid #e0629f; background: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: #fff; margin-top: 3px;
+    -webkit-tap-highlight-color: transparent; padding: 0;
+  }
+  .todo-check.on { background: #e0629f; }
+  .todo-check.on::after { content: "✓"; font-weight: 900; }
+  .todo-check:active { transform: scale(.9); }
+  .todo-bubble {
+    position: relative; flex: 1; max-width: 82%;
+    background: #fff5fa; border-radius: 16px; padding: 10px 13px;
+    box-shadow: 0 1px 2px rgba(180,90,140,.18); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .todo-bubble::after {
+    content: ""; position: absolute; top: 9px; left: -5px;
+    width: 12px; height: 12px; background: #fff5fa;
+    clip-path: polygon(100% 0, 0 30%, 80% 100%);
+  }
+  .todo-bubble.editing-now { outline: 2px solid #e0629f; }
+  .todo-text { white-space: pre-wrap; font-size: 14.5px; line-height: 1.6; }
+  .todo-text.done { text-decoration: line-through; color: #b79cab; }
+  .todo-react {
+    position: absolute; top: -10px; right: -6px; font-size: 16px;
+    pointer-events: none; transform-origin: center;
+    animation: todopop .38s cubic-bezier(.3,1.6,.5,1);
+    filter: drop-shadow(0 1px 1px rgba(200,60,130,.35));
+  }
+  @keyframes todopop {
+    0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+    60% { transform: scale(1.35) rotate(8deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+  }
+  .todo-time { font-size: 9.5px; color: #7d5570; margin-top: 6px; flex-shrink: 0; }
   /* edit banner */
   .banner {
     display: flex; align-items: center; gap: 8px;
@@ -356,5 +405,6 @@ export const css = `
   }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; }
+    .todo-react { animation: none !important; }
   }
 `;
