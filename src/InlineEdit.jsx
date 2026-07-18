@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import MarkBar, { insertAtCursor } from "./MarkBar.jsx";
+import useKbGap from "./useKbGap.js";
 
 /* 吹き出しの中でそのまま編集するエディタ。
    bottomToolbar=true のとき、マークバー＋操作ボタンをキーボード直上に固定表示する。 */
@@ -11,7 +12,7 @@ export default function InlineEdit({
     appendNewline ? (initial ? initial + "\n" : "") : (initial || "")
   );
   const [armDel, setArmDel] = useState(false);
-  const [kbGap, setKbGap] = useState(0);
+  const kbGap = useKbGap(!!bottomToolbar);
   const ref = useRef(null);
 
   const resize = () => {
@@ -30,20 +31,6 @@ export default function InlineEdit({
     el.setSelectionRange(end, end);
     el.scrollTop = el.scrollHeight;
   }, []);
-
-  // キーボード直上に固定するためのオフセット（キーボードに隠れない）
-  useEffect(() => {
-    if (!bottomToolbar || !window.visualViewport) return;
-    const vv = window.visualViewport;
-    const update = () => setKbGap(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
-    update();
-    vv.addEventListener("resize", update);
-    vv.addEventListener("scroll", update);
-    return () => {
-      vv.removeEventListener("resize", update);
-      vv.removeEventListener("scroll", update);
-    };
-  }, [bottomToolbar]);
 
   const insert = (m) =>
     insertAtCursor(ref.current, m + " ", (v) => {

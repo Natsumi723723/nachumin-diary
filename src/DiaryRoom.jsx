@@ -1,37 +1,48 @@
 import { useState, useEffect, useRef, Fragment } from "react";
-import { get, set, roomDataKey, doneLogKey } from "./storage.js";
 import {
-  keyToDisp, todayKey, yesterdayKey, nowTime, escapeRegExp,
+  get, set, roomDataKey, doneLogKey, habitsKey, habitLogKey
+} from "./storage.js";
+import {
+  keyToDisp, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
   diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER, safeFileName
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
+import MarkBar, { insertAtCursor } from "./MarkBar.jsx";
+import useKbGap from "./useKbGap.js";
 
-/* 日記型ルーム: 1日=1吹き出し。
-   常時入力欄は持たず、＋から日付を選んで吹き出しを作り、吹き出しの中で書く。 */
+/* 日記型ルーム: 1日=1吹き出し。下部入力欄で送信=追記、吹き出しタップで全文編集。
+   「できたこと」吹き出しに完了TODO＋習慣チップを表示。 */
 export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToast, pinned, syncSignal, marks, onEditMarks }) {
-  const [entries, setEntries] = useState({}); // { "2026-07-16": {text, time} }
-  const [doneLog, setDoneLog] = useState({}); // { "2026-07-16": [{text, time}] }
+  const [entries, setEntries] = useState({});
+  const [doneLog, setDoneLog] = useState({});   // { dateKey: [{text,time}] }
+  const [habits, setHabits] = useState([]);      // [{id,name,emoji}]
+  const [habitAch, setHabitAch] = useState({});  // { dateKey: [habitId] }
   const [loaded, setLoaded] = useState(false);
-  const [editing, setEditing] = useState(null);     // 既存の吹き出しを編集中の日付
-  const [composing, setComposing] = useState(null); // 新規作成中の日付（まだ未保存）
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [selected, setSelected] = useState(todayKey());
+  const [draft, setDraft] = useState("");
   const [searchOpen, setSearchOpen] = useState(!!initialQuery);
   const [query, setQuery] = useState(initialQuery || "");
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState("");
+  const [habitModal, setHabitModal] = useState(false);
+  const [habitDel, setHabitDel] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [barH, setBarH] = useState(120);
   const scrollRef = useRef(null);
+  const taRef = useRef(null);
   const exRef = useRef(null);
+  const barRef = useRef(null);
+  const kbGap = useKbGap(!editing);
 
-  /* load（+ 旧「できたこと」セクションの安全な移行） */
+  /* load（+ 旧「できたこと」セクションの移行 + 習慣の初期化） */
   useEffect(() => {
     (async () => {
       try {
         let raw = await get(roomDataKey(room.id));
         raw = typeof raw === "string" ? JSON.parse(raw) : (raw || {});
         const log = (await get(doneLogKey(room.id))) || {};
-        // 旧仕様: 日記本文内の「🩷 できたこと」を専用ログへ移行
         let migrated = false;
         const nextEntries = {};
         const nextLog = { ...log };
@@ -54,12 +65,20 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
         if (migrated) {
           await set(roomDataKey(room.id), nextEntries);
           await set(doneLogKey(room.id), nextLog);
-          setEntries(nextEntries);
-          setDoneLog(nextLog);
-        } else {
-          setEntries(raw);
-          setDoneLog(log);
         }
+        setEntries(nextEntries);
+        setDoneLog(nextLog);
+        // 習慣: 初回のみ例を用意
+        let hb = await get(habitsKey(room.id));
+        if (hb === undefined) {
+          hb = [
+            { id: uid(), name: "note投稿", emoji: "📝" },
+            { id: uid(), name: "キャラ投稿", emoji: "🎨" }
+          ];
+          await set(habitsKey(room.id), hb);
+        }
+        setHabits(Array.isArray(hb) ? hb : []);
+        setHabitAch((await get(habitLogKey(room.id))) || {});
       } catch (e) {
         /* no data yet */
       } finally {
@@ -68,7 +87,6 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     })();
   }, [room.id]);
 
-  // 宣言バー・TODO完了などで外部更新されたら読み直す
   useEffect(() => {
     if (!syncSignal) return;
     (async () => {
@@ -77,6 +95,14 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
       setDoneLog((await get(doneLogKey(room.id))) || {});
     })();
   }, [syncSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 入力バーの高さを測って本文の下パディングにする
+  useEffect(() => {
+    if (!barRef.current || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => barRef.current && setBarH(barRef.current.offsetHeight));
+    ro.observe(barRef.current);
+    return () => ro.disconnect();
+  }, [editing, searchOpen]);
 
   const persist = async (next) => {
     setEntries(next);
@@ -93,39 +119,114 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     }
   };
 
-  // 通常は最下部へ（検索・編集・作成中はしない）
   useEffect(() => {
-    if (!query && !editing && !composing && scrollRef.current) {
+    if (!query && !editing && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [entries, loaded, query, editing, composing]);
+  }, [loaded, query, editing]);
 
-  // 編集/作成を始めたら、その吹き出しを上部へ寄せる（下のツールバー・キーボードに隠れないよう）
   useEffect(() => {
-    if (!editing && !composing) return;
+    if (!editing) return;
     const el = scrollRef.current?.querySelector(".editing-now");
     if (el) setTimeout(() => el.scrollIntoView({ block: "start", behavior: "smooth" }), 60);
-  }, [editing, composing]);
+  }, [editing]);
 
+  /* ---------- 送信=追記 ---------- */
+  const send = () => {
+    const text = draft.trim();
+    if (!text) return;
+    const prev = entries[selected];
+    persist({
+      ...entries,
+      [selected]: prev
+        ? { ...prev, text: prev.text + "\n\n" + text } // 前回末尾に空行を挟んで続き
+        : { text, time: nowTime() }
+    });
+    setDraft("");
+    if (taRef.current) taRef.current.style.height = "auto";
+    setTimeout(() => {
+      const el = scrollRef.current?.querySelector(`[data-date="${selected}"]`);
+      if (el) el.scrollIntoView({ block: "end", behavior: "smooth" });
+      else if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }, 50);
+  };
+
+  const autoGrow = (e) => {
+    setDraft(e.target.value);
+    const el = e.target;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 140) + "px";
+  };
+  const insertMark = (m) =>
+    insertAtCursor(taRef.current, m + " ", (v) => {
+      setDraft(v);
+      requestAnimationFrame(() => {
+        const el = taRef.current;
+        if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 140) + "px"; }
+      });
+    });
+
+  /* ---------- 全文編集（タップ） ---------- */
+  const startEdit = (k) => { setEditing(k); setQuery(""); setSearchOpen(false); };
+  const saveEdit = (k, raw) => {
+    const text = raw.trim();
+    if (!text) { setEditing(null); return; }
+    persist({ ...entries, [k]: { ...entries[k], text } });
+    setEditing(null);
+  };
+  const deleteEntry = (k) => {
+    const next = { ...entries };
+    delete next[k];
+    persist(next);
+    setEditing(null);
+  };
+
+  /* ---------- 習慣 ---------- */
+  const toggleHabit = (dateKey, habitId) => {
+    const cur = habitAch[dateKey] || [];
+    const nextArr = cur.includes(habitId) ? cur.filter((x) => x !== habitId) : [...cur, habitId];
+    const nextLog = { ...habitAch };
+    if (nextArr.length) nextLog[dateKey] = nextArr;
+    else delete nextLog[dateKey];
+    setHabitAch(nextLog);
+    set(habitLogKey(room.id), nextLog).catch(() => showToast("保存に失敗しました"));
+  };
+  const saveHabits = (next) => {
+    setHabits(next);
+    set(habitsKey(room.id), next).catch(() => showToast("保存に失敗しました"));
+  };
+  const addHabit = () => saveHabits([...habits, { id: uid(), name: "", emoji: "🩷" }]);
+  const updateHabit = (id, patch) => saveHabits(habits.map((h) => (h.id === id ? { ...h, ...patch } : h)));
+  const moveHabit = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= habits.length) return;
+    const next = [...habits];
+    [next[i], next[j]] = [next[j], next[i]];
+    saveHabits(next);
+  };
+  const removeHabit = (id) => {
+    if (habitDel !== id) { setHabitDel(id); return; }
+    saveHabits(habits.filter((h) => h.id !== id));
+    setHabitDel(null);
+  };
+  const closeHabitModal = () => {
+    // 名前空の習慣は片付ける
+    const cleaned = habits.filter((h) => h.name.trim() || (h.emoji && h.emoji.trim()));
+    if (cleaned.length !== habits.length) saveHabits(cleaned);
+    setHabitModal(false);
+    setHabitDel(null);
+  };
+
+  /* ---------- export / import ---------- */
   const exportText = () => diaryToText(entries);
-
   const doCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(exportText());
-      setCopied(true);
-    } catch (e) {
-      try {
-        exRef.current.focus();
-        exRef.current.select();
-        document.execCommand("copy");
-        setCopied(true);
-      } catch (e2) {
-        showToast("コピーできませんでした。全選択して手動でコピーしてね");
-      }
+    try { await navigator.clipboard.writeText(exportText()); setCopied(true); }
+    catch (e) {
+      try { exRef.current.focus(); exRef.current.select(); document.execCommand("copy"); setCopied(true); }
+      catch (e2) { showToast("コピーできませんでした。全選択して手動でコピーしてね"); }
     }
     setTimeout(() => setCopied(false), 2000);
   };
-
   const doDownload = () => {
     try {
       const blob = new Blob([exportText()], { type: "text/plain;charset=utf-8" });
@@ -137,89 +238,36 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 3000);
-    } catch (e) {
-      showToast("ダウンロードできない環境みたい。コピーを使ってね");
-    }
+    } catch (e) { showToast("ダウンロードできない環境みたい。コピーを使ってね"); }
   };
-
   const doImport = () => {
     const parsed = parseDiaryText(importText);
     const keys = Object.keys(parsed);
-    if (keys.length === 0) {
-      showToast("読み込める日記が見つかりませんでした 🥺");
-      return;
-    }
+    if (keys.length === 0) { showToast("読み込める日記が見つかりませんでした 🥺"); return; }
     let added = 0, skipped = 0;
     const next = { ...entries };
     for (const k of keys) {
-      if (next[k]) skipped += 1; // 既存の日記は上書きしない（データ保護）
+      if (next[k]) skipped += 1;
       else { next[k] = parsed[k]; added += 1; }
     }
     persist(next);
     setImportOpen(false);
     setImportText("");
-    showToast(
-      `${added}件の日記を復元したよ💗` +
-        (skipped ? `（${skipped}件はもうあるのでスキップ）` : "")
-    );
-  };
-
-  /* ＋ → 日付を選ぶ。既にある日は編集(追記)、無い日は新規作成 */
-  const pickDate = (d) => {
-    setDatePickerOpen(false);
-    setSearchOpen(false);
-    setQuery("");
-    if (entries[d]) {
-      setComposing(null);
-      setEditing(d);
-    } else {
-      setEditing(null);
-      setComposing(d);
-    }
-  };
-
-  const startEdit = (k) => {
-    setComposing(null);
-    setEditing(k);
-    setQuery("");
-    setSearchOpen(false);
-  };
-
-  const saveEdit = (k, raw) => {
-    const text = raw.trim();
-    if (!text) { setEditing(null); return; } // 空なら変更しない
-    persist({ ...entries, [k]: { ...entries[k], text } });
-    setEditing(null);
-  };
-  const deleteEntry = (k) => {
-    const next = { ...entries };
-    delete next[k];
-    persist(next);
-    setEditing(null);
-  };
-  const saveNew = (d, raw) => {
-    const text = raw.trim();
-    if (!text) { setComposing(null); return; }
-    persist({ ...entries, [d]: { text, time: nowTime() } });
-    setComposing(null);
+    showToast(`${added}件の日記を復元したよ💗` + (skipped ? `（${skipped}件はもうあるのでスキップ）` : ""));
   };
 
   const highlight = (text) => {
     if (!query) return text;
     const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, "gi"));
     return parts.map((p, i) =>
-      p.toLowerCase() === query.toLowerCase() ? (
-        <mark key={i} className="hl">{p}</mark>
-      ) : (
-        p
-      )
+      p.toLowerCase() === query.toLowerCase() ? <mark key={i} className="hl">{p}</mark> : p
     );
   };
 
-  // 表示する日付 = 日記本文 + できたことログ + 作成中（重複なし・古い順）
   const q = query.toLowerCase();
-  const allDates = new Set([...Object.keys(entries), ...Object.keys(doneLog)]);
-  if (composing && !entries[composing]) allDates.add(composing);
+  const today = todayKey();
+  const allDates = new Set([...Object.keys(entries), ...Object.keys(doneLog), ...Object.keys(habitAch)]);
+  if (habits.length) allDates.add(today);
   let displayKeys = [...allDates].sort();
   if (query) {
     displayKeys = displayKeys.filter((k) => {
@@ -229,9 +277,17 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     });
   }
 
+  const selDisp = keyToDisp(selected).slice(5);
+  const chip = (label, key) => (
+    <button
+      key={label}
+      className={"chip" + (selected === key ? " chip-on" : "")}
+      onClick={() => setSelected(key)}
+    >{label}</button>
+  );
+
   return (
     <>
-      {/* header */}
       <div className="hd">
         <button className="back-btn" aria-label="もどる" onClick={onBack}>‹</button>
         <span style={{ fontSize: 20 }}>{room.emoji}</span>
@@ -239,77 +295,51 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
           <div className="hd-title">{room.name}</div>
           <div className="hd-sub">Nachumin Diary</div>
         </div>
-        <button
-          className="icon-btn" style={{ marginLeft: "auto" }}
-          aria-label="テキスト書き出し" onClick={() => setExportOpen(true)}
-        >📤</button>
+        <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="習慣" onClick={() => setHabitModal(true)}>🎯</button>
+        <button className="icon-btn" aria-label="テキスト書き出し" onClick={() => setExportOpen(true)}>📤</button>
         <button className="icon-btn" aria-label="テキストから復元" onClick={() => setImportOpen(true)}>📥</button>
-        <button
-          className="icon-btn" aria-label="検索"
-          onClick={() => { setSearchOpen(!searchOpen); setQuery(""); }}
-        >{searchOpen ? "✕" : "🔍"}</button>
+        <button className="icon-btn" aria-label="検索" onClick={() => { setSearchOpen(!searchOpen); setQuery(""); }}>{searchOpen ? "✕" : "🔍"}</button>
       </div>
 
       {pinned}
 
       {searchOpen && (
         <div className="search-row">
-          <input
-            autoFocus
-            placeholder="日記を検索（ことば・日付）"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+          <input autoFocus placeholder="日記を検索（ことば・日付）" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
       )}
 
-      {/* chat */}
-      <div className="chat" ref={scrollRef} style={{ paddingBottom: editing || composing ? 200 : 88 }}>
+      <div className="chat" ref={scrollRef} style={{ paddingBottom: editing ? 210 : barH + 12 }}>
         {loaded && displayKeys.length === 0 && (
           <div className="empty">
-            {query
-              ? "みつかりませんでした 🥺"
-              : "まだ日記がありません。\n右下の ＋ から書いてみよう💗"}
+            {query ? "みつかりませんでした 🥺" : "まだ日記がありません。\n下から今日のことを書いてみよう💗"}
           </div>
         )}
         {displayKeys.map((k) => {
-          const isComposing = composing === k && !entries[k];
           const isEditing = editing === k;
-          const active = isComposing || isEditing;
-          const hasDiary = !!entries[k] || isComposing;
+          const hasDiary = !!entries[k];
           const done = doneLog[k] || [];
+          const isToday = k === today;
+          const ach = habitAch[k] || [];
+          const showHabits = habits.length > 0 && (isToday || hasDiary || ach.length > 0);
+          const showDone = done.length > 0 || showHabits;
           return (
             <Fragment key={k}>
               {hasDiary && (
-                <div className="row">
-                  <div className="time">{entries[k]?.time || nowTime()}</div>
+                <div className="row" data-date={k}>
+                  <div className="time">{entries[k].time}</div>
                   <div
-                    className={"bubble" + (active ? " editing-now" : "")}
-                    onClick={active ? undefined : () => startEdit(k)}
+                    className={"bubble" + (isEditing ? " editing-now" : "")}
+                    onClick={isEditing ? undefined : () => startEdit(k)}
                     role="button" tabIndex={0}
-                    onKeyDown={(e) => !active && e.key === "Enter" && startEdit(k)}
+                    onKeyDown={(e) => !isEditing && e.key === "Enter" && startEdit(k)}
                   >
                     <span className="spark">✨</span>
-                    <div className="d-head">
-                      🩷<span className="lnk">{keyToDisp(k)}</span>🩷
-                    </div>
-                    {isComposing ? (
-                      <InlineEdit
-                        initial=""
-                        marks={marks}
-                        onEditMarks={onEditMarks}
-                        bottomToolbar
-                        onSave={(t) => saveNew(k, t)}
-                        onCancel={() => setComposing(null)}
-                        placeholder="今日あったことを書く…"
-                      />
-                    ) : isEditing ? (
+                    <div className="d-head">🩷<span className="lnk">{keyToDisp(k)}</span>🩷</div>
+                    {isEditing ? (
                       <InlineEdit
                         initial={entries[k].text}
-                        appendNewline
-                        marks={marks}
-                        onEditMarks={onEditMarks}
-                        bottomToolbar
+                        appendNewline marks={marks} onEditMarks={onEditMarks} bottomToolbar
                         onSave={(t) => saveEdit(k, t)}
                         onCancel={() => setEditing(null)}
                         onDelete={() => deleteEntry(k)}
@@ -321,7 +351,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                   </div>
                 </div>
               )}
-              {done.length > 0 && (
+              {showDone && (
                 <div className="done-row" style={hasDiary ? undefined : { marginTop: 0 }}>
                   <div className="done-bubble">
                     <div className="done-head">🩷 できたこと</div>
@@ -331,6 +361,22 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                         {it.time ? <span className="done-time"> ({it.time})</span> : null}
                       </div>
                     ))}
+                    {showHabits && (
+                      <div className={"habits-row" + (done.length ? " has-sep" : "")}>
+                        {habits.map((h) => {
+                          const on = ach.includes(h.id);
+                          return (
+                            <button
+                              key={h.id}
+                              className={"habit-chip" + (on ? " on" : "")}
+                              onClick={() => toggleHabit(k, h.id)}
+                            >
+                              {h.emoji ? h.emoji + " " : ""}{h.name}{on ? " 🩷" : ""}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -339,33 +385,63 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
         })}
       </div>
 
-      {/* ＋ 日記を書く（編集・作成・検索中は隠す） */}
-      {!editing && !composing && !searchOpen && (
-        <button className="fab" aria-label="日記を書く" onClick={() => setDatePickerOpen(true)}>＋</button>
+      {/* 下部入力欄（編集中は隠す） */}
+      {!editing && (
+        <div className="bar bar-fixed" ref={barRef} style={{ bottom: kbGap }}>
+          <div className="chips">
+            {chip("今日", today)}
+            {chip("昨日", yesterdayKey())}
+            <button className="chip chip-date">
+              📅 {selected === today || selected === yesterdayKey() ? "日付をえらぶ" : selDisp}
+              <input type="date" value={selected} onChange={(e) => e.target.value && setSelected(e.target.value)} />
+            </button>
+            {entries[selected] && <span className="exists-note">この日はもうあるので追記されます</span>}
+          </div>
+          {marks && marks.length > 0 && (
+            <MarkBar marks={marks} onInsert={insertMark} onEdit={onEditMarks} />
+          )}
+          <div className="in-row">
+            <textarea
+              ref={taRef} className="ta" rows={1}
+              placeholder={selected === today ? "今日あったことを書く…" : `${selDisp} に追記…`}
+              value={draft} onChange={autoGrow}
+            />
+            <button className="send" aria-label="送信" disabled={!draft.trim()} onClick={send}>↑</button>
+          </div>
+        </div>
       )}
 
-      {/* 日付ピッカー */}
-      {datePickerOpen && (
-        <div className="overlay" onClick={() => setDatePickerOpen(false)}>
+      {/* 習慣モーダル */}
+      {habitModal && (
+        <div className="overlay" onClick={closeHabitModal}>
           <div className="panel" onClick={(e) => e.stopPropagation()}>
-            <h3>いつの日記？</h3>
-            <div className="date-opts">
-              <button className="date-opt" onClick={() => pickDate(todayKey())}>
-                今日{entries[todayKey()] ? " ✎ 追記" : ""}
-              </button>
-              <button className="date-opt" onClick={() => pickDate(yesterdayKey())}>
-                昨日{entries[yesterdayKey()] ? " ✎ 追記" : ""}
-              </button>
-              <button className="date-opt date-cal">
-                📅 カレンダーで選ぶ
+            <h3>🎯 習慣</h3>
+            <p className="panel-note">毎日くり返すこと。日記の「できたこと」からワンタップで記録できます。</p>
+            {habits.map((h, i) => (
+              <div className="mem-row" key={h.id}>
                 <input
-                  type="date" defaultValue={todayKey()}
-                  onChange={(e) => e.target.value && pickDate(e.target.value)}
+                  className="f-input" style={{ width: 54, textAlign: "center", flex: "0 0 auto" }}
+                  maxLength={4} placeholder="🩷"
+                  value={h.emoji || ""}
+                  onChange={(e) => updateHabit(h.id, { emoji: e.target.value })}
                 />
-              </button>
-            </div>
+                <input
+                  className="f-input" style={{ flex: 1, minWidth: 0 }}
+                  placeholder="習慣の名前" value={h.name}
+                  onChange={(e) => updateHabit(h.id, { name: e.target.value })}
+                />
+                <button className="mem-btn" disabled={i === 0} onClick={() => moveHabit(i, -1)} aria-label="上へ">↑</button>
+                <button className="mem-btn" disabled={i === habits.length - 1} onClick={() => moveHabit(i, 1)} aria-label="下へ">↓</button>
+                <button
+                  className="mem-btn" style={habitDel === h.id ? { background: "#e23d7c", color: "#fff" } : undefined}
+                  onClick={() => removeHabit(h.id)} aria-label="削除"
+                >{habitDel === h.id ? "!" : "🗑"}</button>
+              </div>
+            ))}
+            {habits.length === 0 && <p className="panel-note">まだ習慣がありません。追加してね💗</p>}
             <div className="panel-btns">
-              <button className="p-close" onClick={() => setDatePickerOpen(false)}>閉じる</button>
+              <button className="p-copy" onClick={addHabit}>＋ 習慣を追加</button>
+              <button className="p-close" onClick={closeHabitModal}>閉じる</button>
             </div>
           </div>
         </div>
@@ -378,9 +454,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
             <h3>📤 日記をテキストで書き出し</h3>
             <textarea ref={exRef} readOnly value={exportText()} />
             <div className="panel-btns">
-              <button className="p-copy" onClick={doCopy}>
-                {copied ? "コピーしたよ💗" : "ぜんぶコピー"}
-              </button>
+              <button className="p-copy" onClick={doCopy}>{copied ? "コピーしたよ💗" : "ぜんぶコピー"}</button>
               <button className="p-dl" onClick={doDownload}>.txtでDL</button>
               <button className="p-close" onClick={() => setExportOpen(false)}>閉じる</button>
             </div>

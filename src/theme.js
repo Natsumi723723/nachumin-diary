@@ -528,6 +528,18 @@ export const css = `
   .date-cal input {
     position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer;
   }
+  /* 習慣チップ（できたこと吹き出し内） */
+  .habits-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .habits-row.has-sep { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e3d2f7; }
+  .habit-chip {
+    border: 1.5px solid #cdb6ea; background: #fff; color: #8659c4;
+    border-radius: 999px; padding: 5px 11px; font-size: 12px; font-weight: 700;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .habit-chip.on { background: #e0629f; border-color: #e0629f; color: #fff; }
+  .habit-chip:active { transform: scale(.95); }
+  /* 固定入力バー（キーボード直上に追従） */
+  .bar-fixed { position: fixed; left: 0; right: 0; z-index: 20; }
   /* input bar */
   .bar {
     background: rgba(255,240,249,.96); border-top: 1px solid #f3b9d9;

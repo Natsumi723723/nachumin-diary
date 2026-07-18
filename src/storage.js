@@ -21,6 +21,9 @@ export const MARKS_KEY = "marks-v1";
 export const DEFAULT_MARKS = ["・", "❤︎", "🩷", "💛", "🩵", "💜", "✨", "✔︎"];
 // 完了TODOの「できたこと」ログ（日記本文とは別データ）
 export const doneLogKey = (roomId) => `donelog-v1:${roomId}`;
+// 習慣（ハビットトラッカー）: 定義と日別の達成ログ
+export const habitsKey = (roomId) => `habits-v1:${roomId}`;
+export const habitLogKey = (roomId) => `habitlog-v1:${roomId}`;
 
 export const DIARY_ROOM_ID = "diary-main";
 
