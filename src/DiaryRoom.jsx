@@ -5,16 +5,15 @@ import {
   diaryToText, parseDiaryText
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
-import MarkBar, { insertAtCursor } from "./MarkBar.jsx";
 
-/* 日記型ルーム: 1日=1吹き出し。吹き出しタップでその場編集 */
+/* 日記型ルーム: 1日=1吹き出し。
+   常時入力欄は持たず、＋から日付を選んで吹き出しを作り、吹き出しの中で書く。 */
 export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToast, pinned, syncSignal, marks, onEditMarks }) {
   const [entries, setEntries] = useState({}); // { "2026-07-16": {text, time} }
   const [loaded, setLoaded] = useState(false);
-  const [selected, setSelected] = useState(todayKey());
-  const [draft, setDraft] = useState("");
-  const [editing, setEditing] = useState(null);
-  const [confirmDel, setConfirmDel] = useState(false);
+  const [editing, setEditing] = useState(null);     // 既存の吹き出しを編集中の日付
+  const [composing, setComposing] = useState(null); // 新規作成中の日付（まだ未保存）
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(!!initialQuery);
   const [query, setQuery] = useState(initialQuery || "");
   const [exportOpen, setExportOpen] = useState(false);
@@ -22,7 +21,6 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
   const [importText, setImportText] = useState("");
   const [copied, setCopied] = useState(false);
   const scrollRef = useRef(null);
-  const taRef = useRef(null);
   const exRef = useRef(null);
 
   /* load */
@@ -63,11 +61,19 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     }
   };
 
+  // 通常は最下部へ（検索・編集・作成中はしない）
   useEffect(() => {
-    if (!query && scrollRef.current) {
+    if (!query && !editing && !composing && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [entries, loaded, query]);
+  }, [entries, loaded, query, editing, composing]);
+
+  // 編集/作成を始めたら、その吹き出しを画面内へ
+  useEffect(() => {
+    if (!editing && !composing) return;
+    const el = scrollRef.current?.querySelector(".editing-now");
+    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [editing, composing]);
 
   const exportText = () => diaryToText(entries);
 
@@ -126,22 +132,27 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     );
   };
 
-  // 新規のみ（既存の編集は吹き出し内インライン編集で行う）
-  const send = () => {
-    const text = draft.trim();
-    if (!text) return;
-    const prev = entries[selected];
-    persist({
-      ...entries,
-      [selected]: prev
-        ? { ...prev, text: prev.text + "\n\n" + text } // 追記は同じ吹き出しへ
-        : { text, time: nowTime() }
-    });
-    setDraft("");
-    if (taRef.current) taRef.current.style.height = "auto";
+  /* ＋ → 日付を選ぶ。既にある日は編集(追記)、無い日は新規作成 */
+  const pickDate = (d) => {
+    setDatePickerOpen(false);
+    setSearchOpen(false);
+    setQuery("");
+    if (entries[d]) {
+      setComposing(null);
+      setEditing(d);
+    } else {
+      setEditing(null);
+      setComposing(d);
+    }
   };
 
-  // 吹き出し内インライン編集の保存/削除
+  const startEdit = (k) => {
+    setComposing(null);
+    setEditing(k);
+    setQuery("");
+    setSearchOpen(false);
+  };
+
   const saveEdit = (k, raw) => {
     const text = raw.trim();
     if (!text) { setEditing(null); return; } // 空なら変更しない
@@ -154,35 +165,12 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     persist(next);
     setEditing(null);
   };
-
-  const startEdit = (k) => {
-    setEditing(k);
-    setQuery("");
-    setSearchOpen(false);
+  const saveNew = (d, raw) => {
+    const text = raw.trim();
+    if (!text) { setComposing(null); return; }
+    persist({ ...entries, [d]: { text, time: nowTime() } });
+    setComposing(null);
   };
-
-  const autoGrow = (e) => {
-    setDraft(e.target.value);
-    const el = e.target;
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 140) + "px";
-  };
-
-  const insertMark = (m) =>
-    insertAtCursor(taRef.current, m + " ", (v) => {
-      setDraft(v);
-      requestAnimationFrame(() => {
-        const el = taRef.current;
-        if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 140) + "px"; }
-      });
-    });
-
-  const keys = Object.keys(entries).sort();
-  const shown = query
-    ? keys.filter((k) =>
-        (entries[k].text + keyToDisp(k)).toLowerCase().includes(query.toLowerCase())
-      )
-    : keys;
 
   const highlight = (text) => {
     if (!query) return text;
@@ -196,17 +184,16 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     );
   };
 
-  const chip = (label, key) => (
-    <button
-      key={label}
-      className={"chip" + (selected === key ? " chip-on" : "")}
-      onClick={() => setSelected(key)}
-    >
-      {label}
-    </button>
-  );
-
-  const selDisp = keyToDisp(selected).slice(5);
+  const keys = Object.keys(entries).sort();
+  const baseKeys = query
+    ? keys.filter((k) =>
+        (entries[k].text + keyToDisp(k)).toLowerCase().includes(query.toLowerCase())
+      )
+    : keys;
+  // 作成中の日付を（まだentriesに無ければ）並びに差し込む
+  const displayKeys = composing && !entries[composing]
+    ? [...baseKeys, composing].sort()
+    : baseKeys;
 
   return (
     <>
@@ -243,78 +230,91 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
       )}
 
       {/* chat */}
-      <div className="chat" ref={scrollRef}>
-        {loaded && shown.length === 0 && (
+      <div className="chat" ref={scrollRef} style={{ paddingBottom: 88 }}>
+        {loaded && displayKeys.length === 0 && (
           <div className="empty">
             {query
               ? "みつかりませんでした 🥺"
-              : "まだ日記がありません。\n下から今日のことを送ってみよう💗"}
+              : "まだ日記がありません。\n右下の ＋ から書いてみよう💗"}
           </div>
         )}
-        {shown.map((k) => (
-          <div className="row" key={k}>
-            <div className="time">{entries[k].time}</div>
-            <div
-              className={"bubble" + (editing === k ? " editing-now" : "")}
-              onClick={editing === k ? undefined : () => startEdit(k)}
-              role="button" tabIndex={0}
-              onKeyDown={(e) => editing !== k && e.key === "Enter" && startEdit(k)}
-            >
-              <span className="spark">✨</span>
-              <div className="d-head">
-                🩷<span className="lnk">{keyToDisp(k)}</span>🩷
+        {displayKeys.map((k) => {
+          const isComposing = composing === k && !entries[k];
+          const isEditing = editing === k;
+          const active = isComposing || isEditing;
+          return (
+            <div className="row" key={k}>
+              <div className="time">{entries[k]?.time || nowTime()}</div>
+              <div
+                className={"bubble" + (active ? " editing-now" : "")}
+                onClick={active ? undefined : () => startEdit(k)}
+                role="button" tabIndex={0}
+                onKeyDown={(e) => !active && e.key === "Enter" && startEdit(k)}
+              >
+                <span className="spark">✨</span>
+                <div className="d-head">
+                  🩷<span className="lnk">{keyToDisp(k)}</span>🩷
+                </div>
+                {isComposing ? (
+                  <InlineEdit
+                    initial=""
+                    marks={marks}
+                    onEditMarks={onEditMarks}
+                    onSave={(t) => saveNew(k, t)}
+                    onCancel={() => setComposing(null)}
+                    placeholder="今日あったことを書く…"
+                  />
+                ) : isEditing ? (
+                  <InlineEdit
+                    initial={entries[k].text}
+                    appendNewline
+                    marks={marks}
+                    onEditMarks={onEditMarks}
+                    onSave={(t) => saveEdit(k, t)}
+                    onCancel={() => setEditing(null)}
+                    onDelete={() => deleteEntry(k)}
+                    placeholder="内容を書きなおしてね"
+                  />
+                ) : (
+                  <div className="body">{highlight(entries[k].text)}</div>
+                )}
               </div>
-              {editing === k ? (
-                <InlineEdit
-                  initial={entries[k].text}
-                  appendNewline
-                  marks={marks}
-                  onEditMarks={onEditMarks}
-                  onSave={(t) => saveEdit(k, t)}
-                  onCancel={() => setEditing(null)}
-                  onDelete={() => deleteEntry(k)}
-                  placeholder="内容を書きなおしてね"
-                />
-              ) : (
-                <div className="body">{highlight(entries[k].text)}</div>
-              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* input bar（新規のみ） */}
-      <div className="bar">
-        <div className="chips">
-          {chip("今日", todayKey())}
-          {chip("昨日", yesterdayKey())}
-          <button className="chip chip-date">
-            📅 {selected === todayKey() || selected === yesterdayKey()
-              ? "日付をえらぶ" : selDisp}
-            <input
-              type="date" value={selected}
-              onChange={(e) => e.target.value && setSelected(e.target.value)}
-            />
-          </button>
-          {entries[selected] && (
-            <span className="exists-note">この日はもうあるので追記されます</span>
-          )}
+      {/* ＋ 日記を書く（編集・作成・検索中は隠す） */}
+      {!editing && !composing && !searchOpen && (
+        <button className="fab" aria-label="日記を書く" onClick={() => setDatePickerOpen(true)}>＋</button>
+      )}
+
+      {/* 日付ピッカー */}
+      {datePickerOpen && (
+        <div className="overlay" onClick={() => setDatePickerOpen(false)}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>いつの日記？</h3>
+            <div className="date-opts">
+              <button className="date-opt" onClick={() => pickDate(todayKey())}>
+                今日{entries[todayKey()] ? " ✎ 追記" : ""}
+              </button>
+              <button className="date-opt" onClick={() => pickDate(yesterdayKey())}>
+                昨日{entries[yesterdayKey()] ? " ✎ 追記" : ""}
+              </button>
+              <button className="date-opt date-cal">
+                📅 カレンダーで選ぶ
+                <input
+                  type="date" defaultValue={todayKey()}
+                  onChange={(e) => e.target.value && pickDate(e.target.value)}
+                />
+              </button>
+            </div>
+            <div className="panel-btns">
+              <button className="p-close" onClick={() => setDatePickerOpen(false)}>閉じる</button>
+            </div>
+          </div>
         </div>
-        {marks && marks.length > 0 && (
-          <MarkBar marks={marks} onInsert={insertMark} onEdit={onEditMarks} />
-        )}
-        <div className="in-row">
-          <textarea
-            ref={taRef} className="ta" rows={1}
-            placeholder="今日あったことを書く…"
-            value={draft} onChange={autoGrow}
-          />
-          <button
-            className="send" aria-label="送信"
-            disabled={!draft.trim()} onClick={send}
-          >↑</button>
-        </div>
-      </div>
+      )}
 
       {/* export modal */}
       {exportOpen && (

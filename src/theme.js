@@ -424,6 +424,26 @@ export const css = `
     box-shadow: 0 2px 5px rgba(200,60,130,.35); flex-shrink: 0; padding: 0;
   }
   .ie-save:active { transform: scale(.93); }
+  /* ＋ フローティングボタン（日記を書く） */
+  .fab {
+    position: fixed; right: 16px;
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    width: 58px; height: 58px; border-radius: 50%; border: none;
+    background: #e0629f; color: #fff; font-size: 30px; font-weight: 300;
+    box-shadow: 0 5px 16px rgba(200,60,130,.5); cursor: pointer; z-index: 12;
+    display: flex; align-items: center; justify-content: center; line-height: 1;
+  }
+  .fab:active { transform: scale(.92); }
+  .date-opts { display: flex; flex-direction: column; gap: 8px; }
+  .date-opt {
+    border: 1.5px solid #f0a6cf; background: #fff; color: #a4356f;
+    border-radius: 14px; padding: 15px; font-size: 15px; font-weight: 700;
+    cursor: pointer; text-align: center; position: relative; overflow: hidden;
+  }
+  .date-opt:active { background: #ffe4f1; }
+  .date-cal input {
+    position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer;
+  }
   /* input bar */
   .bar {
     background: rgba(255,240,249,.96); border-top: 1px solid #f3b9d9;
