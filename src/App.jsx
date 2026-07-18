@@ -16,6 +16,13 @@ import DragList from "./DragList.jsx";
 import DarelogRoom from "./DarelogRoom.jsx";
 import SwipeBack from "./SwipeBack.jsx";
 
+const EMOJI_PICKS = [
+  "💗", "🩷", "💛", "🩵", "💜", "🤍", "🖤", "🌸", "🌷", "🎀",
+  "🌟", "✨", "⭐️", "👑", "🫶", "🐰", "🐻", "🐱", "🦄", "🌙",
+  "🌊", "🌿", "🍓", "🍒", "🧸", "📖", "💬", "✅", "🌗", "🔥"
+];
+const TYPE_LABEL = { diary: "日記", talk: "トーク", todo: "TODO", darelog: "だれログ" };
+
 export default function App() {
   const [rooms, setRooms] = useState(null);
   const [view, setView] = useState({ screen: "home" }); // {screen:'room', roomId, q?}
@@ -515,7 +522,10 @@ export default function App() {
                   >
                     <div className="r-ic">{r.emoji}</div>
                     <div className="r-main">
-                      <div className="r-name">{r.name}</div>
+                      <div className="r-name">
+                        {r.name}
+                        <span className="r-type">{TYPE_LABEL[r.type] || ""}</span>
+                      </div>
                       <div className="r-prev">{line2}</div>
                     </div>
                     <div className="r-side">
@@ -556,10 +566,19 @@ export default function App() {
               placeholder="ハートるんず" value={modal.name}
               onChange={(e) => setModal((o) => ({ ...o, name: e.target.value }))}
             />
-            <div className="f-label">アイコン絵文字</div>
+            <div className="f-label">アイコン（タップで選ぶ）</div>
+            <div className="emoji-picks">
+              {EMOJI_PICKS.map((em) => (
+                <button
+                  key={em}
+                  className={"emoji-pick" + (modal.emoji === em ? " on" : "")}
+                  onClick={() => setModal((o) => ({ ...o, emoji: em }))}
+                >{em}</button>
+              ))}
+            </div>
             <input
-              className="f-input" style={{ width: 90, textAlign: "center" }}
-              maxLength={8} placeholder={modal.type === "diary" ? "💗" : "🩷"}
+              className="f-input" style={{ width: 130, textAlign: "center", marginTop: 4 }}
+              maxLength={8} placeholder="または自由入力"
               value={modal.emoji}
               onChange={(e) => setModal((o) => ({ ...o, emoji: e.target.value }))}
             />

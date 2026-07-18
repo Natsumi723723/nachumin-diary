@@ -143,6 +143,17 @@ export const css = `
     font-family: inherit; width: 100%;
   }
   .f-input:focus { border-color: #e0629f; }
+  .emoji-picks {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    max-height: 140px; overflow-y: auto; padding: 2px;
+  }
+  .emoji-pick {
+    border: 1.5px solid #f0a6cf; background: #fff; border-radius: 10px;
+    width: 40px; height: 40px; font-size: 21px; cursor: pointer; padding: 0;
+    line-height: 1; flex-shrink: 0;
+  }
+  .emoji-pick.on { background: #ffe4f1; border-color: #e0629f; transform: scale(1.06); }
+  .emoji-pick:active { transform: scale(.94); }
   .type-row { display: flex; gap: 8px; flex-wrap: wrap; }
   .type-chip {
     flex: 1 1 44%; border: 1.5px solid #f0a6cf; background: #fff; color: #b04a86;
@@ -179,7 +190,11 @@ export const css = `
     box-shadow: 0 1px 2px rgba(180,90,140,.25);
   }
   .r-main { flex: 1; min-width: 0; }
-  .r-name { font-weight: 700; font-size: 14.5px; }
+  .r-name { font-weight: 700; font-size: 14.5px; display: flex; align-items: center; gap: 6px; }
+  .r-type {
+    font-size: 9.5px; font-weight: 700; color: #b06992;
+    background: #ffe0f1; border-radius: 6px; padding: 1px 6px; flex-shrink: 0;
+  }
   .r-prev {
     font-size: 12px; color: #a4517f;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -349,8 +364,8 @@ export const css = `
     background: #ffd9ec; box-shadow: 0 0 0 1.5px #e0629f inset;
   }
   .dl-cell {
-    min-height: 42px; height: 42px; vertical-align: middle;
-    background: rgba(255,255,255,.55); border-radius: 12px; padding: 3px;
+    min-height: 42px; vertical-align: middle;
+    background: rgba(255,255,255,.55); border-radius: 12px; padding: 4px;
     -webkit-tap-highlight-color: transparent;
   }
   .dl-cell.empty { cursor: pointer; }
@@ -359,21 +374,24 @@ export const css = `
   }
   .dl-cell.current { box-shadow: 0 0 0 2px #f7a8d3 inset; background: #fff0f8; }
   .dl-plus { color: #e0629f; font-size: 17px; font-weight: 700; display: block; text-align: center; }
-  .dl-icons { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; justify-content: center; }
-  .dl-icon {
-    position: relative; border: 1.5px solid #f0a6cf; background: #fff;
-    border-radius: 50%; padding: 1px; cursor: pointer; line-height: 0;
-    -webkit-tap-highlight-color: transparent;
+  /* 名前チップ（縦並び） */
+  .dl-names { display: flex; flex-direction: column; gap: 3px; align-items: stretch; }
+  .dl-name {
+    position: relative; border: none; border-radius: 8px; padding: 3px 7px;
+    font-size: 11px; font-weight: 700; cursor: pointer; text-align: left;
+    display: flex; align-items: center; gap: 3px; max-width: 100%;
+    -webkit-tap-highlight-color: transparent; line-height: 1.35;
   }
-  .dl-icon:active { transform: scale(.92); }
-  .dl-dot {
-    position: absolute; top: -2px; right: -2px; width: 8px; height: 8px;
-    background: #e0629f; border: 1.5px solid #fff5fa; border-radius: 50%;
+  .dl-name:active { transform: scale(.96); }
+  .dl-name-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .dl-memo-dot {
+    width: 5px; height: 5px; border-radius: 50%; background: currentColor;
+    opacity: .6; flex-shrink: 0; margin-left: auto;
   }
   .dl-add-sm {
-    border: 1.5px dashed #e9a8cc; background: transparent; color: #c47aa2;
-    border-radius: 50%; width: 24px; height: 24px; font-size: 14px;
-    cursor: pointer; flex-shrink: 0; padding: 0;
+    align-self: center; border: 1.5px dashed #e9a8cc; background: transparent;
+    color: #c47aa2; border-radius: 8px; width: 100%; height: 20px; font-size: 13px;
+    cursor: pointer; padding: 0; margin-top: 1px;
   }
   .dl-picker { display: flex; flex-wrap: wrap; gap: 8px; }
   .dl-pick {

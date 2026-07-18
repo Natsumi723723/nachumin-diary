@@ -7,7 +7,7 @@ import {
 } from "./format.js";
 import { MIcon } from "./TalkRoom.jsx";
 import MemberEditor from "./MemberEditor.jsx";
-import { PALETTE } from "./theme.js";
+import { PALETTE, textOn } from "./theme.js";
 
 /* だれログ型: 表そのものが記録画面。縦=日付(下が今日) 横=朝昼夜 */
 export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showToast, pinned }) {
@@ -226,19 +226,20 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
                         onClick={recs.length ? undefined : () => setPicker({ dateKey: dk, slot: s.key })}
                       >
                         {recs.length ? (
-                          <div className="dl-icons">
+                          <div className="dl-names">
                             {recs.map((r) => {
                               const mb = memberOf(r.memberId);
+                              const color = mb?.color || "#f0f0f0";
                               return (
                                 <button
                                   key={r.id}
-                                  className="dl-icon"
+                                  className="dl-name"
                                   onClick={(e) => { e.stopPropagation(); openMenu(r); }}
                                   aria-label={mb?.name || "記録"}
-                                  style={{ borderColor: mb?.color || "#f0a6cf" }}
+                                  style={{ background: color, color: textOn(color) }}
                                 >
-                                  <MIcon icon={mb?.icon} size={22} color={mb?.color} />
-                                  {r.memo && r.memo.trim() && <span className="dl-dot" />}
+                                  <span className="dl-name-txt">{mb?.name || "？"}</span>
+                                  {r.memo && r.memo.trim() && <span className="dl-memo-dot" />}
                                 </button>
                               );
                             })}
