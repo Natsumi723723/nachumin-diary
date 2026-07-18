@@ -52,14 +52,14 @@ export default function InlineEdit({
         onChange={(e) => { setDraft(e.target.value); resize(); }}
       />
       <div className="inline-btns">
-        <button className="ie-save" onClick={() => onSave(draft)}>保存</button>
-        <button className="ie-cancel" onClick={onCancel}>キャンセル</button>
         {onDelete && (
           <button
             className={"ie-del" + (armDel ? " arm" : "")}
             onClick={() => { if (!armDel) { setArmDel(true); return; } onDelete(); }}
           >{armDel ? "ほんとに削除" : "削除"}</button>
         )}
+        <button className="ie-cancel" onClick={onCancel}>キャンセル</button>
+        <button className="ie-save" onClick={() => onSave(draft)} aria-label="保存">💌</button>
       </div>
     </div>
   );

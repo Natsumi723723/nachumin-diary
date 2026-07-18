@@ -207,7 +207,7 @@ export const css = `
     gap: 6px; margin-bottom: 16px; }
   .time { font-size: 10px; color: #7d5570; margin-bottom: 4px; flex-shrink: 0; }
   .bubble {
-    position: relative; flex: 1;
+    position: relative; flex: 1; min-width: 0;
     background: #fff5fa; border-radius: 18px; padding: 12px 14px;
     box-shadow: 0 1px 2px rgba(180, 90, 140, .18);
     cursor: pointer; -webkit-tap-highlight-color: transparent;
@@ -280,7 +280,7 @@ export const css = `
   .todo-check.on::after { content: "✓"; font-weight: 900; }
   .todo-check:active { transform: scale(.9); }
   .todo-bubble {
-    position: relative; flex: 1; max-width: 82%;
+    position: relative; flex: 1; min-width: 0; max-width: 82%;
     background: #fff5fa; border-radius: 16px; padding: 10px 13px;
     box-shadow: 0 1px 2px rgba(180,90,140,.18); cursor: pointer;
     -webkit-tap-highlight-color: transparent;
@@ -398,22 +398,32 @@ export const css = `
     width: 20px; height: 20px; font-size: 12px; cursor: pointer; line-height: 1;
   }
   /* 吹き出し内インライン編集 */
-  .inline-edit { display: flex; flex-direction: column; gap: 6px; }
+  .inline-edit { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .inline-ta {
-    width: 100%; border: 1.5px solid #e0629f; border-radius: 12px;
+    width: 100%; max-width: 100%; border: 1.5px solid #e0629f; border-radius: 12px;
     padding: 8px 10px; font-size: 14.5px; line-height: 1.7;
     background: #fff; color: #4a3140; resize: none; outline: none;
     font-family: inherit; min-height: 60px;
   }
-  .inline-btns { display: flex; gap: 6px; }
-  .inline-btns button {
-    border: none; border-radius: 999px; padding: 6px 14px;
-    font-size: 12.5px; font-weight: 700; cursor: pointer;
+  .inline-edit .markbar { max-width: 100%; }
+  /* 削除=左端 / キャンセル・保存=右 / 保存=右下の💌ボタン */
+  .inline-btns { display: flex; align-items: center; gap: 8px; }
+  .ie-del {
+    border: none; border-radius: 999px; padding: 6px 14px; font-size: 12.5px;
+    font-weight: 700; cursor: pointer; background: #ff7ab1; color: #fff;
   }
-  .ie-save { background: #e0629f; color: #fff; }
-  .ie-cancel { background: #fff; color: #a4356f; border: 1.5px solid #f0a6cf !important; }
-  .ie-del { background: #ff7ab1; color: #fff; margin-left: auto; }
   .ie-del.arm { background: #e23d7c; }
+  .ie-cancel {
+    margin-left: auto; border-radius: 999px; padding: 6px 14px; font-size: 12.5px;
+    font-weight: 700; cursor: pointer; background: #fff; color: #a4356f;
+    border: 1.5px solid #f0a6cf;
+  }
+  .ie-save {
+    border: none; width: 46px; height: 36px; border-radius: 999px;
+    background: #e0629f; color: #fff; font-size: 19px; cursor: pointer;
+    box-shadow: 0 2px 5px rgba(200,60,130,.35); flex-shrink: 0; padding: 0;
+  }
+  .ie-save:active { transform: scale(.93); }
   /* input bar */
   .bar {
     background: rgba(255,240,249,.96); border-top: 1px solid #f3b9d9;
