@@ -194,6 +194,30 @@ export const css = `
     background: #e0629f; color: #fff; font-size: 10.5px;
     border-radius: 999px; padding: 2px 8px; font-weight: 700;
   }
+  /* ドラッグ並び替え */
+  .drag-row { touch-action: pan-y; }
+  .drag-row.dragging {
+    position: relative; z-index: 20; opacity: .97;
+    box-shadow: 0 8px 20px rgba(120,50,90,.35);
+    border-radius: 14px;
+  }
+  .drag-row.dragging .room-row { background: #ffe4f1; }
+  /* できたこと専用吹き出し（日記本文より小さめ・色味ちがい） */
+  .done-row { display: flex; justify-content: flex-end; margin: -8px 0 16px; }
+  .done-bubble {
+    position: relative; max-width: 82%;
+    background: #f3e9ff; border: 1.5px solid #e3d2f7; border-radius: 15px;
+    padding: 9px 13px; box-shadow: 0 1px 2px rgba(140,110,180,.2);
+  }
+  .done-bubble::after {
+    content: ""; position: absolute; top: 10px; right: -6px;
+    width: 13px; height: 13px; background: #f3e9ff;
+    border-right: 1.5px solid #e3d2f7; border-top: 1.5px solid #e3d2f7;
+    transform: rotate(35deg) skewX(-8deg);
+  }
+  .done-head { font-weight: 700; font-size: 12.5px; color: #8659c4; margin-bottom: 4px; }
+  .done-line { font-size: 12.5px; line-height: 1.7; color: #5b4570; white-space: pre-wrap; }
+  .done-time { color: #a08bc0; font-size: 11px; }
   /* chat area (shared) */
   .chat { flex: 1; overflow-y: auto; padding: 16px 12px 20px; }
   .empty {

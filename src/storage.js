@@ -19,6 +19,8 @@ export const DECL_KEY = "declaration-v1";
 // 箇条書きマークのユーザー設定
 export const MARKS_KEY = "marks-v1";
 export const DEFAULT_MARKS = ["・", "❤︎", "🩷", "💛", "🩵", "💜", "✨", "✔︎"];
+// 完了TODOの「できたこと」ログ（日記本文とは別データ）
+export const doneLogKey = (roomId) => `donelog-v1:${roomId}`;
 
 export const DIARY_ROOM_ID = "diary-main";
 

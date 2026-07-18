@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from "react";
-import { get, set, roomDataKey } from "./storage.js";
+import { useState, useEffect, useRef, Fragment } from "react";
+import { get, set, roomDataKey, doneLogKey } from "./storage.js";
 import {
   keyToDisp, todayKey, yesterdayKey, nowTime, escapeRegExp,
-  diaryToText, parseDiaryText
+  diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
 
@@ -10,6 +10,7 @@ import InlineEdit from "./InlineEdit.jsx";
    常時入力欄は持たず、＋から日付を選んで吹き出しを作り、吹き出しの中で書く。 */
 export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToast, pinned, syncSignal, marks, onEditMarks }) {
   const [entries, setEntries] = useState({}); // { "2026-07-16": {text, time} }
+  const [doneLog, setDoneLog] = useState({}); // { "2026-07-16": [{text, time}] }
   const [loaded, setLoaded] = useState(false);
   const [editing, setEditing] = useState(null);     // 既存の吹き出しを編集中の日付
   const [composing, setComposing] = useState(null); // 新規作成中の日付（まだ未保存）
@@ -23,12 +24,42 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
   const scrollRef = useRef(null);
   const exRef = useRef(null);
 
-  /* load */
+  /* load（+ 旧「できたこと」セクションの安全な移行） */
   useEffect(() => {
     (async () => {
       try {
-        const v = await get(roomDataKey(room.id));
-        if (v) setEntries(typeof v === "string" ? JSON.parse(v) : v);
+        let raw = await get(roomDataKey(room.id));
+        raw = typeof raw === "string" ? JSON.parse(raw) : (raw || {});
+        const log = (await get(doneLogKey(room.id))) || {};
+        // 旧仕様: 日記本文内の「🩷 できたこと」を専用ログへ移行
+        let migrated = false;
+        const nextEntries = {};
+        const nextLog = { ...log };
+        for (const [k, v] of Object.entries(raw)) {
+          if (v && typeof v.text === "string" && v.text.includes(DONE_HEADER)) {
+            const { text, items } = extractDoneSection(v.text);
+            nextEntries[k] = { ...v, text };
+            if (items.length) {
+              const arr = (nextLog[k] || []).slice();
+              for (const it of items) {
+                if (!arr.some((x) => x.text === it.text && x.time === it.time)) arr.push(it);
+              }
+              nextLog[k] = arr;
+            }
+            migrated = true;
+          } else {
+            nextEntries[k] = v;
+          }
+        }
+        if (migrated) {
+          await set(roomDataKey(room.id), nextEntries);
+          await set(doneLogKey(room.id), nextLog);
+          setEntries(nextEntries);
+          setDoneLog(nextLog);
+        } else {
+          setEntries(raw);
+          setDoneLog(log);
+        }
       } catch (e) {
         /* no data yet */
       } finally {
@@ -37,12 +68,13 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     })();
   }, [room.id]);
 
-  // 宣言バーなどから日記データが外部更新されたら読み直す
+  // 宣言バー・TODO完了などで外部更新されたら読み直す
   useEffect(() => {
     if (!syncSignal) return;
     (async () => {
       const v = await get(roomDataKey(room.id));
       if (v) setEntries(typeof v === "string" ? JSON.parse(v) : v);
+      setDoneLog((await get(doneLogKey(room.id))) || {});
     })();
   }, [syncSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -184,16 +216,18 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     );
   };
 
-  const keys = Object.keys(entries).sort();
-  const baseKeys = query
-    ? keys.filter((k) =>
-        (entries[k].text + keyToDisp(k)).toLowerCase().includes(query.toLowerCase())
-      )
-    : keys;
-  // 作成中の日付を（まだentriesに無ければ）並びに差し込む
-  const displayKeys = composing && !entries[composing]
-    ? [...baseKeys, composing].sort()
-    : baseKeys;
+  // 表示する日付 = 日記本文 + できたことログ + 作成中（重複なし・古い順）
+  const q = query.toLowerCase();
+  const allDates = new Set([...Object.keys(entries), ...Object.keys(doneLog)]);
+  if (composing && !entries[composing]) allDates.add(composing);
+  let displayKeys = [...allDates].sort();
+  if (query) {
+    displayKeys = displayKeys.filter((k) => {
+      const inDiary = entries[k] && (entries[k].text + keyToDisp(k)).toLowerCase().includes(q);
+      const inDone = (doneLog[k] || []).some((it) => it.text.toLowerCase().includes(q));
+      return inDiary || inDone;
+    });
+  }
 
   return (
     <>
@@ -242,44 +276,63 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
           const isComposing = composing === k && !entries[k];
           const isEditing = editing === k;
           const active = isComposing || isEditing;
+          const hasDiary = !!entries[k] || isComposing;
+          const done = doneLog[k] || [];
           return (
-            <div className="row" key={k}>
-              <div className="time">{entries[k]?.time || nowTime()}</div>
-              <div
-                className={"bubble" + (active ? " editing-now" : "")}
-                onClick={active ? undefined : () => startEdit(k)}
-                role="button" tabIndex={0}
-                onKeyDown={(e) => !active && e.key === "Enter" && startEdit(k)}
-              >
-                <span className="spark">✨</span>
-                <div className="d-head">
-                  🩷<span className="lnk">{keyToDisp(k)}</span>🩷
+            <Fragment key={k}>
+              {hasDiary && (
+                <div className="row">
+                  <div className="time">{entries[k]?.time || nowTime()}</div>
+                  <div
+                    className={"bubble" + (active ? " editing-now" : "")}
+                    onClick={active ? undefined : () => startEdit(k)}
+                    role="button" tabIndex={0}
+                    onKeyDown={(e) => !active && e.key === "Enter" && startEdit(k)}
+                  >
+                    <span className="spark">✨</span>
+                    <div className="d-head">
+                      🩷<span className="lnk">{keyToDisp(k)}</span>🩷
+                    </div>
+                    {isComposing ? (
+                      <InlineEdit
+                        initial=""
+                        marks={marks}
+                        onEditMarks={onEditMarks}
+                        onSave={(t) => saveNew(k, t)}
+                        onCancel={() => setComposing(null)}
+                        placeholder="今日あったことを書く…"
+                      />
+                    ) : isEditing ? (
+                      <InlineEdit
+                        initial={entries[k].text}
+                        appendNewline
+                        marks={marks}
+                        onEditMarks={onEditMarks}
+                        onSave={(t) => saveEdit(k, t)}
+                        onCancel={() => setEditing(null)}
+                        onDelete={() => deleteEntry(k)}
+                        placeholder="内容を書きなおしてね"
+                      />
+                    ) : (
+                      <div className="body">{highlight(entries[k].text)}</div>
+                    )}
+                  </div>
                 </div>
-                {isComposing ? (
-                  <InlineEdit
-                    initial=""
-                    marks={marks}
-                    onEditMarks={onEditMarks}
-                    onSave={(t) => saveNew(k, t)}
-                    onCancel={() => setComposing(null)}
-                    placeholder="今日あったことを書く…"
-                  />
-                ) : isEditing ? (
-                  <InlineEdit
-                    initial={entries[k].text}
-                    appendNewline
-                    marks={marks}
-                    onEditMarks={onEditMarks}
-                    onSave={(t) => saveEdit(k, t)}
-                    onCancel={() => setEditing(null)}
-                    onDelete={() => deleteEntry(k)}
-                    placeholder="内容を書きなおしてね"
-                  />
-                ) : (
-                  <div className="body">{highlight(entries[k].text)}</div>
-                )}
-              </div>
-            </div>
+              )}
+              {done.length > 0 && (
+                <div className="done-row" style={hasDiary ? undefined : { marginTop: 0 }}>
+                  <div className="done-bubble">
+                    <div className="done-head">🩷 できたこと</div>
+                    {done.map((it, i) => (
+                      <div className="done-line" key={i}>
+                        ☑ {highlight(it.text)}
+                        {it.time ? <span className="done-time"> ({it.time})</span> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Fragment>
           );
         })}
       </div>

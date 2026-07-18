@@ -1,5 +1,5 @@
 import {
-  get, set, ROOMS_KEY, roomDataKey, DECL_KEY
+  get, set, ROOMS_KEY, roomDataKey, DECL_KEY, doneLogKey, MARKS_KEY
 } from "./storage.js";
 
 const SLOT_EMOJI = { morning: "🌅", noon: "☀️", night: "🌙" };
@@ -53,13 +53,21 @@ export async function dumpAll() {
     if (d !== undefined) data[r.id] = d;
   }
   const declaration = (await get(DECL_KEY)) || null;
+  const doneLogs = {};
+  for (const r of rooms) {
+    const dl = await get(doneLogKey(r.id));
+    if (dl && Object.keys(dl).length) doneLogs[r.id] = dl;
+  }
+  const marks = (await get(MARKS_KEY)) || null;
   return {
     app: "nachumin-diary",
     version: 1,
     exportedAt: new Date().toISOString(),
     rooms,
     data,
-    declaration
+    declaration,
+    doneLogs,
+    marks
   };
 }
 
@@ -138,6 +146,28 @@ export async function restoreAll(obj) {
       await set(roomDataKey(r.id), merged);
       byId.set(r.id, { ...cur, ...metaFromData(cur, merged) });
     }
+  }
+
+  // できたことログを非破壊マージ（日付ごとに (text,time) で重複除外）
+  if (obj.doneLogs) {
+    for (const [rid, log] of Object.entries(obj.doneLogs)) {
+      const key = doneLogKey(rid);
+      const cur = (await get(key)) || {};
+      const merged = { ...cur };
+      for (const [dk, items] of Object.entries(log)) {
+        const arr = (merged[dk] || []).slice();
+        for (const it of items) {
+          if (!arr.some((x) => x.text === it.text && x.time === it.time)) arr.push(it);
+        }
+        merged[dk] = arr;
+      }
+      await set(key, merged);
+    }
+  }
+  // マーク（未設定のときだけ取り込む）
+  if (Array.isArray(obj.marks) && obj.marks.length) {
+    const curMarks = await get(MARKS_KEY);
+    if (!Array.isArray(curMarks) || !curMarks.length) await set(MARKS_KEY, obj.marks);
   }
 
   const nextRooms = [...byId.values()];

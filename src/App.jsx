@@ -1,17 +1,18 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
   get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID, DECL_KEY,
-  MARKS_KEY, DEFAULT_MARKS
+  MARKS_KEY, DEFAULT_MARKS, doneLogKey
 } from "./storage.js";
 import {
   keyToDisp, homeDate, uid, escapeRegExp, todayKey, nowTime,
-  applyDeclToEntryText, addDoneLine, removeDoneLine
+  applyDeclToEntryText
 } from "./format.js";
 import { dumpAll, restoreAll } from "./backup.js";
 import { css } from "./theme.js";
 import DiaryRoom from "./DiaryRoom.jsx";
 import TalkRoom from "./TalkRoom.jsx";
 import TodoRoom from "./TodoRoom.jsx";
+import DragList from "./DragList.jsx";
 import DarelogRoom from "./DarelogRoom.jsx";
 import SwipeBack from "./SwipeBack.jsx";
 
@@ -64,27 +65,8 @@ export default function App() {
     })();
   }, []);
 
-  /* 日記の当日エントリを書き換える共通処理（宣言・TODO完了ログで使用）
-     transform(既存テキスト|null) → 新テキスト / "" で当日エントリ削除 / null で何もしない */
-  const writeDiaryEntry = async (dateKey, transform) => {
-    const key = roomDataKey(DIARY_ROOM_ID);
-    let data = await get(key);
-    data = data && typeof data === "object" ? data : {};
-    const existing = data[dateKey];
-    const newText = transform(existing ? existing.text : null);
-    if (newText === null || newText === undefined) return;
-    if (newText === "") {
-      if (!existing) return;
-      const copy = { ...data };
-      delete copy[dateKey];
-      data = copy;
-    } else {
-      data = { ...data, [dateKey]: { text: newText, time: existing ? existing.time : nowTime() } };
-    }
-    await set(key, data);
-    const ks = Object.keys(data).sort();
-    const lastKey = ks[ks.length - 1];
-    const preview = lastKey ? data[lastKey].text.split("\n")[0].slice(0, 40) : "";
+  // 日記ルームの存在を保証しつつメタ更新＋開いてる日記へ再読込を通知
+  const bumpDiary = (preview) => {
     setRooms((prev) => {
       let next = prev;
       if (!prev.find((r) => r.id === DIARY_ROOM_ID)) {
@@ -93,20 +75,44 @@ export default function App() {
           members: [], createdAt: Date.now(), lastAt: 0, preview: ""
         }];
       }
-      next = next.map((r) => (r.id === DIARY_ROOM_ID ? { ...r, preview, lastAt: Date.now() } : r));
+      next = next.map((r) =>
+        r.id === DIARY_ROOM_ID
+          ? { ...r, ...(preview != null ? { preview } : {}), lastAt: Date.now() }
+          : r
+      );
       set(ROOMS_KEY, next);
       return next;
     });
     setDiarySync((s) => s + 1);
   };
 
-  // TODO完了 → 完了した日の日記に「🩷 できたこと」を追記
-  const onTodoComplete = ({ text, time, dateKey }) => {
-    writeDiaryEntry(dateKey, (ex) => addDoneLine(ex || "", text, time));
+  // TODO完了 → 完了した日の「🩷 できたこと」ログ（日記本文とは別）へ追加
+  const onTodoComplete = async ({ text, time, dateKey }) => {
+    try {
+      const key = doneLogKey(DIARY_ROOM_ID);
+      const log = (await get(key)) || {};
+      const arr = (log[dateKey] || []).slice();
+      if (!arr.some((x) => x.text === text && x.time === time)) arr.push({ text, time });
+      await set(key, { ...log, [dateKey]: arr });
+      bumpDiary(`🩷 できたこと ☑ ${text}`.slice(0, 40));
+    } catch (e) {
+      showToast("できたことの記録に失敗しました");
+    }
   };
-  // TODO未完了に戻す → 日記側の対応行を削除（無ければ何もしない）
-  const onTodoUncomplete = ({ text, time, dateKey }) => {
-    writeDiaryEntry(dateKey, (ex) => (ex == null ? null : removeDoneLine(ex, text, time)));
+  // TODO未完了に戻す → 対応行を削除（0件なら日付ごと消える）
+  const onTodoUncomplete = async ({ text, time, dateKey }) => {
+    try {
+      const key = doneLogKey(DIARY_ROOM_ID);
+      const log = (await get(key)) || {};
+      const arr = (log[dateKey] || []).filter((x) => !(x.text === text && x.time === time));
+      const nextLog = { ...log };
+      if (arr.length) nextLog[dateKey] = arr;
+      else delete nextLog[dateKey];
+      await set(key, nextLog);
+      bumpDiary(null);
+    } catch (e) {
+      /* noop */
+    }
   };
 
   const saveRooms = (next) => {
@@ -185,19 +191,8 @@ export default function App() {
     })();
   }, [searchOpen, rooms]);
 
-  const sorted = useMemo(
-    () =>
-      rooms
-        ? [...rooms].sort((a, b) => {
-            // TODOルームは一番上にピン留め
-            const at = a.type === "todo" ? 1 : 0;
-            const bt = b.type === "todo" ? 1 : 0;
-            if (at !== bt) return bt - at;
-            return (b.lastAt || 0) - (a.lastAt || 0);
-          })
-        : [],
-    [rooms]
-  );
+  // 並びは rooms 配列そのもの（作成順＋手動並び替え、自動ソートしない）
+  const sorted = rooms || [];
 
   const results = useMemo(() => {
     if (!gq || !cache || !rooms) return null;
@@ -498,43 +493,47 @@ export default function App() {
               ))
             )
           ) : (
-            sorted.map((r) => {
-              // 1行目=ルーム名。2行目はトーク型なら「話者名: 内容」、日記型は内容のみ
-              const isTalk = r.type === "talk";
-              const isTodo = r.type === "todo";
-              const emptyMsg = isTalk ? "かけあいを書こう💗"
-                : isTodo ? "やることを追加しよう💗"
-                : r.type === "darelog" ? "朝昼夜の記録をつけよう💗"
-                : "日記を書こう💗";
-              const line1 = r.name;
-              const line2 = r.preview
-                ? (isTalk && r.previewName ? `${r.previewName}: ${r.preview}` : r.preview)
-                : emptyMsg;
-              return (
-                <div
-                  className="room-row" key={r.id}
-                  onClick={() => setView({ screen: "room", roomId: r.id })}
-                >
-                  <div className="r-ic">{r.emoji}</div>
-                  <div className="r-main">
-                    <div className="r-name">{isTodo ? `📌 ${line1}` : line1}</div>
-                    <div className="r-prev">{line2}</div>
+            <DragList
+              items={sorted}
+              keyOf={(r) => r.id}
+              onReorder={(next) => saveRooms(next)}
+              renderItem={(r) => {
+                // 1行目=ルーム名。2行目はトーク型なら「話者名: 内容」、日記型は内容のみ
+                const isTalk = r.type === "talk";
+                const isTodo = r.type === "todo";
+                const emptyMsg = isTalk ? "かけあいを書こう💗"
+                  : isTodo ? "やることを追加しよう💗"
+                  : r.type === "darelog" ? "朝昼夜の記録をつけよう💗"
+                  : "日記を書こう💗";
+                const line2 = r.preview
+                  ? (isTalk && r.previewName ? `${r.previewName}: ${r.preview}` : r.preview)
+                  : emptyMsg;
+                return (
+                  <div
+                    className="room-row"
+                    onClick={() => setView({ screen: "room", roomId: r.id })}
+                  >
+                    <div className="r-ic">{r.emoji}</div>
+                    <div className="r-main">
+                      <div className="r-name">{r.name}</div>
+                      <div className="r-prev">{line2}</div>
+                    </div>
+                    <div className="r-side">
+                      {isTodo && r.todoOpen > 0 && <span className="r-badge">{r.todoOpen}</span>}
+                      <span className="r-date">{homeDate(r.lastAt)}</span>
+                      <button
+                        className="r-more" aria-label="ルーム設定"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModal({ mode: "edit", roomId: r.id, name: r.name, emoji: r.emoji, type: r.type });
+                          setRoomDel(false);
+                        }}
+                      >⋯</button>
+                    </div>
                   </div>
-                  <div className="r-side">
-                    {isTodo && r.todoOpen > 0 && <span className="r-badge">{r.todoOpen}</span>}
-                    <span className="r-date">{homeDate(r.lastAt)}</span>
-                    <button
-                      className="r-more" aria-label="ルーム設定"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setModal({ mode: "edit", roomId: r.id, name: r.name, emoji: r.emoji, type: r.type });
-                        setRoomDel(false);
-                      }}
-                    >⋯</button>
-                  </div>
-                </div>
-              );
-            })
+                );
+              }}
+            />
           )}
         </div>
       </>

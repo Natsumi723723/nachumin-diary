@@ -300,6 +300,25 @@ export const removeDoneLine = (entryText, text, time) => {
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "");
 };
 
+// 旧仕様: 日記本文に埋め込まれた「🩷 できたこと」セクションを取り出す（移行用）
+export const extractDoneSection = (text) => {
+  const lines = (text || "").split("\n");
+  const hi = lines.indexOf(DONE_HEADER);
+  if (hi === -1) return { text: text || "", items: [] };
+  const items = [];
+  let end = hi + 1;
+  while (end < lines.length && lines[end].startsWith("☑ ")) {
+    const m = lines[end].match(/^☑ (.*?)(?: \((\d{1,2}:\d{2})\))?$/u);
+    if (m) items.push({ text: m[1], time: m[2] || "" });
+    end++;
+  }
+  let start = hi;
+  if (start - 1 >= 0 && lines[start - 1] === "") start -= 1;
+  lines.splice(start, end - start);
+  const stripped = lines.join("\n").replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "");
+  return { text: stripped, items };
+};
+
 /* ---------- 今日の宣言（日記への自動記録用） ---------- */
 export const DECL_MARKER = "🎬 今日のコマ: ";
 
