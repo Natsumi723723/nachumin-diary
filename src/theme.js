@@ -375,6 +375,45 @@ export const css = `
   .b-cancel { background: #fff; color: #a4356f; margin-left: auto; }
   .b-del { background: #ff7ab1; color: #fff; }
   .b-del.arm { background: #e23d7c; }
+  /* マークバー（箇条書きマークのワンタップ挿入） */
+  .markbar {
+    display: flex; gap: 5px; align-items: center; overflow-x: auto;
+    padding: 2px 0 6px;
+  }
+  .markchip {
+    flex-shrink: 0; border: 1.5px solid #f0a6cf; background: #fff;
+    color: #4a3140; border-radius: 10px; min-width: 34px; height: 32px;
+    font-size: 16px; cursor: pointer; padding: 0 8px; line-height: 1;
+  }
+  .markchip:active { transform: scale(.92); }
+  .markchip.mark-edit { color: #c2478f; font-size: 14px; border-style: dashed; }
+  .mark-manage { display: flex; flex-wrap: wrap; gap: 8px; }
+  .mark-item {
+    display: inline-flex; align-items: center; gap: 4px;
+    border: 1.5px solid #f0a6cf; background: #fff; border-radius: 10px;
+    padding: 4px 6px 4px 10px; font-size: 18px;
+  }
+  .mark-item button {
+    border: none; background: #ffd9ec; color: #c2478f; border-radius: 6px;
+    width: 20px; height: 20px; font-size: 12px; cursor: pointer; line-height: 1;
+  }
+  /* 吹き出し内インライン編集 */
+  .inline-edit { display: flex; flex-direction: column; gap: 6px; }
+  .inline-ta {
+    width: 100%; border: 1.5px solid #e0629f; border-radius: 12px;
+    padding: 8px 10px; font-size: 14.5px; line-height: 1.7;
+    background: #fff; color: #4a3140; resize: none; outline: none;
+    font-family: inherit; min-height: 60px;
+  }
+  .inline-btns { display: flex; gap: 6px; }
+  .inline-btns button {
+    border: none; border-radius: 999px; padding: 6px 14px;
+    font-size: 12.5px; font-weight: 700; cursor: pointer;
+  }
+  .ie-save { background: #e0629f; color: #fff; }
+  .ie-cancel { background: #fff; color: #a4356f; border: 1.5px solid #f0a6cf !important; }
+  .ie-del { background: #ff7ab1; color: #fff; margin-left: auto; }
+  .ie-del.arm { background: #e23d7c; }
   /* input bar */
   .bar {
     background: rgba(255,240,249,.96); border-top: 1px solid #f3b9d9;

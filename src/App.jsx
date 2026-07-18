@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
-  get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID, DECL_KEY
+  get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID, DECL_KEY,
+  MARKS_KEY, DEFAULT_MARKS
 } from "./storage.js";
 import {
   keyToDisp, homeDate, uid, escapeRegExp, todayKey, nowTime,
@@ -26,6 +27,9 @@ export default function App() {
   const [declModal, setDeclModal] = useState(null); // null | 'view' | 'edit'
   const [declDraft, setDeclDraft] = useState("");
   const [diarySync, setDiarySync] = useState(0); // 開いている日記ルームへ再読込を通知
+  const [marks, setMarks] = useState(DEFAULT_MARKS);
+  const [markSettingsOpen, setMarkSettingsOpen] = useState(false);
+  const [newMark, setNewMark] = useState("");
   const [backupOpen, setBackupOpen] = useState(false);
   const [backupText, setBackupText] = useState("");
   const [restoreText, setRestoreText] = useState("");
@@ -51,6 +55,8 @@ export default function App() {
         setRooms(loaded);
         const d = await get(DECL_KEY);
         if (d && d.dateKey === todayKey()) setDecl(d.text);
+        const mk = await get(MARKS_KEY);
+        if (Array.isArray(mk) && mk.length) setMarks(mk);
       } catch (e) {
         showToast("データの読み込みに失敗しました");
         setRooms([]);
@@ -154,6 +160,20 @@ export default function App() {
       showToast("宣言の保存に失敗しました");
     }
   };
+
+  /* ---------- 箇条書きマーク ---------- */
+  const persistMarks = (next) => {
+    setMarks(next);
+    set(MARKS_KEY, next).catch(() => showToast("マークの保存に失敗しました"));
+  };
+  const addMark = () => {
+    const m = newMark.trim();
+    if (!m) return;
+    if (marks.includes(m)) { setNewMark(""); return; }
+    persistMarks([...marks, m]);
+    setNewMark("");
+  };
+  const removeMark = (m) => persistMarks(marks.filter((x) => x !== m));
 
   /* 横断検索: 検索を開いたら全ルームのデータを読み込む */
   useEffect(() => {
@@ -405,7 +425,7 @@ export default function App() {
         pinned
       };
       const roomEl = room.type === "diary"
-        ? <DiaryRoom key={room.id} {...common} syncSignal={diarySync} />
+        ? <DiaryRoom key={room.id} {...common} syncSignal={diarySync} marks={marks} onEditMarks={() => setMarkSettingsOpen(true)} />
         : room.type === "todo"
           ? <TodoRoom key={room.id} {...common} onTodoComplete={onTodoComplete} onTodoUncomplete={onTodoUncomplete} />
           : room.type === "darelog"
@@ -648,6 +668,39 @@ export default function App() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* マーク設定 modal */}
+      {markSettingsOpen && (
+        <div className="overlay" onClick={() => setMarkSettingsOpen(false)}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>⚙︎ 箇条書きマーク</h3>
+            <p className="panel-note">日記の入力欄に出るマーク。タップで削除、下から追加できます。</p>
+            <div className="mark-manage">
+              {marks.map((m) => (
+                <span className="mark-item" key={m}>
+                  {m}
+                  <button onClick={() => removeMark(m)} aria-label="削除">✕</button>
+                </span>
+              ))}
+              {marks.length === 0 && <p className="panel-note">マークがありません。追加してね</p>}
+            </div>
+            <div className="in-row" style={{ marginTop: 4 }}>
+              <input
+                className="f-input"
+                maxLength={4}
+                placeholder="記号や絵文字（例: ❤︎）"
+                value={newMark}
+                onChange={(e) => setNewMark(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addMark()}
+              />
+              <button className="p-copy" style={{ flex: "0 0 auto", padding: "8px 16px", borderRadius: 999 }} disabled={!newMark.trim()} onClick={addMark}>追加</button>
+            </div>
+            <div className="panel-btns">
+              <button className="p-close" onClick={() => setMarkSettingsOpen(false)}>閉じる</button>
+            </div>
           </div>
         </div>
       )}

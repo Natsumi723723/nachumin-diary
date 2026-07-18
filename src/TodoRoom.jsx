@@ -4,6 +4,7 @@ import {
   keyToDisp, todayKey, nowTime, escapeRegExp, uid,
   todoToText, parseTodoText
 } from "./format.js";
+import InlineEdit from "./InlineEdit.jsx";
 
 /* TODO型ルーム: 1メッセージ=1TODO。チェックで完了→日記へライフログ */
 export default function TodoRoom({
@@ -65,16 +66,10 @@ export default function TodoRoom({
   const send = () => {
     const text = draft.trim();
     if (!text) return;
-    if (editing) {
-      persist(todos.map((t) => (t.id === editing ? { ...t, text } : t)));
-      setEditing(null);
-      setConfirmDel(false);
-    } else {
-      persist([...todos, {
-        id: uid(), dateKey: todayKey(), time: nowTime(),
-        text, done: false, doneTime: null, doneDateKey: null
-      }]);
-    }
+    persist([...todos, {
+      id: uid(), dateKey: todayKey(), time: nowTime(),
+      text, done: false, doneTime: null, doneDateKey: null
+    }]);
     setDraft("");
     if (taRef.current) taRef.current.style.height = "auto";
   };
@@ -109,27 +104,20 @@ export default function TodoRoom({
 
   const startEdit = (t) => {
     setEditing(t.id);
-    setConfirmDel(false);
-    setDraft(t.text);
     setQuery("");
     setSearchOpen(false);
-    setTimeout(() => taRef.current && taRef.current.focus(), 50);
   };
 
-  const cancelEdit = () => {
+  const saveEdit = (id, raw) => {
+    const text = raw.trim();
+    if (!text) { setEditing(null); return; }
+    persist(todos.map((t) => (t.id === id ? { ...t, text } : t)));
     setEditing(null);
-    setConfirmDel(false);
-    setDraft("");
-    if (taRef.current) taRef.current.style.height = "auto";
   };
 
-  const deleteTodo = () => {
-    if (!confirmDel) {
-      setConfirmDel(true);
-      return;
-    }
-    persist(todos.filter((t) => t.id !== editing));
-    cancelEdit();
+  const deleteTodo = (id) => {
+    persist(todos.filter((t) => t.id !== id));
+    setEditing(null);
   };
 
   const autoGrow = (e) => {
@@ -270,38 +258,38 @@ export default function TodoRoom({
             />
             <div
               className={"todo-bubble" + (editing === t.id ? " editing-now" : "")}
-              onClick={() => startEdit(t)}
+              onClick={editing === t.id ? undefined : () => startEdit(t)}
               role="button" tabIndex={0}
-              onKeyDown={(e) => e.key === "Enter" && startEdit(t)}
+              onKeyDown={(e) => editing !== t.id && e.key === "Enter" && startEdit(t)}
             >
-              <span className={"todo-text" + (t.done ? " done" : "")}>{highlight(t.text)}</span>
-              {t.done && <span className="todo-react">🩷</span>}
+              {editing === t.id ? (
+                <InlineEdit
+                  initial={t.text}
+                  onSave={(text) => saveEdit(t.id, text)}
+                  onCancel={() => setEditing(null)}
+                  onDelete={() => deleteTodo(t.id)}
+                  placeholder="TODOを書きなおしてね"
+                />
+              ) : (
+                <>
+                  <span className={"todo-text" + (t.done ? " done" : "")}>{highlight(t.text)}</span>
+                  {t.done && <span className="todo-react">🩷</span>}
+                </>
+              )}
             </div>
             <div className="todo-time">{t.time}</div>
           </div>
         ))}
       </div>
 
-      {editing && (
-        <div className="banner">
-          ✏️ TODOを編集中
-          <button className="b-cancel" onClick={cancelEdit}>キャンセル</button>
-          <button className={"b-del" + (confirmDel ? " arm" : "")} onClick={deleteTodo}>
-            {confirmDel ? "ほんとに削除する" : "削除"}
-          </button>
-        </div>
-      )}
-
       <div className="bar">
         <div className="in-row">
           <textarea
             ref={taRef} className="ta" rows={1}
-            placeholder={editing ? "TODOを書きなおしてね" : "やることを追加…"}
+            placeholder="やることを追加…"
             value={draft} onChange={autoGrow}
           />
-          <button className="send" aria-label={editing ? "保存" : "追加"} disabled={!draft.trim()} onClick={send}>
-            {editing ? "✓" : "↑"}
-          </button>
+          <button className="send" aria-label="追加" disabled={!draft.trim()} onClick={send}>↑</button>
         </div>
       </div>
 

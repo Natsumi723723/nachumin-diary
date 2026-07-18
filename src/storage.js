@@ -16,6 +16,9 @@ export const roomDataKey = (id) => `room-data-v1:${id}`;
 export const trashKey = (id) => `trash-v1:${id}:${Date.now()}`;
 // 今日の宣言
 export const DECL_KEY = "declaration-v1";
+// 箇条書きマークのユーザー設定
+export const MARKS_KEY = "marks-v1";
+export const DEFAULT_MARKS = ["・", "❤︎", "🩷", "💛", "🩵", "💜", "✨", "✔︎"];
 
 export const DIARY_ROOM_ID = "diary-main";
 

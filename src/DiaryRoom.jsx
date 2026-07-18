@@ -4,9 +4,11 @@ import {
   keyToDisp, todayKey, yesterdayKey, nowTime, escapeRegExp,
   diaryToText, parseDiaryText
 } from "./format.js";
+import InlineEdit from "./InlineEdit.jsx";
+import MarkBar, { insertAtCursor } from "./MarkBar.jsx";
 
-/* 日記型ルーム: 1日=1吹き出し（現行仕様そのまま） */
-export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToast, pinned, syncSignal }) {
+/* 日記型ルーム: 1日=1吹き出し。吹き出しタップでその場編集 */
+export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToast, pinned, syncSignal, marks, onEditMarks }) {
   const [entries, setEntries] = useState({}); // { "2026-07-16": {text, time} }
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState(todayKey());
@@ -124,78 +126,56 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     );
   };
 
+  // 新規のみ（既存の編集は吹き出し内インライン編集で行う）
   const send = () => {
     const text = draft.trim();
     if (!text) return;
-    if (editing) {
-      persist({ ...entries, [editing]: { ...entries[editing], text } });
-      setEditing(null);
-      setConfirmDel(false);
-    } else {
-      const prev = entries[selected];
-      persist({
-        ...entries,
-        [selected]: prev
-          ? { ...prev, text: prev.text + "\n\n" + text } // 追記は同じ吹き出しへ
-          : { text, time: nowTime() }
-      });
-    }
+    const prev = entries[selected];
+    persist({
+      ...entries,
+      [selected]: prev
+        ? { ...prev, text: prev.text + "\n\n" + text } // 追記は同じ吹き出しへ
+        : { text, time: nowTime() }
+    });
     setDraft("");
     if (taRef.current) taRef.current.style.height = "auto";
   };
 
-  // 編集中は広く、通常は最大140pxまで自動伸縮
-  const growCap = () => (editing ? Math.round(window.innerHeight * 0.45) : 140);
-  const resizeTa = () => {
-    const el = taRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, growCap()) + "px";
+  // 吹き出し内インライン編集の保存/削除
+  const saveEdit = (k, raw) => {
+    const text = raw.trim();
+    if (!text) { setEditing(null); return; } // 空なら変更しない
+    persist({ ...entries, [k]: { ...entries[k], text } });
+    setEditing(null);
+  };
+  const deleteEntry = (k) => {
+    const next = { ...entries };
+    delete next[k];
+    persist(next);
+    setEditing(null);
   };
 
   const startEdit = (k) => {
     setEditing(k);
-    setConfirmDel(false);
-    // 末尾に改行を足して、カーソルを次の行の先頭に置く（続きを書きやすく）
-    setDraft(entries[k].text + "\n");
     setQuery("");
     setSearchOpen(false);
-    setTimeout(() => {
-      const el = taRef.current;
-      if (!el) return;
-      el.focus();
-      el.style.height = "auto";
-      el.style.height = Math.min(el.scrollHeight, Math.round(window.innerHeight * 0.45)) + "px";
-      const end = el.value.length;
-      el.setSelectionRange(end, end);
-      el.scrollTop = el.scrollHeight;
-    }, 50);
-  };
-
-  const cancelEdit = () => {
-    setEditing(null);
-    setConfirmDel(false);
-    setDraft("");
-    if (taRef.current) taRef.current.style.height = "auto";
-  };
-
-  const deleteEntry = () => {
-    if (!confirmDel) {
-      setConfirmDel(true);
-      return;
-    }
-    const next = { ...entries };
-    delete next[editing];
-    persist(next);
-    cancelEdit();
   };
 
   const autoGrow = (e) => {
     setDraft(e.target.value);
     const el = e.target;
     el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, growCap()) + "px";
+    el.style.height = Math.min(el.scrollHeight, 140) + "px";
   };
+
+  const insertMark = (m) =>
+    insertAtCursor(taRef.current, m + " ", (v) => {
+      setDraft(v);
+      requestAnimationFrame(() => {
+        const el = taRef.current;
+        if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 140) + "px"; }
+      });
+    });
 
   const keys = Object.keys(entries).sort();
   const shown = query
@@ -221,7 +201,6 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
       key={label}
       className={"chip" + (selected === key ? " chip-on" : "")}
       onClick={() => setSelected(key)}
-      disabled={!!editing}
     >
       {label}
     </button>
@@ -277,61 +256,63 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
             <div className="time">{entries[k].time}</div>
             <div
               className={"bubble" + (editing === k ? " editing-now" : "")}
-              onClick={() => startEdit(k)}
+              onClick={editing === k ? undefined : () => startEdit(k)}
               role="button" tabIndex={0}
-              onKeyDown={(e) => e.key === "Enter" && startEdit(k)}
+              onKeyDown={(e) => editing !== k && e.key === "Enter" && startEdit(k)}
             >
               <span className="spark">✨</span>
               <div className="d-head">
                 🩷<span className="lnk">{keyToDisp(k)}</span>🩷
               </div>
-              <div className="body">{highlight(entries[k].text)}</div>
+              {editing === k ? (
+                <InlineEdit
+                  initial={entries[k].text}
+                  appendNewline
+                  marks={marks}
+                  onEditMarks={onEditMarks}
+                  onSave={(t) => saveEdit(k, t)}
+                  onCancel={() => setEditing(null)}
+                  onDelete={() => deleteEntry(k)}
+                  placeholder="内容を書きなおしてね"
+                />
+              ) : (
+                <div className="body">{highlight(entries[k].text)}</div>
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      {/* edit banner */}
-      {editing && (
-        <div className="banner">
-          ✏️ <b>{keyToDisp(editing)}</b> の日記を編集中
-          <button className="b-cancel" onClick={cancelEdit}>キャンセル</button>
-          <button className={"b-del" + (confirmDel ? " arm" : "")} onClick={deleteEntry}>
-            {confirmDel ? "ほんとに削除する" : "削除"}
-          </button>
-        </div>
-      )}
-
-      {/* input bar */}
+      {/* input bar（新規のみ） */}
       <div className="bar">
-        {!editing && (
-          <div className="chips">
-            {chip("今日", todayKey())}
-            {chip("昨日", yesterdayKey())}
-            <button className="chip chip-date">
-              📅 {selected === todayKey() || selected === yesterdayKey()
-                ? "日付をえらぶ" : selDisp}
-              <input
-                type="date" value={selected}
-                onChange={(e) => e.target.value && setSelected(e.target.value)}
-              />
-            </button>
-            {entries[selected] && (
-              <span className="exists-note">この日はもうあるので追記されます</span>
-            )}
-          </div>
+        <div className="chips">
+          {chip("今日", todayKey())}
+          {chip("昨日", yesterdayKey())}
+          <button className="chip chip-date">
+            📅 {selected === todayKey() || selected === yesterdayKey()
+              ? "日付をえらぶ" : selDisp}
+            <input
+              type="date" value={selected}
+              onChange={(e) => e.target.value && setSelected(e.target.value)}
+            />
+          </button>
+          {entries[selected] && (
+            <span className="exists-note">この日はもうあるので追記されます</span>
+          )}
+        </div>
+        {marks && marks.length > 0 && (
+          <MarkBar marks={marks} onInsert={insertMark} onEdit={onEditMarks} />
         )}
         <div className="in-row">
           <textarea
-            ref={taRef} className="ta" rows={editing ? 4 : 1}
-            style={{ maxHeight: editing ? "45vh" : "140px" }}
-            placeholder={editing ? "内容を書きなおしてね" : "今日あったことを書く…"}
+            ref={taRef} className="ta" rows={1}
+            placeholder="今日あったことを書く…"
             value={draft} onChange={autoGrow}
           />
           <button
-            className="send" aria-label={editing ? "保存" : "送信"}
+            className="send" aria-label="送信"
             disabled={!draft.trim()} onClick={send}
-          >{editing ? "✓" : "↑"}</button>
+          >↑</button>
         </div>
       </div>
 
