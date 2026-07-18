@@ -36,6 +36,29 @@ export const PALETTE = [
   "#d9ffe3", "#e8dcff", "#f0f0f0", "#2b2430"
 ];
 
+// だれログ/トークの人格に使うビビッドな背景色（一目で区別できる濃い色）
+export const MEMBER_COLORS = [
+  "#9C27B0", // 濃い紫
+  "#E91E63", // 濃いピンク
+  "#FFEB3B", // イエロー
+  "#2196F3", // 濃い青
+  "#4CAF50", // 緑
+  "#FF9800", // オレンジ
+  "#F44336", // 赤
+  "#00BCD4", // シアン
+  "#3F51B5", // インディゴ
+  "#8BC34A", // ライム
+  "#FF4081", // ホットピンク
+  "#009688"  // ティール
+];
+// 文字色の選択肢（自動＝背景に応じて白か黒）
+export const TEXT_COLORS = [
+  { key: "auto", label: "自動", value: null },
+  { key: "white", label: "白", value: "#ffffff" },
+  { key: "black", label: "黒", value: "#222028" },
+  { key: "pink", label: "ピンク", value: "#ff2d87" }
+];
+
 // 背景色に応じて読みやすい文字色を返す（暗い背景なら明るい文字）
 export const textOn = (bg) => {
   const c = String(bg).replace("#", "");
@@ -46,6 +69,9 @@ export const textOn = (bg) => {
   const L = 0.299 * r + 0.587 * g + 0.114 * b;
   return L < 140 ? "#fff5fa" : "#4a3140";
 };
+
+// 人格ラベルの文字色（明示指定があればそれ、無ければ自動）
+export const memberText = (m) => (m && m.textColor ? m.textColor : textOn(m && m.color));
 
 export const css = `
   * { box-sizing: border-box; }
@@ -466,6 +492,22 @@ export const css = `
     box-shadow: 0 2px 5px rgba(200,60,130,.35); flex-shrink: 0; padding: 0;
   }
   .ie-save:active { transform: scale(.93); }
+  /* 編集ツールバー（キーボード直上に固定） */
+  .edit-toolbar {
+    position: fixed; left: 0; right: 0; z-index: 30;
+    background: rgba(255,240,249,.98); border-top: 1px solid #f3b9d9;
+    padding: 7px 10px calc(7px + env(safe-area-inset-bottom));
+    box-shadow: 0 -3px 14px rgba(180,90,140,.18);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .edit-toolbar .markbar { margin: 0; padding: 0; }
+  .edit-toolbar .markchip {
+    min-width: 44px; height: 44px; font-size: 19px; border-radius: 12px;
+  }
+  .edit-toolbar .inline-btns { gap: 8px; }
+  .edit-toolbar .ie-del,
+  .edit-toolbar .ie-cancel { height: 44px; padding: 0 16px; font-size: 13.5px; }
+  .edit-toolbar .ie-save { width: 60px; height: 44px; font-size: 22px; }
   /* ＋ フローティングボタン（日記を書く） */
   .fab {
     position: fixed; right: 16px;
@@ -547,6 +589,11 @@ export const css = `
     width: 28px; height: 28px; font-size: 13px; cursor: pointer; flex-shrink: 0;
   }
   .mem-btn:disabled { opacity: .35; }
+  .mem-preview {
+    align-self: flex-start; border-radius: 10px; padding: 6px 16px;
+    font-size: 15px; font-weight: 700; min-width: 80px; text-align: center;
+    box-shadow: 0 1px 3px rgba(120,50,90,.2);
+  }
   .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
   .swatch {
     width: 30px; height: 30px; border-radius: 50%; cursor: pointer;

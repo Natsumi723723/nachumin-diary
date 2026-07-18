@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { uid } from "./format.js";
-import { PALETTE } from "./theme.js";
+import { MEMBER_COLORS, TEXT_COLORS, memberText } from "./theme.js";
 import { MIcon } from "./TalkRoom.jsx";
 
 /* メンバー（人格）の登録・編集モーダル。トーク型・だれログ型で共用 */
@@ -13,7 +13,8 @@ export default function MemberEditor({ members, onChange, onClose, showToast }) 
   const openNew = () => {
     setMember({
       id: uid(), name: "",
-      color: PALETTE[members.length % PALETTE.length],
+      color: MEMBER_COLORS[members.length % MEMBER_COLORS.length],
+      textColor: null,
       icon: { type: "emoji", value: "💗" },
       side: members.length % 2 === 0 ? "left" : "right"
     });
@@ -122,9 +123,17 @@ export default function MemberEditor({ members, onChange, onClose, showToast }) 
                 <input type="file" accept="image/*" onChange={onIconFile} />
               </label>
             </div>
-            <div className="f-label">色</div>
+            {/* 名前ラベルのプレビュー（背景色・文字色を変えると即更新） */}
+            <div className="f-label">プレビュー</div>
+            <div
+              className="mem-preview"
+              style={{ background: member.color, color: memberText(member) }}
+            >
+              {member.name.trim() || "なまえ"}
+            </div>
+            <div className="f-label">背景色</div>
             <div className="swatches">
-              {PALETTE.map((c) => (
+              {[...new Set([member.color, ...MEMBER_COLORS])].map((c) => (
                 <button
                   key={c}
                   className={"swatch" + (member.color === c ? " on" : "")}
@@ -132,6 +141,16 @@ export default function MemberEditor({ members, onChange, onClose, showToast }) 
                   onClick={() => setMember((o) => ({ ...o, color: c }))}
                   aria-label={c}
                 />
+              ))}
+            </div>
+            <div className="f-label">文字色</div>
+            <div className="seg">
+              {TEXT_COLORS.map((t) => (
+                <button
+                  key={t.key}
+                  className={((member.textColor || null) === t.value ? "on" : "")}
+                  onClick={() => setMember((o) => ({ ...o, textColor: t.value }))}
+                >{t.label}</button>
               ))}
             </div>
             <div className="panel-btns">

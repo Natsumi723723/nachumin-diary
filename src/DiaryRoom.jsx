@@ -100,11 +100,11 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     }
   }, [entries, loaded, query, editing, composing]);
 
-  // 編集/作成を始めたら、その吹き出しを画面内へ
+  // 編集/作成を始めたら、その吹き出しを上部へ寄せる（下のツールバー・キーボードに隠れないよう）
   useEffect(() => {
     if (!editing && !composing) return;
     const el = scrollRef.current?.querySelector(".editing-now");
-    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (el) setTimeout(() => el.scrollIntoView({ block: "start", behavior: "smooth" }), 60);
   }, [editing, composing]);
 
   const exportText = () => diaryToText(entries);
@@ -264,7 +264,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
       )}
 
       {/* chat */}
-      <div className="chat" ref={scrollRef} style={{ paddingBottom: 88 }}>
+      <div className="chat" ref={scrollRef} style={{ paddingBottom: editing || composing ? 200 : 88 }}>
         {loaded && displayKeys.length === 0 && (
           <div className="empty">
             {query
@@ -298,6 +298,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                         initial=""
                         marks={marks}
                         onEditMarks={onEditMarks}
+                        bottomToolbar
                         onSave={(t) => saveNew(k, t)}
                         onCancel={() => setComposing(null)}
                         placeholder="今日あったことを書く…"
@@ -308,6 +309,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                         appendNewline
                         marks={marks}
                         onEditMarks={onEditMarks}
+                        bottomToolbar
                         onSave={(t) => saveEdit(k, t)}
                         onCancel={() => setEditing(null)}
                         onDelete={() => deleteEntry(k)}

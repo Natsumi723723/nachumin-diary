@@ -7,7 +7,7 @@ import {
 } from "./format.js";
 import { MIcon } from "./TalkRoom.jsx";
 import MemberEditor from "./MemberEditor.jsx";
-import { PALETTE, textOn } from "./theme.js";
+import { PALETTE, memberText } from "./theme.js";
 
 /* だれログ型: 表そのものが記録画面。縦=日付(下が今日) 横=朝昼夜 */
 export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showToast, pinned }) {
@@ -236,7 +236,7 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
                                   className="dl-name"
                                   onClick={(e) => { e.stopPropagation(); openMenu(r); }}
                                   aria-label={mb?.name || "記録"}
-                                  style={{ background: color, color: textOn(color) }}
+                                  style={{ background: color, color: memberText(mb) }}
                                 >
                                   <span className="dl-name-txt">{mb?.name || "？"}</span>
                                   {r.memo && r.memo.trim() && <span className="dl-memo-dot" />}
@@ -306,9 +306,16 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
       {menu && (
         <div className="overlay" onClick={() => setMenu(null)}>
           <div className="panel" onClick={(e) => e.stopPropagation()}>
-            <h3>
-              <MIcon icon={memberOf(menu.memberId)?.icon} size={22} color={memberOf(menu.memberId)?.color} /> {memberOf(menu.memberId)?.name || "？"}
-              <span style={{ fontSize: 12, color: "#b06992", marginLeft: 6 }}>
+            <h3 style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <span
+                className="dl-name"
+                style={{
+                  background: memberOf(menu.memberId)?.color || "#f0f0f0",
+                  color: memberText(memberOf(menu.memberId)),
+                  fontSize: 13, padding: "3px 10px"
+                }}
+              >{memberOf(menu.memberId)?.name || "？"}</span>
+              <span style={{ fontSize: 12, color: "#b06992" }}>
                 {SLOTS.find((s) => s.key === menu.slot)?.emoji}{keyToDisp(menu.dateKey)}
               </span>
             </h3>
