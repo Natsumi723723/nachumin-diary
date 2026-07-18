@@ -251,7 +251,7 @@ ${n}`:r},Qm={morning:"🌅",noon:"☀️",night:"🌙"};function Yo(e,t){if(e.ty
     gap: 6px; margin-bottom: 16px; }
   .time { font-size: 10px; color: #7d5570; margin-bottom: 4px; flex-shrink: 0; }
   .bubble {
-    position: relative; flex: 1;
+    position: relative; flex: 1; min-width: 0;
     background: #fff5fa; border-radius: 18px; padding: 12px 14px;
     box-shadow: 0 1px 2px rgba(180, 90, 140, .18);
     cursor: pointer; -webkit-tap-highlight-color: transparent;
@@ -324,7 +324,7 @@ ${n}`:r},Qm={morning:"🌅",noon:"☀️",night:"🌙"};function Yo(e,t){if(e.ty
   .todo-check.on::after { content: "✓"; font-weight: 900; }
   .todo-check:active { transform: scale(.9); }
   .todo-bubble {
-    position: relative; flex: 1; max-width: 82%;
+    position: relative; flex: 1; min-width: 0; max-width: 82%;
     background: #fff5fa; border-radius: 16px; padding: 10px 13px;
     box-shadow: 0 1px 2px rgba(180,90,140,.18); cursor: pointer;
     -webkit-tap-highlight-color: transparent;
@@ -442,22 +442,32 @@ ${n}`:r},Qm={morning:"🌅",noon:"☀️",night:"🌙"};function Yo(e,t){if(e.ty
     width: 20px; height: 20px; font-size: 12px; cursor: pointer; line-height: 1;
   }
   /* 吹き出し内インライン編集 */
-  .inline-edit { display: flex; flex-direction: column; gap: 6px; }
+  .inline-edit { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .inline-ta {
-    width: 100%; border: 1.5px solid #e0629f; border-radius: 12px;
+    width: 100%; max-width: 100%; border: 1.5px solid #e0629f; border-radius: 12px;
     padding: 8px 10px; font-size: 14.5px; line-height: 1.7;
     background: #fff; color: #4a3140; resize: none; outline: none;
     font-family: inherit; min-height: 60px;
   }
-  .inline-btns { display: flex; gap: 6px; }
-  .inline-btns button {
-    border: none; border-radius: 999px; padding: 6px 14px;
-    font-size: 12.5px; font-weight: 700; cursor: pointer;
+  .inline-edit .markbar { max-width: 100%; }
+  /* 削除=左端 / キャンセル・保存=右 / 保存=右下の💌ボタン */
+  .inline-btns { display: flex; align-items: center; gap: 8px; }
+  .ie-del {
+    border: none; border-radius: 999px; padding: 6px 14px; font-size: 12.5px;
+    font-weight: 700; cursor: pointer; background: #ff7ab1; color: #fff;
   }
-  .ie-save { background: #e0629f; color: #fff; }
-  .ie-cancel { background: #fff; color: #a4356f; border: 1.5px solid #f0a6cf !important; }
-  .ie-del { background: #ff7ab1; color: #fff; margin-left: auto; }
   .ie-del.arm { background: #e23d7c; }
+  .ie-cancel {
+    margin-left: auto; border-radius: 999px; padding: 6px 14px; font-size: 12.5px;
+    font-weight: 700; cursor: pointer; background: #fff; color: #a4356f;
+    border: 1.5px solid #f0a6cf;
+  }
+  .ie-save {
+    border: none; width: 46px; height: 36px; border-radius: 999px;
+    background: #e0629f; color: #fff; font-size: 19px; cursor: pointer;
+    box-shadow: 0 2px 5px rgba(200,60,130,.35); flex-shrink: 0; padding: 0;
+  }
+  .ie-save:active { transform: scale(.93); }
   /* input bar */
   .bar {
     background: rgba(255,240,249,.96); border-top: 1px solid #f3b9d9;
@@ -551,7 +561,7 @@ ${n}`:r},Qm={morning:"🌅",noon:"☀️",night:"🌙"};function Yo(e,t){if(e.ty
     .todo-react { animation: none !important; }
   }
 `;function zd(e,t,n){if(!e)return;const r=e.selectionStart??e.value.length,l=e.selectionEnd??e.value.length,o=e.value.slice(0,r)+t+e.value.slice(l);n(o),requestAnimationFrame(()=>{try{e.focus();const i=r+t.length;e.setSelectionRange(i,i)}catch{}})}function Ld({marks:e,onInsert:t,onEdit:n}){return s.jsxs("div",{className:"markbar",children:[e.map((r,l)=>s.jsx("button",{className:"markchip",onMouseDown:o=>o.preventDefault(),onClick:()=>t(r),children:r},l)),s.jsx("button",{className:"markchip mark-edit",onMouseDown:r=>r.preventDefault(),onClick:n,"aria-label":"マークを編集",children:"⚙︎"})]})}function Pd({initial:e,appendNewline:t,marks:n,onEditMarks:r,onSave:l,onCancel:o,onDelete:i,placeholder:a}){const[u,d]=C.useState(t?e?e+`
-`:"":e||""),[g,y]=C.useState(!1),v=C.useRef(null),x=()=>{const w=v.current;w&&(w.style.height="auto",w.style.height=Math.min(w.scrollHeight,Math.round(window.innerHeight*.5))+"px")};return C.useEffect(()=>{const w=v.current;if(!w)return;w.focus(),x();const N=w.value.length;w.setSelectionRange(N,N),w.scrollTop=w.scrollHeight},[]),s.jsxs("div",{className:"inline-edit",onClick:w=>w.stopPropagation(),children:[n&&s.jsx(Ld,{marks:n,onInsert:w=>zd(v.current,w+" ",N=>{d(N),requestAnimationFrame(x)}),onEdit:r}),s.jsx("textarea",{ref:v,className:"inline-ta",value:u,placeholder:a,onChange:w=>{d(w.target.value),x()}}),s.jsxs("div",{className:"inline-btns",children:[s.jsx("button",{className:"ie-save",onClick:()=>l(u),children:"保存"}),s.jsx("button",{className:"ie-cancel",onClick:o,children:"キャンセル"}),i&&s.jsx("button",{className:"ie-del"+(g?" arm":""),onClick:()=>{if(!g){y(!0);return}i()},children:g?"ほんとに削除":"削除"})]})]})}function eh({room:e,onBack:t,onMeta:n,initialQuery:r,showToast:l,pinned:o,syncSignal:i,marks:a,onEditMarks:u}){const[d,g]=C.useState({}),[y,v]=C.useState(!1),[x,w]=C.useState(Oe()),[N,U]=C.useState(""),[m,c]=C.useState(null),[p,k]=C.useState(!1),[D,T]=C.useState(!!r),[L,b]=C.useState(r||""),[W,A]=C.useState(!1),[le,pe]=C.useState(!1),[Q,oe]=C.useState(""),[X,J]=C.useState(!1),ce=C.useRef(null),z=C.useRef(null),$=C.useRef(null);C.useEffect(()=>{(async()=>{try{const h=await Ee(je(e.id));h&&g(typeof h=="string"?JSON.parse(h):h)}catch{}finally{v(!0)}})()},[e.id]),C.useEffect(()=>{i&&(async()=>{const h=await Ee(je(e.id));h&&g(typeof h=="string"?JSON.parse(h):h)})()},[i]);const F=async h=>{g(h);try{await ke(je(e.id),h);const E=Object.keys(h).sort(),R=E[E.length-1];n({preview:R?h[R].text.split(`
+`:"":e||""),[g,y]=C.useState(!1),v=C.useRef(null),x=()=>{const w=v.current;w&&(w.style.height="auto",w.style.height=Math.min(w.scrollHeight,Math.round(window.innerHeight*.5))+"px")};return C.useEffect(()=>{const w=v.current;if(!w)return;w.focus(),x();const N=w.value.length;w.setSelectionRange(N,N),w.scrollTop=w.scrollHeight},[]),s.jsxs("div",{className:"inline-edit",onClick:w=>w.stopPropagation(),children:[n&&s.jsx(Ld,{marks:n,onInsert:w=>zd(v.current,w+" ",N=>{d(N),requestAnimationFrame(x)}),onEdit:r}),s.jsx("textarea",{ref:v,className:"inline-ta",value:u,placeholder:a,onChange:w=>{d(w.target.value),x()}}),s.jsxs("div",{className:"inline-btns",children:[i&&s.jsx("button",{className:"ie-del"+(g?" arm":""),onClick:()=>{if(!g){y(!0);return}i()},children:g?"ほんとに削除":"削除"}),s.jsx("button",{className:"ie-cancel",onClick:o,children:"キャンセル"}),s.jsx("button",{className:"ie-save",onClick:()=>l(u),"aria-label":"保存",children:"💌"})]})]})}function eh({room:e,onBack:t,onMeta:n,initialQuery:r,showToast:l,pinned:o,syncSignal:i,marks:a,onEditMarks:u}){const[d,g]=C.useState({}),[y,v]=C.useState(!1),[x,w]=C.useState(Oe()),[N,U]=C.useState(""),[m,c]=C.useState(null),[p,k]=C.useState(!1),[D,T]=C.useState(!!r),[L,b]=C.useState(r||""),[W,A]=C.useState(!1),[le,pe]=C.useState(!1),[Q,oe]=C.useState(""),[X,J]=C.useState(!1),ce=C.useRef(null),z=C.useRef(null),$=C.useRef(null);C.useEffect(()=>{(async()=>{try{const h=await Ee(je(e.id));h&&g(typeof h=="string"?JSON.parse(h):h)}catch{}finally{v(!0)}})()},[e.id]),C.useEffect(()=>{i&&(async()=>{const h=await Ee(je(e.id));h&&g(typeof h=="string"?JSON.parse(h):h)})()},[i]);const F=async h=>{g(h);try{await ke(je(e.id),h);const E=Object.keys(h).sort(),R=E[E.length-1];n({preview:R?h[R].text.split(`
 `)[0].slice(0,40):"",lastAt:Date.now()})}catch{l("保存に失敗しました。ストレージを確認してね")}};C.useEffect(()=>{!L&&ce.current&&(ce.current.scrollTop=ce.current.scrollHeight)},[d,y,L]);const H=()=>Tm(d),B=async()=>{try{await navigator.clipboard.writeText(H()),J(!0)}catch{try{$.current.focus(),$.current.select(),document.execCommand("copy"),J(!0)}catch{l("コピーできませんでした。全選択して手動でコピーしてね")}}setTimeout(()=>J(!1),2e3)},q=()=>{try{const h=new Blob([H()],{type:"text/plain;charset=utf-8"}),E=URL.createObjectURL(h),R=document.createElement("a");R.href=E,R.download=`nachumin-diary-${e.name}-${Oe()}.txt`,document.body.appendChild(R),R.click(),R.remove(),setTimeout(()=>URL.revokeObjectURL(E),3e3)}catch{l("ダウンロードできない環境みたい。コピーを使ってね")}},xe=()=>{const h=Om(Q),E=Object.keys(h);if(E.length===0){l("読み込める日記が見つかりませんでした 🥺");return}let R=0,ne=0;const G={...d};for(const de of E)G[de]?ne+=1:(G[de]=h[de],R+=1);F(G),pe(!1),oe(""),l(`${R}件の日記を復元したよ💗`+(ne?`（${ne}件はもうあるのでスキップ）`:""))},De=()=>{const h=N.trim();if(!h)return;const E=d[x];F({...d,[x]:E?{...E,text:E.text+`
 
 `+h}:{text:h,time:or()}}),U(""),z.current&&(z.current.style.height="auto")},Pe=(h,E)=>{const R=E.trim();if(!R){c(null);return}F({...d,[h]:{...d[h],text:R}}),c(null)},Ie=h=>{const E={...d};delete E[h],F(E),c(null)},Me=h=>{c(h),b(""),T(!1)},It=h=>{U(h.target.value);const E=h.target;E.style.height="auto",E.style.height=Math.min(E.scrollHeight,140)+"px"},rt=h=>zd(z.current,h+" ",E=>{U(E),requestAnimationFrame(()=>{const R=z.current;R&&(R.style.height="auto",R.style.height=Math.min(R.scrollHeight,140)+"px")})}),dt=Object.keys(d).sort(),wt=L?dt.filter(h=>(d[h].text+Ce(h)).toLowerCase().includes(L.toLowerCase())):dt,Ke=h=>L?h.split(new RegExp(`(${xo(L)})`,"gi")).map((R,ne)=>R.toLowerCase()===L.toLowerCase()?s.jsx("mark",{className:"hl",children:R},ne):R):h,Ge=(h,E)=>s.jsx("button",{className:"chip"+(x===E?" chip-on":""),onClick:()=>w(E),children:h},h),P=Ce(x).slice(5);return s.jsxs(s.Fragment,{children:[s.jsxs("div",{className:"hd",children:[s.jsx("button",{className:"back-btn","aria-label":"もどる",onClick:t,children:"‹"}),s.jsx("span",{style:{fontSize:20},children:e.emoji}),s.jsxs("div",{children:[s.jsx("div",{className:"hd-title",children:e.name}),s.jsx("div",{className:"hd-sub",children:"Nachumin Diary"})]}),s.jsx("button",{className:"icon-btn",style:{marginLeft:"auto"},"aria-label":"テキスト書き出し",onClick:()=>A(!0),children:"📤"}),s.jsx("button",{className:"icon-btn","aria-label":"テキストから復元",onClick:()=>pe(!0),children:"📥"}),s.jsx("button",{className:"icon-btn","aria-label":"検索",onClick:()=>{T(!D),b("")},children:D?"✕":"🔍"})]}),o,D&&s.jsx("div",{className:"search-row",children:s.jsx("input",{autoFocus:!0,placeholder:"日記を検索（ことば・日付）",value:L,onChange:h=>b(h.target.value)})}),s.jsxs("div",{className:"chat",ref:ce,children:[y&&wt.length===0&&s.jsx("div",{className:"empty",children:L?"みつかりませんでした 🥺":`まだ日記がありません。
