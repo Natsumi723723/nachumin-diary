@@ -333,7 +333,7 @@ export default function App() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `nachumin-diary-backup-${todayKey()}.json`;
+      a.download = `nachumin-diary-backup.json`;
       document.body.appendChild(a);
       a.click();
       a.remove();

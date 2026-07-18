@@ -3,7 +3,7 @@ import { get, set, roomDataKey } from "./storage.js";
 import {
   keyToDisp, keyToDate, todayKey, uid, WEEKDAYS,
   SLOTS, slotOfNow, groupDarelog, darelogDateRows,
-  darelogToText, parseDarelogText
+  darelogToText, parseDarelogText, safeFileName
 } from "./format.js";
 import { MIcon } from "./TalkRoom.jsx";
 import MemberEditor from "./MemberEditor.jsx";
@@ -126,7 +126,7 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `nachumin-diary-${room.name}-${todayKey()}.txt`;
+      a.download = `nachumin-diary-${safeFileName(room.name)}.txt`;
       document.body.appendChild(a);
       a.click();
       a.remove();

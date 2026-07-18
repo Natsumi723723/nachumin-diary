@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { get, set, roomDataKey } from "./storage.js";
 import {
-  keyToDisp, todayKey, nowTime, escapeRegExp, uid,
-  todoToText, parseTodoText
+  keyToDisp, keyToDate, WEEKDAYS, todayKey, nowTime, escapeRegExp, uid,
+  parseTodoText, safeFileName
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
 import DragList from "./DragList.jsx";
@@ -14,7 +14,7 @@ export default function TodoRoom({
 }) {
   const [todos, setTodos] = useState([]);
   const [loaded, setLoaded] = useState(false);
-  const [tab, setTab] = useState("todo"); // 'todo'=やること(未完了) | 'all'=ぜんぶ
+  const [tab, setTab] = useState("todo"); // 'todo'=やること(未完了) | 'done'=完了
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(null); // todo id
   const [confirmDel, setConfirmDel] = useState(false);
@@ -137,7 +137,8 @@ export default function TodoRoom({
   };
 
   /* export / import */
-  const exportText = () => todoToText(todos);
+  // 未完了のみ・画面の並び順（ドラッグ順＝配列順）で出力
+  const exportText = () => todos.filter((t) => !t.done).map((t) => `☐ ${t.text}`).join("\n");
 
   const doCopy = async () => {
     try {
@@ -162,7 +163,7 @@ export default function TodoRoom({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `nachumin-diary-${room.name}-${todayKey()}.txt`;
+      a.download = `nachumin-diary-${safeFileName(room.name)}.txt`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -206,11 +207,19 @@ export default function TodoRoom({
     );
   };
 
-  let shown = tab === "todo" ? todos.filter((t) => !t.done || justDone.has(t.id)) : todos;
-  if (query) {
-    const q = query.toLowerCase();
-    shown = shown.filter((t) => t.text.toLowerCase().includes(q));
+  const q = query.toLowerCase();
+  const matchQ = (t) => !query || t.text.toLowerCase().includes(q);
+  // やること: 未完了（完了直後は一瞬残す）
+  const shown = todos.filter((t) => (!t.done || justDone.has(t.id)) && matchQ(t));
+  // 完了: doneDateKey(29時制)でグループ化・古い順（新しい日が下）
+  const doneGroups = {};
+  for (const t of todos) {
+    if (!t.done || !matchQ(t)) continue;
+    const dk = t.doneDateKey || t.dateKey;
+    (doneGroups[dk] ||= []).push(t);
   }
+  const doneDates = Object.keys(doneGroups).sort();
+  for (const dk of doneDates) doneGroups[dk].sort((a, b) => (a.doneTime || "").localeCompare(b.doneTime || ""));
 
   const openCount = todos.filter((t) => !t.done).length;
 
@@ -234,7 +243,7 @@ export default function TodoRoom({
         <button className={"tab" + (tab === "todo" ? " on" : "")} onClick={() => setTab("todo")}>
           やること{openCount ? ` ${openCount}` : ""}
         </button>
-        <button className={"tab" + (tab === "all" ? " on" : "")} onClick={() => setTab("all")}>ぜんぶ</button>
+        <button className={"tab" + (tab === "done" ? " on" : "")} onClick={() => setTab("done")}>完了</button>
       </div>
 
       {searchOpen && (
@@ -249,64 +258,112 @@ export default function TodoRoom({
       )}
 
       <div className="chat" ref={scrollRef}>
-        {loaded && shown.length === 0 && (
-          <div className="empty">
-            {query
-              ? "みつかりませんでした 🥺"
-              : tab === "todo"
-                ? "やることは空っぽ！\n下から追加してね💗"
-                : "まだTODOがありません。\n下から追加してみよう💗"}
-          </div>
-        )}
-        <DragList
-          items={shown}
-          keyOf={(t) => t.id}
-          onReorder={onReorderTodos}
-          disabled={!!editing || !!query}
-          renderItem={(t) => (
-            <div className="todo-row">
-              <button
-                className={"todo-check" + (t.done ? " on" : "")}
-                aria-label={t.done ? "未完了にする" : "完了にする"}
-                onClick={() => toggle(t)}
-              />
-              <div
-                className={"todo-bubble" + (editing === t.id ? " editing-now" : "")}
-                onClick={editing === t.id ? undefined : () => startEdit(t)}
-                role="button" tabIndex={0}
-                onKeyDown={(e) => editing !== t.id && e.key === "Enter" && startEdit(t)}
-              >
-                {editing === t.id ? (
-                  <InlineEdit
-                    initial={t.text}
-                    onSave={(text) => saveEdit(t.id, text)}
-                    onCancel={() => setEditing(null)}
-                    onDelete={() => deleteTodo(t.id)}
-                    placeholder="TODOを書きなおしてね"
-                  />
-                ) : (
-                  <>
-                    <span className={"todo-text" + (t.done ? " done" : "")}>{highlight(t.text)}</span>
-                    {t.done && <span className="todo-react">🩷</span>}
-                  </>
-                )}
+        {tab === "todo" ? (
+          <>
+            {loaded && shown.length === 0 && (
+              <div className="empty">
+                {query ? "みつかりませんでした 🥺" : "やることは空っぽ！\n下から追加してね💗"}
               </div>
-              <div className="todo-time">{t.time}</div>
-            </div>
-          )}
-        />
+            )}
+            <DragList
+              items={shown}
+              keyOf={(t) => t.id}
+              onReorder={onReorderTodos}
+              disabled={!!editing || !!query}
+              renderItem={(t) => (
+                <div className="todo-row">
+                  <button
+                    className="todo-check"
+                    aria-label="完了にする"
+                    onClick={() => toggle(t)}
+                  />
+                  <div
+                    className={"todo-bubble" + (editing === t.id ? " editing-now" : "")}
+                    onClick={editing === t.id ? undefined : () => startEdit(t)}
+                    role="button" tabIndex={0}
+                    onKeyDown={(e) => editing !== t.id && e.key === "Enter" && startEdit(t)}
+                  >
+                    {editing === t.id ? (
+                      <InlineEdit
+                        initial={t.text}
+                        onSave={(text) => saveEdit(t.id, text)}
+                        onCancel={() => setEditing(null)}
+                        onDelete={() => deleteTodo(t.id)}
+                        placeholder="TODOを書きなおしてね"
+                      />
+                    ) : (
+                      <>
+                        <span className={"todo-text" + (t.done ? " done" : "")}>{highlight(t.text)}</span>
+                        {t.done && <span className="todo-react">🩷</span>}
+                      </>
+                    )}
+                  </div>
+                  <div className="todo-time">{t.time}</div>
+                </div>
+              )}
+            />
+          </>
+        ) : (
+          <>
+            {loaded && doneDates.length === 0 && (
+              <div className="empty">
+                {query ? "みつかりませんでした 🥺" : "完了したことはまだないよ💗\nチェックすると here に残るよ"}
+              </div>
+            )}
+            {doneDates.map((dk) => {
+              const d = keyToDate(dk);
+              return (
+                <Fragment key={dk}>
+                  <div className="date-pill">
+                    <span>🩷{keyToDisp(dk)}🩷 {WEEKDAYS[d.getDay()]}</span>
+                  </div>
+                  {doneGroups[dk].map((t) => (
+                    <div className="todo-row" key={t.id}>
+                      <button
+                        className="todo-check on"
+                        aria-label="未完了にする"
+                        onClick={() => toggle(t)}
+                      />
+                      <div
+                        className={"todo-bubble" + (editing === t.id ? " editing-now" : "")}
+                        onClick={editing === t.id ? undefined : () => startEdit(t)}
+                        role="button" tabIndex={0}
+                        onKeyDown={(e) => editing !== t.id && e.key === "Enter" && startEdit(t)}
+                      >
+                        {editing === t.id ? (
+                          <InlineEdit
+                            initial={t.text}
+                            onSave={(text) => saveEdit(t.id, text)}
+                            onCancel={() => setEditing(null)}
+                            onDelete={() => deleteTodo(t.id)}
+                            placeholder="TODOを書きなおしてね"
+                          />
+                        ) : (
+                          <span className="todo-text done">{highlight(t.text)}</span>
+                        )}
+                      </div>
+                      <div className="todo-time">{t.doneTime || ""} 完了</div>
+                    </div>
+                  ))}
+                </Fragment>
+              );
+            })}
+          </>
+        )}
       </div>
 
-      <div className="bar">
-        <div className="in-row">
-          <textarea
-            ref={taRef} className="ta" rows={1}
-            placeholder="やることを追加…"
-            value={draft} onChange={autoGrow}
-          />
-          <button className="send" aria-label="追加" disabled={!draft.trim()} onClick={send}>↑</button>
+      {tab === "todo" && (
+        <div className="bar">
+          <div className="in-row">
+            <textarea
+              ref={taRef} className="ta" rows={1}
+              placeholder="やることを追加…"
+              value={draft} onChange={autoGrow}
+            />
+            <button className="send" aria-label="追加" disabled={!draft.trim()} onClick={send}>↑</button>
+          </div>
         </div>
-      </div>
+      )}
 
       {exportOpen && (
         <div className="overlay" onClick={() => setExportOpen(false)}>

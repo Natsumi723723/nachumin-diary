@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, Fragment } from "react";
 import { get, set, roomDataKey, doneLogKey } from "./storage.js";
 import {
   keyToDisp, todayKey, yesterdayKey, nowTime, escapeRegExp,
-  diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER
+  diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER, safeFileName
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
 
@@ -132,7 +132,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `nachumin-diary-${room.name}-${todayKey()}.txt`;
+      a.download = `nachumin-diary-${safeFileName(room.name)}.txt`;
       document.body.appendChild(a);
       a.click();
       a.remove();
