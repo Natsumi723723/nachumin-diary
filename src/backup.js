@@ -1,6 +1,6 @@
 import {
   get, set, ROOMS_KEY, roomDataKey, DECL_KEY, doneLogKey, MARKS_KEY,
-  habitsKey, habitLogKey
+  habitsKey, habitLogKey, habitSeedKey
 } from "./storage.js";
 
 const SLOT_EMOJI = { morning: "🌅", noon: "☀️", night: "🌙" };
@@ -66,6 +66,7 @@ export async function dumpAll() {
   const doneLogs = {};
   const habits = {};
   const habitLogs = {};
+  const habitSeeds = {};
   for (const r of rooms) {
     const dl = await get(doneLogKey(r.id));
     if (dl && Object.keys(dl).length) doneLogs[r.id] = dl;
@@ -73,6 +74,7 @@ export async function dumpAll() {
     if (Array.isArray(hb) && hb.length) habits[r.id] = hb;
     const hl = await get(habitLogKey(r.id));
     if (hl && Object.keys(hl).length) habitLogs[r.id] = hl;
+    if (await get(habitSeedKey(r.id))) habitSeeds[r.id] = true;
   }
   const marks = (await get(MARKS_KEY)) || null;
   return {
@@ -85,6 +87,7 @@ export async function dumpAll() {
     doneLogs,
     habits,
     habitLogs,
+    habitSeeds,
     marks
   };
 }
@@ -189,6 +192,12 @@ export async function restoreAll(obj) {
     for (const [rid, hb] of Object.entries(obj.habits)) {
       const cur = await get(habitsKey(rid));
       if (cur === undefined) await set(habitsKey(rid), hb);
+    }
+  }
+  // 習慣シード印（週報の二重追加を防ぐ）
+  if (obj.habitSeeds) {
+    for (const rid of Object.keys(obj.habitSeeds)) {
+      if (obj.habitSeeds[rid]) await set(habitSeedKey(rid), true);
     }
   }
   // 習慣の達成ログ（日付ごとにマージ・重複除外）

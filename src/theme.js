@@ -632,6 +632,12 @@ export const css = `
     cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
   .habit-chip.on { background: #e0629f; border-color: #e0629f; color: #fff; }
+  .dow-row { display: flex; gap: 5px; flex-basis: 100%; margin-top: 5px; }
+  .dow-chip {
+    flex: 1; border: 1.5px solid #f0a6cf; background: #fff; color: #b04a86;
+    border-radius: 8px; padding: 6px 0; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  }
+  .dow-chip.on { background: #e0629f; border-color: #e0629f; color: #fff; }
   .habit-chip:active { transform: scale(.95); }
   /* 固定入力バー（キーボード直上に追従） */
   .bar-fixed { position: fixed; left: 0; right: 0; z-index: 20; }

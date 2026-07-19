@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 import {
-  get, set, roomDataKey, doneLogKey, habitsKey, habitLogKey
+  get, set, roomDataKey, doneLogKey, habitsKey, habitLogKey, habitSeedKey
 } from "./storage.js";
 import {
-  keyToDisp, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
+  keyToDisp, keyToDate, WEEKDAYS, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
   diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER, safeFileName, copyText
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
@@ -71,15 +71,31 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
         }
         setEntries(nextEntries);
         setDoneLog(nextLog);
-        // 習慣: 初回のみ例を用意
+        // 習慣: 初回は例を用意。既存は freq/days を補完（毎日として引き継ぐ）
         let hb = await get(habitsKey(room.id));
-        if (hb === undefined) {
+        const firstTime = hb === undefined;
+        if (firstTime) {
           hb = [
             { id: uid(), name: "note投稿", emoji: "📝" },
             { id: uid(), name: "キャラ投稿", emoji: "🎨" }
           ];
-          await set(habitsKey(room.id), hb);
         }
+        let hchanged = firstTime;
+        hb = hb.map((h) => {
+          if (h.freq && h.days) return h;
+          hchanged = true;
+          return { ...h, freq: h.freq || "daily", days: h.days || [] };
+        });
+        // 週報を書く（毎週日曜）を一度だけ用意
+        const seeded = await get(habitSeedKey(room.id));
+        if (!seeded) {
+          await set(habitSeedKey(room.id), true);
+          if (!hb.some((h) => h.name === "週報を書く")) {
+            hb = [...hb, { id: uid(), name: "週報を書く", emoji: "📋", freq: "weekly", days: [0] }];
+            hchanged = true;
+          }
+        }
+        if (hchanged) await set(habitsKey(room.id), hb);
         setHabits(Array.isArray(hb) ? hb : []);
         setHabitAch((await get(habitLogKey(room.id))) || {});
       } catch (e) {
@@ -198,8 +214,21 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     setHabits(next);
     set(habitsKey(room.id), next).catch(() => showToast("保存に失敗しました"));
   };
-  const addHabit = () => saveHabits([...habits, { id: uid(), name: "", emoji: "🩷" }]);
+  const addHabit = () => saveHabits([...habits, { id: uid(), name: "", emoji: "🩷", freq: "daily", days: [] }]);
   const updateHabit = (id, patch) => saveHabits(habits.map((h) => (h.id === id ? { ...h, ...patch } : h)));
+  const setHabitFreq = (id, freq) => {
+    if (freq === "weekly") {
+      const h = habits.find((x) => x.id === id);
+      updateHabit(id, { freq, days: h && h.days && h.days.length ? h.days : [keyToDate(todayKey()).getDay()] });
+    } else {
+      updateHabit(id, { freq: "daily" });
+    }
+  };
+  const toggleHabitDay = (id, di) => {
+    const h = habits.find((x) => x.id === id);
+    const days = (h.days || []).includes(di) ? h.days.filter((d) => d !== di) : [...(h.days || []), di];
+    updateHabit(id, { days });
+  };
   const moveHabit = (i, dir) => {
     const j = i + dir;
     if (j < 0 || j >= habits.length) return;
@@ -338,7 +367,10 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
           const done = doneLog[k] || [];
           const isToday = k === today;
           const ach = habitAch[k] || [];
-          const showHabits = habits.length > 0 && (isToday || hasDiary || ach.length > 0);
+          // その日(29時制)の曜日に該当する習慣だけ表示（毎日は常に、毎週は指定曜日のみ）
+          const dow = keyToDate(k).getDay();
+          const dayHabits = habits.filter((h) => (h.freq === "weekly" ? (h.days || []).includes(dow) : true));
+          const showHabits = dayHabits.length > 0 && (isToday || hasDiary || ach.length > 0);
           const showDone = done.length > 0 || showHabits;
           return (
             <Fragment key={k}>
@@ -384,7 +416,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                     ))}
                     {showHabits && (
                       <div className={"habits-row" + (done.length ? " has-sep" : "")}>
-                        {habits.map((h) => {
+                        {dayHabits.map((h) => {
                           const on = ach.includes(h.id);
                           return (
                             <button
@@ -453,7 +485,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
             <h3>🎯 習慣</h3>
             <p className="panel-note">毎日くり返すこと。日記の「できたこと」からワンタップで記録できます。</p>
             {habits.map((h, i) => (
-              <div className="mem-row" key={h.id}>
+              <div className="mem-row" key={h.id} style={{ flexWrap: "wrap" }}>
                 <input
                   className="f-input" style={{ width: 54, textAlign: "center", flex: "0 0 auto" }}
                   maxLength={4} placeholder="🩷"
@@ -471,6 +503,21 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                   className="mem-btn" style={habitDel === h.id ? { background: "#e23d7c", color: "#fff" } : undefined}
                   onClick={() => removeHabit(h.id)} aria-label="削除"
                 >{habitDel === h.id ? "!" : "🗑"}</button>
+                <div className="seg" style={{ flexBasis: "100%", marginTop: 4 }}>
+                  <button className={h.freq !== "weekly" ? "on" : ""} onClick={() => setHabitFreq(h.id, "daily")}>毎日</button>
+                  <button className={h.freq === "weekly" ? "on" : ""} onClick={() => setHabitFreq(h.id, "weekly")}>毎週</button>
+                </div>
+                {h.freq === "weekly" && (
+                  <div className="dow-row">
+                    {WEEKDAYS.map((w, di) => (
+                      <button
+                        key={di}
+                        className={"dow-chip" + ((h.days || []).includes(di) ? " on" : "")}
+                        onClick={() => toggleHabitDay(h.id, di)}
+                      >{w}</button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             {habits.length === 0 && <p className="panel-note">まだ習慣がありません。追加してね💗</p>}

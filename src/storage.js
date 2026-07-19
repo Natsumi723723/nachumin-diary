@@ -24,6 +24,7 @@ export const doneLogKey = (roomId) => `donelog-v1:${roomId}`;
 // 習慣（ハビットトラッカー）: 定義と日別の達成ログ
 export const habitsKey = (roomId) => `habits-v1:${roomId}`;
 export const habitLogKey = (roomId) => `habitlog-v1:${roomId}`;
+export const habitSeedKey = (roomId) => `habitseed-v1:${roomId}`; // 週報を一度だけ用意した印
 
 export const DIARY_ROOM_ID = "diary-main";
 
