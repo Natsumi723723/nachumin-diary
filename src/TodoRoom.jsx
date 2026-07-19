@@ -379,7 +379,7 @@ export default function TodoRoom({
             x={menu.x} y={menu.y}
             onClose={() => setMenu(null)}
             onCopy={async () => {
-              const ok = await copyText(t ? t.text : "");
+              const ok = await copyText(t ? `🩷${keyToDisp(t.doneDateKey || t.dateKey)}🩷\n${t.text}` : "");
               showToast(ok ? "コピーしました🩷" : "コピーできませんでした。手動でコピーしてね");
               setMenu(null);
             }}

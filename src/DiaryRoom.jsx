@@ -437,7 +437,10 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
         <ContextMenu
           x={menu.x} y={menu.y}
           onClose={() => setMenu(null)}
-          onCopy={() => doCopyText(menu.type === "diary" ? entries[menu.k]?.text || "" : doneTextOf(menu.k))}
+          onCopy={() => doCopyText(
+            `🩷${keyToDisp(menu.k)}🩷\n` +
+            (menu.type === "diary" ? entries[menu.k]?.text || "" : doneTextOf(menu.k))
+          )}
           onEdit={menu.type === "diary" ? () => { setMenu(null); startEdit(menu.k); } : undefined}
           onDelete={menu.type === "diary" ? () => { setMenu(null); deleteEntry(menu.k); } : undefined}
         />
