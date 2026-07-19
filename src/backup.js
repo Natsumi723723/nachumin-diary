@@ -35,6 +35,15 @@ function metaFromData(room, data) {
       lastAt: room.lastAt || (last ? Date.now() : 0)
     };
   }
+  if (room.type === "expense") {
+    const exp = (data && data.expenses) || [];
+    const last = exp[exp.length - 1];
+    const cn = (id) => (room.categories || []).find((c) => c.id === id)?.name || "";
+    return {
+      preview: last ? `${cn(last.categoryId)} ¥${(last.amount || 0).toLocaleString("ja-JP")}` : "",
+      lastAt: room.lastAt || (last ? Date.now() : 0)
+    };
+  }
   const es = data && typeof data === "object" ? data : {};
   const ks = Object.keys(es).sort();
   const lastKey = ks[ks.length - 1];
@@ -105,10 +114,12 @@ export async function restoreAll(obj) {
     // 配列ベースのルームは (キー, 署名) で重複判定
     const arrKey = r.type === "talk" ? "messages"
       : r.type === "todo" ? "todos"
-      : r.type === "darelog" ? "records" : null;
+      : r.type === "darelog" ? "records"
+      : r.type === "expense" ? "expenses" : null;
     const sigOf = (x) => arrKey === "messages" ? `${x.dateKey} ${x.memberId} ${x.text}`
       : arrKey === "todos" ? `${x.dateKey} ${x.text}`
-      : `${x.dateKey} ${x.slot} ${x.memberId}`;
+      : arrKey === "records" ? `${x.dateKey} ${x.slot} ${x.memberId}`
+      : x.id;
 
     if (!byId.has(r.id)) {
       if (incoming !== undefined) await set(roomDataKey(r.id), incoming);

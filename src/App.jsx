@@ -14,14 +14,15 @@ import TalkRoom from "./TalkRoom.jsx";
 import TodoRoom from "./TodoRoom.jsx";
 import DragList from "./DragList.jsx";
 import DarelogRoom from "./DarelogRoom.jsx";
+import ExpenseRoom from "./ExpenseRoom.jsx";
 import SwipeBack from "./SwipeBack.jsx";
 
 const EMOJI_PICKS = [
   "💗", "🩷", "💛", "🩵", "💜", "🤍", "🖤", "🌸", "🌷", "🎀",
   "🌟", "✨", "⭐️", "👑", "🫶", "🐰", "🐻", "🐱", "🦄", "🌙",
-  "🌊", "🌿", "🍓", "🍒", "🧸", "📖", "💬", "✅", "🌗", "🔥"
+  "🌊", "🌿", "🍓", "🍒", "🧸", "📖", "💬", "✅", "🌗", "💰"
 ];
-const TYPE_LABEL = { diary: "日記", talk: "トーク", todo: "TODO", darelog: "だれログ" };
+const TYPE_LABEL = { diary: "日記", talk: "トーク", todo: "TODO", darelog: "だれログ", expense: "経費" };
 
 export default function App() {
   const [rooms, setRooms] = useState(null);
@@ -231,6 +232,14 @@ export default function App() {
             hits.push({ snippet: `${nm}${rec.memo ? `: ${rec.memo}` : ""}`, date: keyToDisp(rec.dateKey) });
           }
         }
+      } else if (r.type === "expense") {
+        const exp = data && Array.isArray(data.expenses) ? data.expenses : [];
+        const cn = (id) => r.categories?.find((c) => c.id === id)?.name || "";
+        for (const e of exp) {
+          if ((cn(e.categoryId) + (e.memo || "") + String(e.amount) + keyToDisp(e.dateKey)).toLowerCase().includes(q)) {
+            hits.push({ snippet: `${cn(e.categoryId)} ¥${e.amount}${e.memo ? " " + e.memo : ""}`, date: keyToDisp(e.dateKey) });
+          }
+        }
       } else {
         const ms = data && Array.isArray(data.messages) ? data.messages : [];
         const nameOf = (id) => r.members?.find((m) => m.id === id)?.name || "";
@@ -266,7 +275,7 @@ export default function App() {
       showToast("ルーム名を入れてね");
       return;
     }
-    const defaultEmoji = { diary: "💗", todo: "✅", darelog: "🌗", talk: "🩷" }[modal.type] || "🩷";
+    const defaultEmoji = { diary: "💗", todo: "✅", darelog: "🌗", expense: "💰", talk: "🩷" }[modal.type] || "🩷";
     // だれログは初期人格を用意（記録のハードルをゼロに）
     const initMembers = modal.type === "darelog"
       ? [
@@ -275,10 +284,19 @@ export default function App() {
           { id: uid(), name: "ひかりちゃん", color: "#ffd9ec", icon: { type: "emoji", value: "🌸" }, side: "right" }
         ]
       : [];
+    // 経費は初期カテゴリを用意
+    const initCategories = modal.type === "expense"
+      ? [
+          { id: uid(), name: "AI費用", emoji: "🤖", color: "#2196F3" },
+          { id: uid(), name: "ピンクグッズ", emoji: "🎀", color: "#E91E63" },
+          { id: uid(), name: "ネイル", emoji: "💅", color: "#9C27B0" }
+        ]
+      : undefined;
     const room = {
       id: uid(), type: modal.type, name,
       emoji: modal.emoji.trim() || defaultEmoji,
-      members: initMembers, createdAt: Date.now(), lastAt: 0, preview: ""
+      members: initMembers, createdAt: Date.now(), lastAt: 0, preview: "",
+      ...(initCategories ? { categories: initCategories, subscriptions: [], subsPosted: {} } : {})
     };
     saveRooms([...rooms, room]);
     setModal(null);
@@ -432,7 +450,9 @@ export default function App() {
           ? <TodoRoom key={room.id} {...common} onTodoComplete={onTodoComplete} onTodoUncomplete={onTodoUncomplete} />
           : room.type === "darelog"
             ? <DarelogRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />
-            : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
+            : room.type === "expense"
+              ? <ExpenseRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />
+              : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
       content = (
         <SwipeBack key={room.id} onBack={() => setView({ screen: "home" })}>
           {roomEl}
@@ -511,6 +531,7 @@ export default function App() {
                 const emptyMsg = isTalk ? "かけあいを書こう💗"
                   : isTodo ? "やることを追加しよう💗"
                   : r.type === "darelog" ? "朝昼夜の記録をつけよう💗"
+                  : r.type === "expense" ? "支出を記録しよう💗"
                   : "日記を書こう💗";
                 const line2 = r.preview
                   ? (isTalk && r.previewName ? `${r.previewName}: ${r.preview}` : r.preview)
@@ -604,6 +625,11 @@ export default function App() {
                 disabled={modal.mode === "edit"}
                 onClick={() => setModal((o) => ({ ...o, type: "darelog" }))}
               >🌗 だれログ<small>朝昼夜の記録</small></button>
+              <button
+                className={"type-chip" + (modal.type === "expense" ? " on" : "")}
+                disabled={modal.mode === "edit"}
+                onClick={() => setModal((o) => ({ ...o, type: "expense" }))}
+              >💰 経費<small>支出を記録</small></button>
             </div>
             <div className="panel-btns">
               <button className="p-copy" onClick={modal.mode === "new" ? createRoom : saveEdit}>

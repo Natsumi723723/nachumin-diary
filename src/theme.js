@@ -528,6 +528,77 @@ export const css = `
   .date-cal input {
     position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer;
   }
+  /* 経費型 */
+  .exp-summary {
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    width: 100%; border: none; cursor: pointer; text-align: left;
+    background: rgba(255,240,249,.92); border-bottom: 1px solid #f3b9d9;
+    padding: 9px 14px; color: #a4356f;
+  }
+  .exp-summary-label { font-size: 12.5px; font-weight: 700; }
+  .exp-summary-amt { font-size: 18px; font-weight: 800; letter-spacing: .02em; }
+  .exp-summary-arrow { margin-left: auto; font-size: 12px; color: #c2478f; font-weight: 700; }
+  .exp-banner {
+    flex-shrink: 0; background: #fff0f8; border-bottom: 1px solid #f3b9d9;
+    padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .exp-banner-head { font-size: 13px; font-weight: 700; color: #a4356f; }
+  .exp-banner-row { display: flex; align-items: center; gap: 6px; }
+  .exp-check {
+    width: 22px; height: 22px; border-radius: 6px; border: 2px solid #e0629f;
+    background: #fff; flex-shrink: 0; cursor: pointer; padding: 0;
+  }
+  .exp-check.on { background: #e0629f; }
+  .exp-check.on::after { content: "✓"; color: #fff; font-weight: 900; font-size: 13px; }
+  .exp-banner-name { flex: 1; font-size: 13px; font-weight: 700; color: #4a3140; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .exp-banner-amt { width: 90px; flex: 0 0 auto; }
+  .exp-banner-btns { display: flex; gap: 8px; margin-top: 2px; }
+  .exp-banner-btns button { flex: 1; border: none; border-radius: 999px; padding: 8px 0;
+    font-size: 12.5px; font-weight: 700; cursor: pointer; }
+  .exp-yen { color: #a4356f; font-weight: 700; }
+  /* 表 */
+  .exp-table { flex: 1; overflow-y: auto; padding: 8px 10px 16px; }
+  .exp-divider { text-align: center; margin: 12px 0 8px; color: #a4517f;
+    font-size: 12px; font-weight: 700; }
+  .exp-row {
+    background: rgba(255,255,255,.7); border-radius: 12px; padding: 8px 12px;
+    margin-bottom: 6px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 1px 2px rgba(180,90,140,.12);
+  }
+  .exp-row:active { background: #ffe4f1; }
+  .exp-main { display: flex; align-items: center; gap: 8px; }
+  .exp-date { font-size: 12px; color: #7d5570; flex-shrink: 0; width: 38px; }
+  .exp-cat {
+    font-size: 12px; font-weight: 700; border-radius: 8px; padding: 2px 8px;
+    max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .exp-amt { margin-left: auto; font-size: 15px; font-weight: 800; color: #4a3140; flex-shrink: 0; }
+  .exp-memo { font-size: 11.5px; color: #a4517f; margin: 3px 0 0 46px; white-space: pre-wrap; }
+  /* 下部カテゴリチップ */
+  .exp-cat-chips { flex-wrap: nowrap; }
+  .exp-chip {
+    border: none; border-radius: 999px; padding: 8px 14px; font-size: 13px;
+    font-weight: 700; cursor: pointer; flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(180,90,140,.2);
+  }
+  .exp-chip:active { transform: scale(.95); }
+  .exp-chip-add { background: #fff !important; color: #c2478f !important;
+    border: 1.5px dashed #e9a8cc; box-shadow: none; }
+  .exp-chip.sel { box-shadow: 0 0 0 2px #4a3140 inset; }
+  /* 金額入力 */
+  .exp-amt-field { display: flex; align-items: center; gap: 6px;
+    border: 1.5px solid #e0629f; border-radius: 12px; padding: 6px 12px; background: #fff; }
+  .exp-yen-big { font-size: 24px; font-weight: 800; color: #a4356f; }
+  .exp-amt-input { flex: 1; border: none; outline: none; font-size: 26px; font-weight: 800;
+    color: #4a3140; background: transparent; text-align: right; width: 100%; }
+  /* 集計 */
+  .sum-list { display: flex; flex-direction: column; gap: 2px; }
+  .sum-row { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 7px 4px; border-bottom: 1px dashed #f3b9d9; font-size: 13px; color: #4a3140; }
+  .sum-amt { font-weight: 800; color: #a4356f; flex-shrink: 0; }
+  .sum-grand { border-bottom: none; font-size: 14.5px; font-weight: 800;
+    background: #ffe4f1; border-radius: 10px; padding: 10px 12px; margin-top: 6px; }
   /* 習慣チップ（できたこと吹き出し内） */
   .habits-row { display: flex; flex-wrap: wrap; gap: 6px; }
   .habits-row.has-sep { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e3d2f7; }
