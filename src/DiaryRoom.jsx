@@ -4,11 +4,13 @@ import {
 } from "./storage.js";
 import {
   keyToDisp, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
-  diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER, safeFileName
+  diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER, safeFileName, copyText
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
 import MarkBar, { insertAtCursor } from "./MarkBar.jsx";
 import useKbGap from "./useKbGap.js";
+import Pressable from "./Pressable.jsx";
+import ContextMenu from "./ContextMenu.jsx";
 
 /* 日記型ルーム: 1日=1吹き出し。下部入力欄で送信=追記、吹き出しタップで全文編集。
    「できたこと」吹き出しに完了TODO＋習慣チップを表示。 */
@@ -28,6 +30,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
   const [importText, setImportText] = useState("");
   const [habitModal, setHabitModal] = useState(false);
   const [habitDel, setHabitDel] = useState(null);
+  const [menu, setMenu] = useState(null); // 長押しメニュー {type,k,x,y}
   const [copied, setCopied] = useState(false);
   const [barH, setBarH] = useState(120);
   const scrollRef = useRef(null);
@@ -264,6 +267,20 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     );
   };
 
+  const doneTextOf = (k) => {
+    const lines = ["🩷 できたこと"];
+    for (const it of (doneLog[k] || [])) lines.push(`☑ ${it.text}${it.time ? ` (${it.time})` : ""}`);
+    const ach = habitAch[k] || [];
+    const hn = habits.filter((h) => ach.includes(h.id)).map((h) => `${h.emoji || ""}${h.name}`);
+    if (hn.length) lines.push("習慣: " + hn.join(" "));
+    return lines.join("\n");
+  };
+  const doCopyText = async (text) => {
+    const ok = await copyText(text);
+    showToast(ok ? "コピーしました🩷" : "コピーできませんでした。手動でコピーしてね");
+    setMenu(null);
+  };
+
   const q = query.toLowerCase();
   const today = todayKey();
   const allDates = new Set([...Object.keys(entries), ...Object.keys(doneLog), ...Object.keys(habitAch)]);
@@ -328,9 +345,10 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
               {hasDiary && (
                 <div className="row" data-date={k}>
                   <div className="time">{entries[k].time}</div>
-                  <div
+                  <Pressable
                     className={"bubble" + (isEditing ? " editing-now" : "")}
                     onClick={isEditing ? undefined : () => startEdit(k)}
+                    onLongPress={isEditing ? undefined : (p) => setMenu({ type: "diary", k, x: p.x, y: p.y })}
                     role="button" tabIndex={0}
                     onKeyDown={(e) => !isEditing && e.key === "Enter" && startEdit(k)}
                   >
@@ -348,12 +366,15 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                     ) : (
                       <div className="body">{highlight(entries[k].text)}</div>
                     )}
-                  </div>
+                  </Pressable>
                 </div>
               )}
               {showDone && (
                 <div className="done-row" style={hasDiary ? undefined : { marginTop: 0 }}>
-                  <div className="done-bubble">
+                  <Pressable
+                    className="done-bubble"
+                    onLongPress={(p) => setMenu({ type: "done", k, x: p.x, y: p.y })}
+                  >
                     <div className="done-head">🩷 できたこと</div>
                     {done.map((it, i) => (
                       <div className="done-line" key={i}>
@@ -377,7 +398,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                         })}
                       </div>
                     )}
-                  </div>
+                  </Pressable>
                 </div>
               )}
             </Fragment>
@@ -409,6 +430,17 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
             <button className="send" aria-label="送信" disabled={!draft.trim()} onClick={send}>↑</button>
           </div>
         </div>
+      )}
+
+      {/* 長押しメニュー */}
+      {menu && (
+        <ContextMenu
+          x={menu.x} y={menu.y}
+          onClose={() => setMenu(null)}
+          onCopy={() => doCopyText(menu.type === "diary" ? entries[menu.k]?.text || "" : doneTextOf(menu.k))}
+          onEdit={menu.type === "diary" ? () => { setMenu(null); startEdit(menu.k); } : undefined}
+          onDelete={menu.type === "diary" ? () => { setMenu(null); deleteEntry(menu.k); } : undefined}
+        />
       )}
 
       {/* 習慣モーダル */}

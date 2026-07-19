@@ -132,6 +132,30 @@ export const css = `
     color: #4a3140; background: #fff; border: 1.5px solid #f0a6cf;
     border-radius: 12px; padding: 12px 14px;
   }
+  /* 長押しコンテキストメニュー */
+  .bubble, .mb, .todo-bubble, .done-bubble {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none; user-select: none;
+  }
+  .inline-ta, .ta, .f-input, input, textarea, select {
+    -webkit-user-select: text; user-select: text;
+  }
+  .ctx-overlay { position: fixed; inset: 0; z-index: 40; }
+  .ctx-menu {
+    position: fixed; background: #fff5fa; border: 1.5px solid #f0a6cf;
+    border-radius: 14px; box-shadow: 0 8px 24px rgba(120,50,90,.32);
+    padding: 5px; display: flex; flex-direction: column; gap: 2px;
+    animation: ctxpop .13s ease-out;
+  }
+  @keyframes ctxpop { from { transform: scale(.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .ctx-item {
+    border: none; background: transparent; color: #4a3140;
+    border-radius: 10px; padding: 11px 14px; font-size: 14px; font-weight: 700;
+    cursor: pointer; text-align: left; white-space: nowrap;
+  }
+  .ctx-item:active { background: #ffe4f1; }
+  .ctx-del { color: #d5356f; }
+  .ctx-del.arm { background: #e23d7c; color: #fff; }
   /* modal */
   .overlay {
     position: fixed; inset: 0; background: rgba(74,49,64,.45);

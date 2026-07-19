@@ -2,10 +2,12 @@ import { useState, useEffect, useRef, Fragment } from "react";
 import { get, set, roomDataKey } from "./storage.js";
 import {
   keyToDisp, keyToDate, WEEKDAYS, todayKey, nowTime, escapeRegExp, uid,
-  parseTodoText, safeFileName
+  parseTodoText, safeFileName, copyText
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
 import DragList from "./DragList.jsx";
+import Pressable from "./Pressable.jsx";
+import ContextMenu from "./ContextMenu.jsx";
 
 /* TODO型ルーム: 1メッセージ=1TODO。チェックで完了→日記へライフログ */
 export default function TodoRoom({
@@ -25,6 +27,7 @@ export default function TodoRoom({
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [copied, setCopied] = useState(false);
+  const [menu, setMenu] = useState(null); // 長押しメニュー {id,x,y}
   const scrollRef = useRef(null);
   const taRef = useRef(null);
   const exRef = useRef(null);
@@ -269,6 +272,8 @@ export default function TodoRoom({
               items={shown}
               keyOf={(t) => t.id}
               onReorder={onReorderTodos}
+              onLongPress={({ item, x, y }) => setMenu({ id: item.id, x, y })}
+              longPress={500}
               disabled={!!editing || !!query}
               renderItem={(t) => (
                 <div className="todo-row">
@@ -324,9 +329,10 @@ export default function TodoRoom({
                         aria-label="未完了にする"
                         onClick={() => toggle(t)}
                       />
-                      <div
+                      <Pressable
                         className={"todo-bubble" + (editing === t.id ? " editing-now" : "")}
                         onClick={editing === t.id ? undefined : () => startEdit(t)}
+                        onLongPress={editing === t.id ? undefined : (p) => setMenu({ id: t.id, x: p.x, y: p.y })}
                         role="button" tabIndex={0}
                         onKeyDown={(e) => editing !== t.id && e.key === "Enter" && startEdit(t)}
                       >
@@ -341,7 +347,7 @@ export default function TodoRoom({
                         ) : (
                           <span className="todo-text done">{highlight(t.text)}</span>
                         )}
-                      </div>
+                      </Pressable>
                       <div className="todo-time">{t.doneTime || ""} 完了</div>
                     </div>
                   ))}
@@ -364,6 +370,24 @@ export default function TodoRoom({
           </div>
         </div>
       )}
+
+      {/* 長押しメニュー */}
+      {menu && (() => {
+        const t = todos.find((x) => x.id === menu.id);
+        return (
+          <ContextMenu
+            x={menu.x} y={menu.y}
+            onClose={() => setMenu(null)}
+            onCopy={async () => {
+              const ok = await copyText(t ? t.text : "");
+              showToast(ok ? "コピーしました🩷" : "コピーできませんでした。手動でコピーしてね");
+              setMenu(null);
+            }}
+            onEdit={() => { setMenu(null); if (t) startEdit(t); }}
+            onDelete={() => { setMenu(null); deleteTodo(menu.id); }}
+          />
+        );
+      })()}
 
       {exportOpen && (
         <div className="overlay" onClick={() => setExportOpen(false)}>

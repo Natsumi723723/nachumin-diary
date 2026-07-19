@@ -3,7 +3,7 @@ import { useRef, useState, useEffect } from "react";
 /* タッチ長押し→ドラッグで縦並び替え。
    items を渡し、並び替え確定時に onReorder(newItems) を呼ぶ。
    renderItem(item) が各行の中身。tap は通常どおり子の onClick に通す。 */
-export default function DragList({ items, keyOf, onReorder, renderItem, disabled, longPress = 200 }) {
+export default function DragList({ items, keyOf, onReorder, renderItem, disabled, onLongPress, longPress = 200 }) {
   const [work, setWork] = useState(null);      // ドラッグ中の作業配列
   const [dragKey, setDragKey] = useState(null);
   const cRef = useRef(null);
@@ -12,6 +12,7 @@ export default function DragList({ items, keyOf, onReorder, renderItem, disabled
   S.current.items = items;
   S.current.keyOf = keyOf;
   S.current.onReorder = onReorder;
+  S.current.onLongPress = onLongPress;
   S.current.disabled = disabled;
 
   const list = work || items;
@@ -33,6 +34,8 @@ export default function DragList({ items, keyOf, onReorder, renderItem, disabled
     if (!el) return;
     S.current.dragKey = key;
     S.current.grab = S.current.pointerY - el.getBoundingClientRect().top;
+    S.current.pickupY = S.current.pointerY;
+    S.current.moved = false;
     S.current.order = S.current.items.slice();
     setWork(S.current.order);
     setDragKey(key);
@@ -43,6 +46,7 @@ export default function DragList({ items, keyOf, onReorder, renderItem, disabled
   const updateDrag = () => {
     const c = cRef.current;
     if (!c || S.current.dragKey == null) return;
+    if (Math.abs(S.current.pointerY - S.current.pickupY) > 10) S.current.moved = true;
     const y = S.current.pointerY - c.getBoundingClientRect().top + c.scrollTop;
     const rows = [...c.querySelectorAll("[data-dk]")];
     let target = rows.length - 1;
@@ -64,7 +68,12 @@ export default function DragList({ items, keyOf, onReorder, renderItem, disabled
     if (S.current.dragKey != null) {
       const el = sel(S.current.dragKey);
       if (el) el.style.transform = "";
-      S.current.onReorder(S.current.order.slice());
+      if (S.current.moved) {
+        S.current.onReorder(S.current.order.slice());       // 動かした→並べ替え
+      } else if (S.current.onLongPress) {
+        const item = S.current.items.find((it) => S.current.keyOf(it) === S.current.dragKey);
+        S.current.onLongPress({ item, x: S.current.startX, y: S.current.pointerY }); // 動かさず離した→メニュー
+      }
       S.current.suppress = Date.now() + 450; // 直後のクリックを抑制
     }
     S.current.dragKey = null;
