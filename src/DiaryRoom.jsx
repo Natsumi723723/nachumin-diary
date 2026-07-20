@@ -4,13 +4,15 @@ import {
 } from "./storage.js";
 import {
   keyToDisp, keyToDate, WEEKDAYS, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
-  diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER, safeFileName, copyText
+  diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER, DECL_MARKER, safeFileName, copyText
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
 import MarkBar, { insertAtCursor } from "./MarkBar.jsx";
 import useKbGap from "./useKbGap.js";
 import Pressable from "./Pressable.jsx";
 import ContextMenu from "./ContextMenu.jsx";
+
+const DECL_TAG = "🎬"; // 今日のコマ用の擬似タグ（マーク一覧の一番右）
 
 /* 日記型ルーム: 1日=1吹き出し。下部入力欄で送信=追記、吹き出しタップで全文編集。
    「できたこと」吹き出しに完了TODO＋習慣チップを表示。 */
@@ -297,17 +299,26 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     );
   };
 
-  /* 🔖 マーク抽出: 行頭にあるマークだけを拾う（文中のマークは無視） */
+  /* 🔖 マーク抽出: 行頭にあるマークだけを拾う（文中のマークは無視）
+     + 🎬 今日のコマ は専用タグとして一番右に並べる（文言は外して本文だけ） */
   const markHits = useMemo(() => {
-    const list = (marks || []).filter(Boolean);
+    const userMarks = (marks || []).filter(Boolean);
+    const list = [...userMarks, DECL_TAG];
     // 長いマークを優先（"❤" と "❤︎" のような前方一致対策）
-    const byLen = [...list].sort((a, b) => b.length - a.length);
+    const byLen = [...userMarks].sort((a, b) => b.length - a.length);
     const counts = {};
     const byMark = {};
     for (const m of list) { counts[m] = 0; byMark[m] = []; }
     for (const dk of Object.keys(entries).sort().reverse()) { // 新しい日が上
       for (const line of (entries[dk]?.text || "").split("\n")) {
         if (!line.trim()) continue;
+        // 今日のコマ（🎬）は文言を外して本文だけ集める
+        const t0 = line.trim();
+        if (t0.startsWith(DECL_MARKER)) {
+          const body = t0.slice(DECL_MARKER.length).trim();
+          if (body) { byMark[DECL_TAG].push({ dateKey: dk, text: body }); counts[DECL_TAG] += 1; }
+          continue;
+        }
         let s = line.trim();
         const found = [];
         let go = true;
@@ -331,9 +342,9 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     return { counts, byMark };
   }, [entries, marks]);
 
+  const markChips = [...(marks || []).filter(Boolean), DECL_TAG];
   const openMarkView = () => {
-    const list = (marks || []).filter(Boolean);
-    setMarkView(list.find((m) => markHits.counts[m] > 0) || list[0] || null);
+    setMarkView(markChips.find((m) => markHits.counts[m] > 0) || markChips[0] || null);
   };
   const jumpToDate = (dk) => {
     setMarkView(null);
@@ -556,7 +567,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
           </div>
 
           <div className="mv-marks">
-            {(marks || []).filter(Boolean).map((m) => (
+            {markChips.map((m) => (
               <button
                 key={m}
                 className={"mv-chip" + (markView === m ? " on" : "")}
@@ -571,7 +582,9 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
           <div className="mv-list">
             {(markHits.byMark[markView] || []).length === 0 ? (
               <div className="empty">
-                {`「${markView || ""}」が行頭に付いた行はまだありません。\n日記の入力欄でマークを押して書くと集まります💗`}
+                {markView === DECL_TAG
+                  ? "今日のコマはまだありません。\n上のピンク留めバーから書くと集まります💗"
+                  : `「${markView || ""}」が行頭に付いた行はまだありません。\n日記の入力欄でマークを押して書くと集まります💗`}
               </div>
             ) : (
               (markHits.byMark[markView] || []).map((r, i) => (
