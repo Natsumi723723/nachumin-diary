@@ -485,6 +485,44 @@ export const css = `
   .b-cancel { background: #fff; color: #a4356f; margin-left: auto; }
   .b-del { background: #ff7ab1; color: #fff; }
   .b-del.arm { background: #e23d7c; }
+  /* 🔖 マークで集める（全画面ビュー） */
+  .mv-screen {
+    position: fixed; inset: 0; z-index: 30;
+    display: flex; flex-direction: column;
+    background: ${bgUrl} #f6bedd; background-size: 240px 240px;
+  }
+  .mv-marks {
+    display: flex; gap: 6px; overflow-x: auto; flex-shrink: 0;
+    padding: 8px 12px; background: rgba(255,240,249,.92);
+    border-bottom: 1px solid #f3b9d9;
+  }
+  .mv-chip {
+    display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+    border: 1.5px solid #f0a6cf; background: #fff; border-radius: 999px;
+    padding: 6px 12px; cursor: pointer; min-height: 38px;
+  }
+  .mv-chip.on { background: #e0629f; border-color: #e0629f; }
+  .mv-chip-m { font-size: 16px; line-height: 1; }
+  .mv-chip-n { font-size: 11.5px; font-weight: 800; color: #b04a86; }
+  .mv-chip.on .mv-chip-n { color: #fff; }
+  .mv-list { flex: 1; overflow-y: auto; padding: 10px 12px 24px; }
+  .mv-row {
+    display: flex; align-items: flex-start; gap: 10px; width: 100%;
+    text-align: left; border: none; cursor: pointer;
+    background: rgba(255,245,250,.92); border-radius: 14px;
+    padding: 11px 13px; margin-bottom: 7px;
+    box-shadow: 0 1px 2px rgba(180,90,140,.14);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mv-row:active { background: #ffe4f1; }
+  .mv-date {
+    flex-shrink: 0; font-size: 11px; font-weight: 800; color: #c2478f;
+    background: #ffe4f1; border-radius: 7px; padding: 3px 7px; margin-top: 1px;
+  }
+  .mv-text {
+    flex: 1; min-width: 0; font-size: 14px; line-height: 1.65;
+    color: #4a3140; white-space: pre-wrap; word-break: break-word;
+  }
   /* マークバー（箇条書きマークのワンタップ挿入） */
   .markbar {
     display: flex; gap: 5px; align-items: center; overflow-x: auto;

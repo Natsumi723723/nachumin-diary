@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useRef, useMemo, Fragment } from "react";
 import {
   get, set, roomDataKey, doneLogKey, habitsKey, habitLogKey, habitSeedKey
 } from "./storage.js";
@@ -31,6 +31,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
   const [habitModal, setHabitModal] = useState(false);
   const [habitDel, setHabitDel] = useState(null);
   const [menu, setMenu] = useState(null); // 長押しメニュー {type,k,x,y}
+  const [markView, setMarkView] = useState(null); // 🔖 マーク抽出ビュー: 選択中のマーク
   const [copied, setCopied] = useState(false);
   const [barH, setBarH] = useState(120);
   const scrollRef = useRef(null);
@@ -296,6 +297,66 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     );
   };
 
+  /* 🔖 マーク抽出: 行頭にあるマークだけを拾う（文中のマークは無視） */
+  const markHits = useMemo(() => {
+    const list = (marks || []).filter(Boolean);
+    // 長いマークを優先（"❤" と "❤︎" のような前方一致対策）
+    const byLen = [...list].sort((a, b) => b.length - a.length);
+    const counts = {};
+    const byMark = {};
+    for (const m of list) { counts[m] = 0; byMark[m] = []; }
+    for (const dk of Object.keys(entries).sort().reverse()) { // 新しい日が上
+      for (const line of (entries[dk]?.text || "").split("\n")) {
+        if (!line.trim()) continue;
+        let s = line.trim();
+        const found = [];
+        let go = true;
+        while (go) {
+          go = false;
+          for (const m of byLen) {
+            if (s.startsWith(m)) {
+              if (!found.includes(m)) found.push(m);
+              s = s.slice(m.length).trimStart();
+              go = true;
+              break;
+            }
+          }
+        }
+        if (!found.length || !s) continue; // マーク無し / マークだけの行は除外
+        for (const m of found) {
+          if (byMark[m]) { byMark[m].push({ dateKey: dk, text: s }); counts[m] += 1; }
+        }
+      }
+    }
+    return { counts, byMark };
+  }, [entries, marks]);
+
+  const openMarkView = () => {
+    const list = (marks || []).filter(Boolean);
+    setMarkView(list.find((m) => markHits.counts[m] > 0) || list[0] || null);
+  };
+  const jumpToDate = (dk) => {
+    setMarkView(null);
+    setQuery("");
+    setSearchOpen(false);
+    setTimeout(() => {
+      const el = scrollRef.current?.querySelector(`[data-date="${dk}"]`);
+      if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 90);
+  };
+  const copyMarkRows = async () => {
+    const rows = markHits.byMark[markView] || [];
+    if (!rows.length) return;
+    const out = [];
+    let cur = "";
+    for (const r of rows) {
+      if (r.dateKey !== cur) { cur = r.dateKey; if (out.length) out.push(""); out.push(`🩷${keyToDisp(cur)}🩷`); }
+      out.push(r.text);
+    }
+    const ok = await copyText(out.join("\n"));
+    showToast(ok ? "コピーしました🩷" : "コピーできませんでした。手動でコピーしてね");
+  };
+
   const doneTextOf = (k) => {
     const lines = ["🩷 できたこと"];
     for (const it of (doneLog[k] || [])) lines.push(`☑ ${it.text}${it.time ? ` (${it.time})` : ""}`);
@@ -341,7 +402,8 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
           <div className="hd-title">{room.name}</div>
           <div className="hd-sub">Nachumin Diary</div>
         </div>
-        <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="習慣" onClick={() => setHabitModal(true)}>🎯</button>
+        <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="マークで集める" onClick={openMarkView}>🔖</button>
+        <button className="icon-btn" aria-label="習慣" onClick={() => setHabitModal(true)}>🎯</button>
         <button className="icon-btn" aria-label="テキスト書き出し" onClick={() => setExportOpen(true)}>📤</button>
         <button className="icon-btn" aria-label="テキストから復元" onClick={() => setImportOpen(true)}>📥</button>
         <button className="icon-btn" aria-label="検索" onClick={() => { setSearchOpen(!searchOpen); setQuery(""); }}>{searchOpen ? "✕" : "🔍"}</button>
@@ -476,6 +538,51 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
           onEdit={menu.type === "diary" ? () => { setMenu(null); startEdit(menu.k); } : undefined}
           onDelete={menu.type === "diary" ? () => { setMenu(null); deleteEntry(menu.k); } : undefined}
         />
+      )}
+
+      {/* 🔖 マークで集める（全画面ビュー） */}
+      {markView !== null && (
+        <div className="mv-screen">
+          <div className="hd">
+            <button className="back-btn" aria-label="とじる" onClick={() => setMarkView(null)}>‹</button>
+            <div style={{ minWidth: 0 }}>
+              <div className="hd-title">🔖 マークで集める</div>
+              <div className="hd-sub">{(markHits.byMark[markView] || []).length}件 ・ 全期間</div>
+            </div>
+            <button
+              className="icon-btn" style={{ marginLeft: "auto" }}
+              aria-label="ぜんぶコピー" onClick={copyMarkRows}
+            >📋</button>
+          </div>
+
+          <div className="mv-marks">
+            {(marks || []).filter(Boolean).map((m) => (
+              <button
+                key={m}
+                className={"mv-chip" + (markView === m ? " on" : "")}
+                onClick={() => setMarkView(m)}
+              >
+                <span className="mv-chip-m">{m}</span>
+                <span className="mv-chip-n">{markHits.counts[m] || 0}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mv-list">
+            {(markHits.byMark[markView] || []).length === 0 ? (
+              <div className="empty">
+                {`「${markView || ""}」が行頭に付いた行はまだありません。\n日記の入力欄でマークを押して書くと集まります💗`}
+              </div>
+            ) : (
+              (markHits.byMark[markView] || []).map((r, i) => (
+                <button className="mv-row" key={i} onClick={() => jumpToDate(r.dateKey)}>
+                  <span className="mv-date">{keyToDisp(r.dateKey).slice(5)}</span>
+                  <span className="mv-text">{r.text}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
       )}
 
       {/* 習慣モーダル */}
