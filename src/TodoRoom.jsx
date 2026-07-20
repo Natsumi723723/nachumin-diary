@@ -272,7 +272,7 @@ export default function TodoRoom({
         <span style={{ fontSize: 20 }}>{room.emoji}</span>
         <div style={{ minWidth: 0 }}>
           <div className="hd-title" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{room.name}</div>
-          <div className="hd-sub">Nachumin Diary</div>
+          <div className="hd-sub">Nachumin Lifelog</div>
         </div>
         <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="クリップボードから追加" onClick={fromClipboard}>📋</button>
         <button className="icon-btn" aria-label="テキスト書き出し" onClick={() => setExportOpen(true)}>📤</button>

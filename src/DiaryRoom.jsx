@@ -310,7 +310,9 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     const byMark = {};
     for (const m of list) { counts[m] = 0; byMark[m] = []; }
     for (const dk of Object.keys(entries).sort().reverse()) { // 新しい日が上
-      for (const line of (entries[dk]?.text || "").split("\n")) {
+      // 同じ日の中も「後から書いた行＝新しい」が上に来るよう逆順で見る
+      const dayLines = (entries[dk]?.text || "").split("\n").reverse();
+      for (const line of dayLines) {
         if (!line.trim()) continue;
         // 今日のコマ（🎬）は文言を外して本文だけ集める
         const t0 = line.trim();
@@ -411,7 +413,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
         <span style={{ fontSize: 20 }}>{room.emoji}</span>
         <div>
           <div className="hd-title">{room.name}</div>
-          <div className="hd-sub">Nachumin Diary</div>
+          <div className="hd-sub">Nachumin Lifelog</div>
         </div>
         <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="マークで集める" onClick={openMarkView}>🔖</button>
         <button className="icon-btn" aria-label="習慣" onClick={() => setHabitModal(true)}>🎯</button>

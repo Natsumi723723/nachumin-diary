@@ -98,6 +98,48 @@ export const css = `
     flex-shrink: 0;
   }
   .hd-title { font-weight: 700; font-size: 16px; letter-spacing: .04em; }
+  /* ホームのブランドヘッダー（ピンクギラギラ） */
+  .hd-home {
+    position: relative; overflow: hidden;
+    background:
+      linear-gradient(135deg, #ffe3f4 0%, #ffcdea 38%, #ffe7f6 62%, #ffd6ef 100%);
+    border-bottom: 2px solid #ff8ecb;
+    box-shadow: 0 3px 14px rgba(255,20,147,.22);
+  }
+  /* ラメの走り */
+  .hd-home::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(105deg,
+      transparent 35%, rgba(255,255,255,.85) 47%, rgba(255,214,240,.5) 52%, transparent 62%);
+    background-size: 260% 100%;
+    animation: brandshine 5.5s ease-in-out infinite;
+  }
+  @keyframes brandshine { 0% { background-position: 180% 0; } 60%,100% { background-position: -80% 0; } }
+  .app-brand { min-width: 0; position: relative; z-index: 1; }
+  .app-title {
+    font-size: clamp(15px, 4.9vw, 21px); font-weight: 900; line-height: 1.15;
+    letter-spacing: .01em; white-space: nowrap;
+    background: linear-gradient(92deg, #FF1493 0%, #FF00AA 26%, #ff7ad0 46%,
+      #FF00AA 66%, #FF1493 100%);
+    background-size: 300% 100%;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+    filter: drop-shadow(0 1px 2px rgba(255,20,147,.5)) drop-shadow(0 0 10px rgba(255,0,170,.28));
+    animation: brandflow 7s linear infinite;
+  }
+  @keyframes brandflow { to { background-position: 300% 0; } }
+  .app-sub {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .14em; margin-top: 2px;
+    color: #d5348a; text-shadow: 0 1px 0 rgba(255,255,255,.75);
+  }
+  .hd-home .icon-btn {
+    position: relative; z-index: 1;
+    background: rgba(255,255,255,.85); color: #e0148c;
+    box-shadow: 0 1px 4px rgba(255,20,147,.28);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hd-home::after, .app-title { animation: none; }
+  }
   .hd-sub { font-size: 11px; color: #b06992; margin-left: 2px; }
   .icon-btn {
     border: none; background: #ffd9ec; color: #c2478f;

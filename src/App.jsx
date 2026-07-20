@@ -463,11 +463,10 @@ export default function App() {
     content = (
       <>
         {/* home header */}
-        <div className="hd">
-          <span style={{ fontSize: 20 }}>💗</span>
-          <div>
-            <div className="hd-title">Nachumin Diary</div>
-            <div className="hd-sub">自分だけのトークルーム</div>
+        <div className="hd hd-home">
+          <div className="app-brand">
+            <div className="app-title">💖Nachumin Lifelog💖</div>
+            <div className="app-sub">✧ わたしの人生ぜんぶ、ここに ✧</div>
           </div>
           <button
             className="icon-btn" style={{ marginLeft: "auto" }}

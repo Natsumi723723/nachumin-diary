@@ -232,7 +232,7 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
         <span style={{ fontSize: 20 }}>{room.emoji}</span>
         <div style={{ minWidth: 0 }}>
           <div className="hd-title" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{room.name}</div>
-          <div className="hd-sub">Nachumin Diary</div>
+          <div className="hd-sub">Nachumin Lifelog</div>
         </div>
         <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="カテゴリ" onClick={() => setCatModal(true)}>🏷️</button>
         <button className="icon-btn" aria-label="サブスク" onClick={() => setSubModal(true)}>🔁</button>

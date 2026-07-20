@@ -12,9 +12,9 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["apple-touch-icon.png"],
       manifest: {
-        name: "Nachumin Diary",
-        short_name: "Nachumin Diary",
-        description: "自分だけのトークルーム日記",
+        name: "Nachumin Lifelog",
+        short_name: "Nachumin Lifelog",
+        description: "わたしの人生ぜんぶ、ここに",
         lang: "ja",
         display: "standalone",
         orientation: "portrait",
