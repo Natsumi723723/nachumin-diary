@@ -247,8 +247,6 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
                             })}
                           </div>
                         )}
-                        {/* 余白タップで同じ枠に追加（＋は置かない） */}
-                        {recs.length > 0 && <div className="dl-addspace" />}
                       </td>
                     );
                   })}
@@ -330,6 +328,10 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
               </button>
               <button className="p-close" onClick={() => setMenu(null)}>閉じる</button>
             </div>
+            <button
+              className="dl-addhere"
+              onClick={() => { const t = { dateKey: menu.dateKey, slot: menu.slot }; setMenu(null); setPicker(t); }}
+            >＋ この枠に人を追加</button>
           </div>
         </div>
       )}

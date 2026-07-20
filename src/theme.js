@@ -437,11 +437,14 @@ export const css = `
   }
   .dl-memo {
     display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
-    overflow: hidden; margin: 2px 2px 0; font-size: 10px; line-height: 1.4;
-    color: #8a6b80; word-break: break-word;
+    overflow: hidden; margin: 2px 2px 0; font-size: 10.5px; line-height: 1.45;
+    color: #4a3140; word-break: break-word;
   }
-  /* 余白タップで同じ枠に追加するための最低限の高さ */
-  .dl-addspace { min-height: 18px; }
+  .dl-addhere {
+    border: 1.5px dashed #e9a8cc; background: #fff; color: #c2478f;
+    border-radius: 999px; padding: 9px 0; font-size: 12.5px; font-weight: 700;
+    cursor: pointer; width: 100%; margin-top: 2px;
+  }
   .dl-picker { display: flex; flex-wrap: wrap; gap: 8px; }
   .dl-pick {
     position: relative; display: flex; align-items: center; gap: 6px;
