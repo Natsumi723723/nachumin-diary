@@ -200,7 +200,7 @@ export const css = `
   .emoji-pick {
     border: 1.5px solid #f0a6cf; background: #fff; border-radius: 10px;
     width: 40px; height: 40px; font-size: 21px; cursor: pointer; padding: 0;
-    line-height: 1; flex-shrink: 0;
+    line-height: 1; flex-shrink: 0; color: #2b2430;
   }
   .emoji-pick.on { background: #ffe4f1; border-color: #e0629f; transform: scale(1.06); }
   .emoji-pick:active { transform: scale(.94); }
@@ -500,9 +500,10 @@ export const css = `
     display: flex; align-items: center; gap: 5px; flex-shrink: 0;
     border: 1.5px solid #f0a6cf; background: #fff; border-radius: 999px;
     padding: 6px 12px; cursor: pointer; min-height: 38px;
+    color: #2b2430; /* 未指定だとiOSがボタン既定色(青)を当てるので明示 */
   }
   .mv-chip.on { background: #e0629f; border-color: #e0629f; }
-  .mv-chip-m { font-size: 16px; line-height: 1; }
+  .mv-chip-m { font-size: 16px; line-height: 1; color: #2b2430; }
   .mv-chip-n { font-size: 11.5px; font-weight: 800; color: #b04a86; }
   .mv-chip.on .mv-chip-n { color: #fff; }
   .mv-list { flex: 1; overflow-y: auto; padding: 10px 12px 24px; }
@@ -539,7 +540,7 @@ export const css = `
   .mark-item {
     display: inline-flex; align-items: center; gap: 4px;
     border: 1.5px solid #f0a6cf; background: #fff; border-radius: 10px;
-    padding: 4px 6px 4px 10px; font-size: 18px;
+    padding: 4px 6px 4px 10px; font-size: 18px; color: #2b2430;
   }
   .mark-item button {
     border: none; background: #ffd9ec; color: #c2478f; border-radius: 6px;
