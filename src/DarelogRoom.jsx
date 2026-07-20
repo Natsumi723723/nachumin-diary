@@ -223,35 +223,32 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
                       <td
                         key={s.key}
                         className={cls}
-                        onClick={recs.length ? undefined : () => setPicker({ dateKey: dk, slot: s.key })}
+                        onClick={() => setPicker({ dateKey: dk, slot: s.key })}
                       >
-                        {recs.length ? (
-                          <div className="dl-names">
+                        {recs.length > 0 && (
+                          <div className="dl-recs">
                             {recs.map((r) => {
                               const mb = memberOf(r.memberId);
                               const color = mb?.color || "#f0f0f0";
+                              const memo = r.memo && r.memo.trim();
                               return (
                                 <button
                                   key={r.id}
-                                  className="dl-name"
+                                  className="dl-rec"
                                   onClick={(e) => { e.stopPropagation(); openMenu(r); }}
                                   aria-label={mb?.name || "記録"}
-                                  style={{ background: color, color: memberText(mb) }}
                                 >
-                                  <span className="dl-name-txt">{mb?.name || "？"}</span>
-                                  {r.memo && r.memo.trim() && <span className="dl-memo-dot" />}
+                                  <span className="dl-name" style={{ background: color, color: memberText(mb) }}>
+                                    {mb?.name || "？"}
+                                  </span>
+                                  {memo ? <span className="dl-memo">{r.memo}</span> : null}
                                 </button>
                               );
                             })}
-                            <button
-                              className="dl-add-sm"
-                              onClick={(e) => { e.stopPropagation(); setPicker({ dateKey: dk, slot: s.key }); }}
-                              aria-label="追加"
-                            >＋</button>
                           </div>
-                        ) : (
-                          isToday ? <span className="dl-plus">＋</span> : null
                         )}
+                        {/* 余白タップで同じ枠に追加（＋は置かない） */}
+                        {recs.length > 0 && <div className="dl-addspace" />}
                       </td>
                     );
                   })}

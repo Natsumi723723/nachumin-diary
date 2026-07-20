@@ -414,35 +414,34 @@ export const css = `
     background: #ffd9ec; box-shadow: 0 0 0 1.5px #e0629f inset;
   }
   .dl-cell {
-    min-height: 42px; vertical-align: middle;
+    min-height: 44px; vertical-align: top;
     background: rgba(255,255,255,.55); border-radius: 12px; padding: 4px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  /* 記録なし: 文字を置かず、点線だけでタップできることを示す */
+  .dl-cell.empty { background: rgba(255,255,255,.28); border: 1.5px dashed rgba(233,168,204,.55); }
+  .dl-cell.today.empty { background: transparent; border: 1.5px dashed #e9a8cc; }
+  .dl-cell.current { box-shadow: 0 0 0 2px #f7a8d3 inset; background: #fff0f8; }
+  /* 記録（名前ラベル＋その下にメモ）を縦に並べる */
+  .dl-recs { display: flex; flex-direction: column; gap: 5px; align-items: stretch; }
+  .dl-rec {
+    border: none; background: transparent; padding: 0; cursor: pointer;
+    text-align: left; display: block; width: 100%;
     -webkit-tap-highlight-color: transparent;
   }
-  .dl-cell.empty { cursor: pointer; }
-  .dl-cell.today.empty {
-    background: transparent; border: 1.5px dashed #e9a8cc;
-  }
-  .dl-cell.current { box-shadow: 0 0 0 2px #f7a8d3 inset; background: #fff0f8; }
-  .dl-plus { color: #e0629f; font-size: 17px; font-weight: 700; display: block; text-align: center; }
-  /* 名前チップ（縦並び） */
-  .dl-names { display: flex; flex-direction: column; gap: 3px; align-items: stretch; }
+  .dl-rec:active { transform: scale(.97); }
   .dl-name {
-    position: relative; border: none; border-radius: 8px; padding: 3px 7px;
-    font-size: 11px; font-weight: 700; cursor: pointer; text-align: left;
-    display: flex; align-items: center; gap: 3px; max-width: 100%;
-    -webkit-tap-highlight-color: transparent; line-height: 1.35;
+    display: block; border-radius: 8px; padding: 3px 7px;
+    font-size: 11px; font-weight: 700; line-height: 1.35;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .dl-name:active { transform: scale(.96); }
-  .dl-name-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-  .dl-memo-dot {
-    width: 5px; height: 5px; border-radius: 50%; background: currentColor;
-    opacity: .6; flex-shrink: 0; margin-left: auto;
+  .dl-memo {
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    overflow: hidden; margin: 2px 2px 0; font-size: 10px; line-height: 1.4;
+    color: #8a6b80; word-break: break-word;
   }
-  .dl-add-sm {
-    align-self: center; border: 1.5px dashed #e9a8cc; background: transparent;
-    color: #c47aa2; border-radius: 8px; width: 100%; height: 20px; font-size: 13px;
-    cursor: pointer; padding: 0; margin-top: 1px;
-  }
+  /* 余白タップで同じ枠に追加するための最低限の高さ */
+  .dl-addspace { min-height: 18px; }
   .dl-picker { display: flex; flex-wrap: wrap; gap: 8px; }
   .dl-pick {
     position: relative; display: flex; align-items: center; gap: 6px;
