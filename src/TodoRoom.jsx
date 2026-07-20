@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, Fragment } from "react";
 import { get, set, roomDataKey } from "./storage.js";
 import {
   keyToDisp, keyToDate, WEEKDAYS, todayKey, nowTime, escapeRegExp, uid,
-  parseTodoText, safeFileName, copyText
+  parseTodoText, parseTodoLines, safeFileName, copyText
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
 import DragList from "./DragList.jsx";
@@ -28,6 +28,7 @@ export default function TodoRoom({
   const [importText, setImportText] = useState("");
   const [copied, setCopied] = useState(false);
   const [menu, setMenu] = useState(null); // 長押しメニュー {id,x,y}
+  const [clip, setClip] = useState(null); // クリップボード取り込み確認 {items:[{text,on}]}
   const scrollRef = useRef(null);
   const taRef = useRef(null);
   const exRef = useRef(null);
@@ -122,6 +123,44 @@ export default function TodoRoom({
   const deleteTodo = (id) => {
     persist(todos.filter((t) => t.id !== id));
     setEditing(null);
+  };
+
+  /* クリップボードから一括取り込み（1タップ） */
+  const fromClipboard = async () => {
+    let text = "";
+    try {
+      text = await navigator.clipboard.readText();
+    } catch (e) {
+      showToast("クリップボードを読めませんでした。📥から貼り付けてね");
+      setImportOpen(true);
+      return;
+    }
+    const lines = parseTodoLines(text);
+    if (lines.length === 0) {
+      showToast("箇条書きが見つかりませんでした 🥺");
+      return;
+    }
+    const existing = new Set(todos.filter((t) => !t.done).map((t) => t.text));
+    setClip({ items: lines.map((t) => ({ text: t, on: !existing.has(t) })) });
+  };
+
+  const addFromClip = () => {
+    const picked = clip.items.filter((i) => i.on);
+    if (!picked.length) { setClip(null); return; }
+    const dk = todayKey();
+    const seen = new Set(todos.map((t) => `${t.dateKey} ${t.text}`));
+    let added = 0;
+    const next = [...todos];
+    for (const i of picked) {
+      if (seen.has(`${dk} ${i.text}`)) continue;
+      seen.add(`${dk} ${i.text}`);
+      next.push({ id: uid(), dateKey: dk, time: nowTime(), text: i.text, done: false, doneTime: null, doneDateKey: null });
+      added += 1;
+    }
+    persist(next);
+    setClip(null);
+    setTab("todo");
+    showToast(added ? `${added}件のやることを追加したよ💗` : "すでに入っていました");
   };
 
   // 表示中リストの並び替えを全体配列へ反映（隠れた項目の位置は保持）
@@ -235,7 +274,8 @@ export default function TodoRoom({
           <div className="hd-title" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{room.name}</div>
           <div className="hd-sub">Nachumin Diary</div>
         </div>
-        <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="テキスト書き出し" onClick={() => setExportOpen(true)}>📤</button>
+        <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="クリップボードから追加" onClick={fromClipboard}>📋</button>
+        <button className="icon-btn" aria-label="テキスト書き出し" onClick={() => setExportOpen(true)}>📤</button>
         <button className="icon-btn" aria-label="テキストから復元" onClick={() => setImportOpen(true)}>📥</button>
         <button className="icon-btn" aria-label="検索" onClick={() => { setSearchOpen(!searchOpen); setQuery(""); }}>{searchOpen ? "✕" : "🔍"}</button>
       </div>
@@ -367,6 +407,38 @@ export default function TodoRoom({
               value={draft} onChange={autoGrow}
             />
             <button className="send" aria-label="追加" disabled={!draft.trim()} onClick={send}>↑</button>
+          </div>
+        </div>
+      )}
+
+      {/* クリップボード取り込みの確認 */}
+      {clip && (
+        <div className="overlay" onClick={() => setClip(null)}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>📋 これを追加する？</h3>
+            <p className="panel-note">いらない行はタップで外せます</p>
+            <div className="clip-list">
+              {clip.items.map((it, i) => (
+                <button
+                  key={i}
+                  className={"clip-item" + (it.on ? " on" : "")}
+                  onClick={() => setClip((o) => ({
+                    items: o.items.map((x, j) => (j === i ? { ...x, on: !x.on } : x))
+                  }))}
+                >
+                  <span className="clip-check">{it.on ? "✓" : ""}</span>
+                  <span className="clip-text">{it.text}</span>
+                </button>
+              ))}
+            </div>
+            <div className="panel-btns">
+              <button
+                className="p-copy"
+                disabled={!clip.items.some((i) => i.on)}
+                onClick={addFromClip}
+              >{clip.items.filter((i) => i.on).length}件を追加</button>
+              <button className="p-close" onClick={() => setClip(null)}>閉じる</button>
+            </div>
           </div>
         </div>
       )}

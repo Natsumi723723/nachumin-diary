@@ -345,6 +345,22 @@ export const css = `
     clip-path: polygon(0 0, 100% 30%, 20% 100%);
   }
   .mtime { font-size: 9.5px; color: #7d5570; flex-shrink: 0; margin-bottom: 2px; }
+  /* クリップボード取り込みの確認リスト */
+  .clip-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; }
+  .clip-item {
+    display: flex; align-items: flex-start; gap: 8px; text-align: left;
+    border: 1.5px solid #f0a6cf; background: #fff; border-radius: 12px;
+    padding: 10px 12px; cursor: pointer; font-size: 13.5px; line-height: 1.5;
+    color: #b79cab;
+  }
+  .clip-item.on { background: #fff5fa; color: #4a3140; border-color: #e0629f; }
+  .clip-check {
+    width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0;
+    border: 2px solid #e0629f; color: #fff; font-weight: 900; font-size: 12px;
+    display: flex; align-items: center; justify-content: center; margin-top: 1px;
+  }
+  .clip-item.on .clip-check { background: #e0629f; }
+  .clip-text { flex: 1; min-width: 0; word-break: break-word; }
   /* TODO: タブ */
   .tabs {
     display: flex; gap: 6px; padding: 8px 12px; flex-shrink: 0;
