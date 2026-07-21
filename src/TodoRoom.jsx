@@ -29,6 +29,8 @@ export default function TodoRoom({
   const [copied, setCopied] = useState(false);
   const [menu, setMenu] = useState(null); // 長押しメニュー {id,x,y}
   const [clip, setClip] = useState(null); // クリップボード取り込み確認 {items:[{text,on}]}
+  const [nextImportant, setNextImportant] = useState(false); // 入力欄の重要トグル
+  const [onlyImportant, setOnlyImportant] = useState(false); // やること: 重要だけ絞り込み
   const scrollRef = useRef(null);
   const taRef = useRef(null);
   const exRef = useRef(null);
@@ -73,11 +75,16 @@ export default function TodoRoom({
     if (!text) return;
     persist([...todos, {
       id: uid(), dateKey: todayKey(), time: nowTime(),
-      text, done: false, doneTime: null, doneDateKey: null
+      text, done: false, doneTime: null, doneDateKey: null,
+      important: nextImportant
     }]);
     setDraft("");
+    setNextImportant(false); // 次のTODOに引きずらない
     if (taRef.current) taRef.current.style.height = "auto";
   };
+
+  const toggleImportant = (id) =>
+    persist(todos.map((t) => (t.id === id ? { ...t, important: !t.important } : t)));
 
   const toggle = (todo) => {
     if (!todo.done) {
@@ -179,8 +186,8 @@ export default function TodoRoom({
   };
 
   /* export / import */
-  // 未完了のみ・画面の並び順（ドラッグ順＝配列順）で出力
-  const exportText = () => todos.filter((t) => !t.done).map((t) => `☐ ${t.text}`).join("\n");
+  // 未完了のみ・画面の並び順（ドラッグ順＝配列順）で出力。重要は行頭に★
+  const exportText = () => todos.filter((t) => !t.done).map((t) => `${t.important ? "★ " : ""}☐ ${t.text}`).join("\n");
 
   const doCopy = async () => {
     try {
@@ -231,7 +238,8 @@ export default function TodoRoom({
       // 復元は日記への副作用なし（doneDateKey=null）
       next.push({
         id: uid(), dateKey: p.dateKey, time: "",
-        text: p.text, done: p.done, doneTime: null, doneDateKey: null
+        text: p.text, done: p.done, doneTime: null, doneDateKey: null,
+        important: !!p.important
       });
       added += 1;
     }
@@ -251,8 +259,10 @@ export default function TodoRoom({
 
   const q = query.toLowerCase();
   const matchQ = (t) => !query || t.text.toLowerCase().includes(q);
-  // やること: 未完了（完了直後は一瞬残す）
-  const shown = todos.filter((t) => (!t.done || justDone.has(t.id)) && matchQ(t));
+  // やること: 未完了（完了直後は一瞬残す）。重要フィルタON時は重要のみ
+  const shown = todos.filter((t) =>
+    (!t.done || justDone.has(t.id)) && matchQ(t) && (!onlyImportant || t.important));
+  const importantCount = todos.filter((t) => !t.done && t.important).length;
   // 完了: doneDateKey(29時制)でグループ化・古い順（新しい日が下）
   const doneGroups = {};
   for (const t of todos) {
@@ -283,10 +293,16 @@ export default function TodoRoom({
       {pinned}
 
       <div className="tabs">
-        <button className={"tab" + (tab === "todo" ? " on" : "")} onClick={() => setTab("todo")}>
+        <button className={"tab" + (tab === "todo" ? " on" : "")} onClick={() => { setTab("todo"); }}>
           やること{openCount ? ` ${openCount}` : ""}
         </button>
         <button className={"tab" + (tab === "done" ? " on" : "")} onClick={() => setTab("done")}>完了</button>
+        {tab === "todo" && importantCount > 0 && (
+          <button
+            className={"tab tab-imp" + (onlyImportant ? " on" : "")}
+            onClick={() => setOnlyImportant((v) => !v)}
+          >❗️重要 {importantCount}</button>
+        )}
       </div>
 
       {searchOpen && (
@@ -315,37 +331,41 @@ export default function TodoRoom({
               onLongPress={({ item, x, y }) => setMenu({ id: item.id, x, y })}
               longPress={500}
               disabled={!!editing || !!query}
-              renderItem={(t) => (
-                <div className="todo-row">
-                  <button
-                    className="todo-check"
-                    aria-label="完了にする"
-                    onClick={() => toggle(t)}
-                  />
-                  <div
-                    className={"todo-bubble" + (editing === t.id ? " editing-now" : "")}
-                    onClick={editing === t.id ? undefined : () => startEdit(t)}
-                    role="button" tabIndex={0}
-                    onKeyDown={(e) => editing !== t.id && e.key === "Enter" && startEdit(t)}
-                  >
-                    {editing === t.id ? (
-                      <InlineEdit
-                        initial={t.text}
-                        onSave={(text) => saveEdit(t.id, text)}
-                        onCancel={() => setEditing(null)}
-                        onDelete={() => deleteTodo(t.id)}
-                        placeholder="TODOを書きなおしてね"
-                      />
-                    ) : (
-                      <>
-                        <span className={"todo-text" + (t.done ? " done" : "")}>{highlight(t.text)}</span>
-                        {t.done && <span className="todo-react">🩷</span>}
-                      </>
-                    )}
+              renderItem={(t) => {
+                const imp = t.important && !t.done;
+                return (
+                  <div className="todo-row">
+                    <button
+                      className="todo-check"
+                      aria-label="完了にする"
+                      onClick={() => toggle(t)}
+                    />
+                    <div
+                      className={"todo-bubble" + (imp ? " important" : "") + (editing === t.id ? " editing-now" : "")}
+                      onClick={editing === t.id ? undefined : () => startEdit(t)}
+                      role="button" tabIndex={0}
+                      onKeyDown={(e) => editing !== t.id && e.key === "Enter" && startEdit(t)}
+                    >
+                      {editing === t.id ? (
+                        <InlineEdit
+                          initial={t.text}
+                          onSave={(text) => saveEdit(t.id, text)}
+                          onCancel={() => setEditing(null)}
+                          onDelete={() => deleteTodo(t.id)}
+                          placeholder="TODOを書きなおしてね"
+                        />
+                      ) : (
+                        <>
+                          {imp && <span className="todo-star">❗️</span>}
+                          <span className={"todo-text" + (t.done ? " done" : "")}>{highlight(t.text)}</span>
+                          {t.done && <span className="todo-react">🩷</span>}
+                        </>
+                      )}
+                    </div>
+                    <div className="todo-time">{t.time}</div>
                   </div>
-                  <div className="todo-time">{t.time}</div>
-                </div>
-              )}
+                );
+              }}
             />
           </>
         ) : (
@@ -402,10 +422,16 @@ export default function TodoRoom({
         <div className="bar">
           <div className="in-row">
             <textarea
-              ref={taRef} className="ta" rows={1}
-              placeholder="やることを追加…"
+              ref={taRef} className={"ta" + (nextImportant ? " ta-important" : "")} rows={1}
+              placeholder={nextImportant ? "❗️重要なやることを追加…" : "やることを追加…"}
               value={draft} onChange={autoGrow}
             />
+            <button
+              className={"imp-toggle" + (nextImportant ? " on" : "")}
+              aria-label={nextImportant ? "重要を外す" : "重要にする"}
+              aria-pressed={nextImportant}
+              onClick={() => setNextImportant((v) => !v)}
+            >❗️</button>
             <button className="send" aria-label="追加" disabled={!draft.trim()} onClick={send}>↑</button>
           </div>
         </div>
@@ -456,6 +482,10 @@ export default function TodoRoom({
               setMenu(null);
             }}
             onEdit={() => { setMenu(null); if (t) startEdit(t); }}
+            extra={t && !t.done ? [{
+              label: t.important ? "❗️重要を外す" : "❗️重要にする",
+              onClick: () => { setMenu(null); toggleImportant(menu.id); }
+            }] : []}
             onDelete={() => { setMenu(null); deleteTodo(menu.id); }}
           />
         );

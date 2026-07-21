@@ -414,6 +414,33 @@ export const css = `
     font-weight: 700; cursor: pointer;
   }
   .tab.on { background: #e0629f; border-color: #e0629f; color: #fff; }
+  .tab-imp { border-color: #ff2e88; color: #d5006a; }
+  .tab-imp.on { background: #ff1478; border-color: #ff1478; color: #fff; }
+  /* 重要TODO: 反転色＋縁取り（未完了のうちだけ目立たせる） */
+  .todo-bubble.important {
+    background: #ff1478; color: #fff;
+    border: 2.5px solid #b5005c;
+    box-shadow: 0 2px 10px rgba(255,20,120,.45);
+  }
+  .todo-bubble.important .todo-text { color: #fff; }
+  .todo-bubble.important::after { background: #ff1478; }
+  .todo-bubble.important .hl { background: #fff; color: #b5005c; }
+  .todo-star { font-size: 13px; margin-right: 4px; }
+  /* 入力欄の重要トグル */
+  .imp-toggle {
+    width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid #f0a6cf; background: #fff; font-size: 18px; cursor: pointer;
+    padding: 0; filter: grayscale(1) opacity(.55);
+  }
+  .imp-toggle.on {
+    background: #ff1478; border-color: #b5005c; filter: none;
+    box-shadow: 0 2px 6px rgba(255,20,120,.5);
+  }
+  .imp-toggle:active { transform: scale(.92); }
+  .ta.ta-important {
+    background: #ff1478; color: #fff; border-color: #b5005c;
+  }
+  .ta.ta-important::placeholder { color: rgba(255,255,255,.85); }
   /* TODO: 行 */
   .todo-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 11px; }
   .todo-check {
