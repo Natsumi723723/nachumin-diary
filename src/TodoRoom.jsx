@@ -293,16 +293,16 @@ export default function TodoRoom({
       {pinned}
 
       <div className="tabs">
-        <button className={"tab" + (tab === "todo" ? " on" : "")} onClick={() => { setTab("todo"); }}>
-          やること{openCount ? ` ${openCount}` : ""}
-        </button>
-        <button className={"tab" + (tab === "done" ? " on" : "")} onClick={() => setTab("done")}>完了</button>
         {tab === "todo" && importantCount > 0 && (
           <button
             className={"tab tab-imp" + (onlyImportant ? " on" : "")}
             onClick={() => setOnlyImportant((v) => !v)}
-          >❗️重要 {importantCount}</button>
+          >❣️重要 {importantCount}</button>
         )}
+        <button className={"tab" + (tab === "todo" ? " on" : "")} onClick={() => { setTab("todo"); }}>
+          やること{openCount ? ` ${openCount}` : ""}
+        </button>
+        <button className={"tab" + (tab === "done" ? " on" : "")} onClick={() => setTab("done")}>完了</button>
       </div>
 
       {searchOpen && (
@@ -356,7 +356,7 @@ export default function TodoRoom({
                         />
                       ) : (
                         <>
-                          {imp && <span className="todo-star">❗️</span>}
+                          {imp && <span className="todo-star">❣️</span>}
                           <span className={"todo-text" + (t.done ? " done" : "")}>{highlight(t.text)}</span>
                           {t.done && <span className="todo-react">🩷</span>}
                         </>
@@ -423,7 +423,7 @@ export default function TodoRoom({
           <div className="in-row">
             <textarea
               ref={taRef} className={"ta" + (nextImportant ? " ta-important" : "")} rows={1}
-              placeholder={nextImportant ? "❗️重要なやることを追加…" : "やることを追加…"}
+              placeholder={nextImportant ? "❣️重要なやることを追加…" : "やることを追加…"}
               value={draft} onChange={autoGrow}
             />
             <button
@@ -431,7 +431,7 @@ export default function TodoRoom({
               aria-label={nextImportant ? "重要を外す" : "重要にする"}
               aria-pressed={nextImportant}
               onClick={() => setNextImportant((v) => !v)}
-            >❗️</button>
+            >❣️</button>
             <button className="send" aria-label="追加" disabled={!draft.trim()} onClick={send}>↑</button>
           </div>
         </div>
@@ -483,7 +483,7 @@ export default function TodoRoom({
             }}
             onEdit={() => { setMenu(null); if (t) startEdit(t); }}
             extra={t && !t.done ? [{
-              label: t.important ? "❗️重要を外す" : "❗️重要にする",
+              label: t.important ? "❣️重要を外す" : "❣️重要にする",
               onClick: () => { setMenu(null); toggleImportant(menu.id); }
             }] : []}
             onDelete={() => { setMenu(null); deleteTodo(menu.id); }}
