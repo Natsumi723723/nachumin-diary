@@ -426,6 +426,37 @@ export const css = `
   .todo-bubble.important::after { background: #ff1478; }
   .todo-bubble.important .hl { background: #fff; color: #b5005c; }
   .todo-star { font-size: 13px; margin-right: 4px; }
+  /* 場所タグ（吹き出し内） */
+  .todo-place {
+    display: inline-block; margin-left: 8px; vertical-align: middle;
+    font-size: 10.5px; font-weight: 800; border-radius: 7px; padding: 2px 7px;
+    cursor: pointer; white-space: nowrap;
+  }
+  .todo-place.on-imp { background: #fff; color: #b5005c; }
+  /* 場所フィルタ（やること上部） */
+  .place-filter {
+    display: flex; gap: 6px; overflow-x: auto; flex-shrink: 0;
+    padding: 7px 12px; background: rgba(255,240,249,.7);
+    border-bottom: 1px solid #f3b9d9;
+  }
+  .pf-chip {
+    flex-shrink: 0; border: 1.5px solid #f0a6cf; background: #fff; color: #4a3140;
+    border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 700;
+    cursor: pointer; min-height: 34px;
+  }
+  .pf-chip.on { background: #e0629f; border-color: #e0629f; color: #fff; }
+  /* 場所セレクト（入力欄の上） */
+  .place-select { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 7px; }
+  .ps-chip {
+    flex-shrink: 0; border: 1.5px solid #f0a6cf; background: #fff; color: #4a3140;
+    border-radius: 999px; padding: 6px 13px; font-size: 12.5px; font-weight: 700;
+    cursor: pointer; min-height: 36px;
+  }
+  .ps-chip.on { box-shadow: 0 0 0 2px #4a3140 inset; }
+  .ps-chip:disabled { opacity: .5; }
+  .ps-edit { border-style: dashed; color: #c2478f; }
+  /* 長押しメニューの先頭項目 */
+  .ctx-top { color: #d5006a; }
   /* 入力欄の重要トグル */
   .imp-toggle {
     width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;

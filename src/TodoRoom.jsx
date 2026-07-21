@@ -8,11 +8,12 @@ import InlineEdit from "./InlineEdit.jsx";
 import DragList from "./DragList.jsx";
 import Pressable from "./Pressable.jsx";
 import ContextMenu from "./ContextMenu.jsx";
+import { MEMBER_COLORS, textOn } from "./theme.js";
 
 /* TODO型ルーム: 1メッセージ=1TODO。チェックで完了→日記へライフログ */
 export default function TodoRoom({
   room, onBack, onMeta, initialQuery, showToast, pinned,
-  onTodoComplete, onTodoUncomplete
+  onTodoComplete, onTodoUncomplete, onRoomChange
 }) {
   const [todos, setTodos] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -31,6 +32,11 @@ export default function TodoRoom({
   const [clip, setClip] = useState(null); // クリップボード取り込み確認 {items:[{text,on}]}
   const [nextImportant, setNextImportant] = useState(false); // 入力欄の重要トグル
   const [onlyImportant, setOnlyImportant] = useState(false); // やること: 重要だけ絞り込み
+  const [selPlace, setSelPlace] = useState(null); // 入力に付ける場所（次のTODOにも保持）
+  const [placeFilter, setPlaceFilter] = useState(null); // やること: 場所で絞り込み
+  const [placeModal, setPlaceModal] = useState(false); // 場所の管理
+  const [placeDel, setPlaceDel] = useState(null);
+  const [placePickFor, setPlacePickFor] = useState(null); // このTODOの場所を選ぶ
   const scrollRef = useRef(null);
   const taRef = useRef(null);
   const exRef = useRef(null);
@@ -70,21 +76,51 @@ export default function TodoRoom({
     }
   }, [todos, loaded, query]);
 
+  const places = room.places || [];
+  const placeOf = (id) => places.find((p) => p.id === id);
+
   const send = () => {
     const text = draft.trim();
     if (!text) return;
+    // フィルタ中の場所があればそれを優先で付ける（その場所を見ながら追加するケース）
+    const placeId = placeFilter || selPlace || null;
     persist([...todos, {
       id: uid(), dateKey: todayKey(), time: nowTime(),
       text, done: false, doneTime: null, doneDateKey: null,
-      important: nextImportant
+      important: nextImportant, placeId
     }]);
     setDraft("");
-    setNextImportant(false); // 次のTODOに引きずらない
+    setNextImportant(false); // 重要は引きずらない（場所は保持）
     if (taRef.current) taRef.current.style.height = "auto";
   };
 
   const toggleImportant = (id) =>
     persist(todos.map((t) => (t.id === id ? { ...t, important: !t.important } : t)));
+  const setTodoPlace = (id, placeId) => {
+    persist(todos.map((t) => (t.id === id ? { ...t, placeId } : t)));
+    setPlacePickFor(null);
+  };
+
+  /* ---------- 場所の管理（ルーム単位） ---------- */
+  const savePlaces = (next) => onRoomChange({ places: next });
+  const addPlace = () => savePlaces([...places, { id: uid(), name: "", emoji: "📍", color: MEMBER_COLORS[places.length % MEMBER_COLORS.length] }]);
+  const updatePlace = (id, patch) => savePlaces(places.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const movePlace = (i, dir) => {
+    const j = i + dir; if (j < 0 || j >= places.length) return;
+    const next = [...places]; [next[i], next[j]] = [next[j], next[i]]; savePlaces(next);
+  };
+  const removePlace = (id) => {
+    if (placeDel !== id) { setPlaceDel(id); return; }
+    savePlaces(places.filter((p) => p.id !== id));
+    if (selPlace === id) setSelPlace(null);
+    if (placeFilter === id) setPlaceFilter(null);
+    setPlaceDel(null);
+  };
+  const closePlaceModal = () => {
+    const cleaned = places.filter((p) => p.name.trim());
+    if (cleaned.length !== places.length) savePlaces(cleaned);
+    setPlaceModal(false); setPlaceDel(null);
+  };
 
   const toggle = (todo) => {
     if (!todo.done) {
@@ -186,8 +222,22 @@ export default function TodoRoom({
   };
 
   /* export / import */
-  // 未完了のみ・画面の並び順（ドラッグ順＝配列順）で出力。重要は行頭に★
-  const exportText = () => todos.filter((t) => !t.done).map((t) => `${t.important ? "★ " : ""}☐ ${t.text}`).join("\n");
+  // 未完了のみ・画面の並び順。重要は行頭に★。場所ごとにまとめて出力
+  const exportText = () => {
+    const open = todos.filter((t) => !t.done);
+    const line = (t) => `${t.important ? "★ " : ""}☐ ${t.text}`;
+    const out = [];
+    // 定義順の場所ごと → 最後に場所なし
+    const groups = [...places.map((p) => ({ head: `📍${p.name}`, items: open.filter((t) => t.placeId === p.id) })),
+      { head: "（場所なし）", items: open.filter((t) => !placeOf(t.placeId)) }];
+    for (const g of groups) {
+      if (!g.items.length) continue;
+      if (out.length) out.push("");
+      out.push(g.head);
+      for (const t of g.items) out.push(line(t));
+    }
+    return out.join("\n");
+  };
 
   const doCopy = async () => {
     try {
@@ -259,10 +309,13 @@ export default function TodoRoom({
 
   const q = query.toLowerCase();
   const matchQ = (t) => !query || t.text.toLowerCase().includes(q);
-  // やること: 未完了（完了直後は一瞬残す）。重要フィルタON時は重要のみ
+  // やること: 未完了（完了直後は一瞬残す）。重要／場所フィルタは併用可
   const shown = todos.filter((t) =>
-    (!t.done || justDone.has(t.id)) && matchQ(t) && (!onlyImportant || t.important));
+    (!t.done || justDone.has(t.id)) && matchQ(t)
+    && (!onlyImportant || t.important)
+    && (!placeFilter || t.placeId === placeFilter));
   const importantCount = todos.filter((t) => !t.done && t.important).length;
+  const placeCount = (pid) => todos.filter((t) => !t.done && t.placeId === pid).length;
   // 完了: doneDateKey(29時制)でグループ化・古い順（新しい日が下）
   const doneGroups = {};
   for (const t of todos) {
@@ -284,7 +337,8 @@ export default function TodoRoom({
           <div className="hd-title" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{room.name}</div>
           <div className="hd-sub">Nachumin Lifelog</div>
         </div>
-        <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="クリップボードから追加" onClick={fromClipboard}>📋</button>
+        <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="場所タグ" onClick={() => setPlaceModal(true)}>📍</button>
+        <button className="icon-btn" aria-label="クリップボードから追加" onClick={fromClipboard}>📋</button>
         <button className="icon-btn" aria-label="テキスト書き出し" onClick={() => setExportOpen(true)}>📤</button>
         <button className="icon-btn" aria-label="テキストから復元" onClick={() => setImportOpen(true)}>📥</button>
         <button className="icon-btn" aria-label="検索" onClick={() => { setSearchOpen(!searchOpen); setQuery(""); }}>{searchOpen ? "✕" : "🔍"}</button>
@@ -304,6 +358,29 @@ export default function TodoRoom({
         </button>
         <button className={"tab" + (tab === "done" ? " on" : "")} onClick={() => setTab("done")}>完了</button>
       </div>
+
+      {tab === "todo" && places.length > 0 && (
+        <div className="place-filter">
+          <button
+            className={"pf-chip" + (!placeFilter ? " on" : "")}
+            onClick={() => setPlaceFilter(null)}
+          >すべて</button>
+          {places.map((p) => {
+            const n = placeCount(p.id);
+            const on = placeFilter === p.id;
+            return (
+              <button
+                key={p.id}
+                className={"pf-chip" + (on ? " on" : "")}
+                style={on ? { background: p.color, color: textOn(p.color), borderColor: p.color } : { borderColor: p.color }}
+                onClick={() => setPlaceFilter(on ? null : p.id)}
+              >
+                {p.emoji ? p.emoji + " " : ""}{p.name}{n ? ` ${n}` : ""}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {searchOpen && (
         <div className="search-row">
@@ -333,6 +410,7 @@ export default function TodoRoom({
               disabled={!!editing || !!query}
               renderItem={(t) => {
                 const imp = t.important && !t.done;
+                const pl = placeOf(t.placeId);
                 return (
                   <div className="todo-row">
                     <button
@@ -358,6 +436,19 @@ export default function TodoRoom({
                         <>
                           {imp && <span className="todo-star">❣️</span>}
                           <span className={"todo-text" + (t.done ? " done" : "")}>{highlight(t.text)}</span>
+                          {pl && !imp && (
+                            <span
+                              className="todo-place"
+                              style={{ background: pl.color, color: textOn(pl.color) }}
+                              onClick={(e) => { e.stopPropagation(); setPlacePickFor(t.id); }}
+                            >{pl.emoji ? pl.emoji + " " : ""}{pl.name}</span>
+                          )}
+                          {pl && imp && (
+                            <span
+                              className="todo-place on-imp"
+                              onClick={(e) => { e.stopPropagation(); setPlacePickFor(t.id); }}
+                            >{pl.emoji ? pl.emoji + " " : ""}{pl.name}</span>
+                          )}
                           {t.done && <span className="todo-react">🩷</span>}
                         </>
                       )}
@@ -420,6 +511,23 @@ export default function TodoRoom({
 
       {tab === "todo" && (
         <div className="bar">
+          {places.length > 0 && (
+            <div className="place-select">
+              {places.map((p) => {
+                const on = (placeFilter || selPlace) === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    className={"ps-chip" + (on ? " on" : "")}
+                    style={on ? { background: p.color, color: textOn(p.color), borderColor: p.color } : { borderColor: p.color }}
+                    onClick={() => setSelPlace(selPlace === p.id ? null : p.id)}
+                    disabled={!!placeFilter}
+                  >{p.emoji ? p.emoji + " " : ""}{p.name}</button>
+                );
+              })}
+              <button className="ps-chip ps-edit" onClick={() => setPlaceModal(true)} aria-label="場所を編集">＋</button>
+            </div>
+          )}
           <div className="in-row">
             <textarea
               ref={taRef} className={"ta" + (nextImportant ? " ta-important" : "")} rows={1}
@@ -482,14 +590,74 @@ export default function TodoRoom({
               setMenu(null);
             }}
             onEdit={() => { setMenu(null); if (t) startEdit(t); }}
-            extra={t && !t.done ? [{
+            top={t && !t.done ? [{
               label: t.important ? "❣️重要を外す" : "❣️重要にする",
               onClick: () => { setMenu(null); toggleImportant(menu.id); }
+            }] : []}
+            extra={t && places.length > 0 ? [{
+              label: "📍 場所を選ぶ",
+              onClick: () => { setMenu(null); setPlacePickFor(menu.id); }
             }] : []}
             onDelete={() => { setMenu(null); deleteTodo(menu.id); }}
           />
         );
       })()}
+
+      {/* 場所の管理 */}
+      {placeModal && (
+        <div className="overlay" onClick={closePlaceModal}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>📍 場所タグ</h3>
+            <p className="panel-note">よく行く場所を登録。入力欄や絞り込みで使えます。</p>
+            {places.map((p, i) => (
+              <div className="mem-row" key={p.id} style={{ flexWrap: "wrap" }}>
+                <input className="f-input" style={{ width: 54, textAlign: "center", flex: "0 0 auto" }} maxLength={4}
+                  placeholder="📍" value={p.emoji || ""} onChange={(e) => updatePlace(p.id, { emoji: e.target.value })} />
+                <input className="f-input" style={{ flex: 1, minWidth: 0 }} placeholder="場所の名前（例: 100均）"
+                  value={p.name} onChange={(e) => updatePlace(p.id, { name: e.target.value })} />
+                <button className="mem-btn" disabled={i === 0} onClick={() => movePlace(i, -1)} aria-label="上へ">↑</button>
+                <button className="mem-btn" disabled={i === places.length - 1} onClick={() => movePlace(i, 1)} aria-label="下へ">↓</button>
+                <button className="mem-btn" style={placeDel === p.id ? { background: "#e23d7c", color: "#fff" } : undefined}
+                  onClick={() => removePlace(p.id)} aria-label="削除">{placeDel === p.id ? "!" : "🗑"}</button>
+                <div className="swatches" style={{ flexBasis: "100%", marginTop: 4 }}>
+                  {MEMBER_COLORS.map((col) => (
+                    <button key={col} className={"swatch" + (p.color === col ? " on" : "")}
+                      style={{ background: col }} onClick={() => updatePlace(p.id, { color: col })} aria-label={col} />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {places.length === 0 && <p className="panel-note">場所を追加してね💗</p>}
+            <div className="panel-btns">
+              <button className="p-copy" onClick={addPlace}>＋ 場所を追加</button>
+              <button className="p-close" onClick={closePlaceModal}>閉じる</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* このTODOの場所を選ぶ */}
+      {placePickFor && (
+        <div className="overlay" onClick={() => setPlacePickFor(null)}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>📍 場所を選ぶ</h3>
+            <div className="place-select">
+              <button className="ps-chip" onClick={() => setTodoPlace(placePickFor, null)}>なし</button>
+              {places.map((p) => (
+                <button
+                  key={p.id}
+                  className="ps-chip"
+                  style={{ background: p.color, color: textOn(p.color), borderColor: p.color }}
+                  onClick={() => setTodoPlace(placePickFor, p.id)}
+                >{p.emoji ? p.emoji + " " : ""}{p.name}</button>
+              ))}
+            </div>
+            <div className="panel-btns">
+              <button className="p-close" onClick={() => setPlacePickFor(null)}>閉じる</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {exportOpen && (
         <div className="overlay" onClick={() => setExportOpen(false)}>

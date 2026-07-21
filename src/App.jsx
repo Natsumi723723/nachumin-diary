@@ -447,7 +447,7 @@ export default function App() {
       const roomEl = room.type === "diary"
         ? <DiaryRoom key={room.id} {...common} syncSignal={diarySync} marks={marks} onEditMarks={() => setMarkSettingsOpen(true)} />
         : room.type === "todo"
-          ? <TodoRoom key={room.id} {...common} onTodoComplete={onTodoComplete} onTodoUncomplete={onTodoUncomplete} />
+          ? <TodoRoom key={room.id} {...common} onTodoComplete={onTodoComplete} onTodoUncomplete={onTodoUncomplete} onRoomChange={(patch) => updateRoom(room.id, patch)} />
           : room.type === "darelog"
             ? <DarelogRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />
             : room.type === "expense"
