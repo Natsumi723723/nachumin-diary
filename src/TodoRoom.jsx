@@ -25,6 +25,8 @@ export default function TodoRoom({
   const [searchOpen, setSearchOpen] = useState(!!initialQuery);
   const [query, setQuery] = useState(initialQuery || "");
   const [justDone, setJustDone] = useState(() => new Set()); // 完了直後に一瞬残す
+  const [undo, setUndo] = useState(null); // 直前の完了を戻すバー {id,text,doneTime,doneDateKey}
+  const undoTimer = useRef(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState("");
@@ -123,33 +125,40 @@ export default function TodoRoom({
     setPlaceModal(false); setPlaceDel(null);
   };
 
-  const toggle = (todo) => {
-    if (!todo.done) {
-      const doneTime = nowTime();
-      const doneDateKey = todayKey();
-      persist(todos.map((t) => (t.id === todo.id ? { ...t, done: true, doneTime, doneDateKey } : t)));
-      // 完了→日記へ反映（完了した日の日記に）
-      onTodoComplete({ text: todo.text, time: doneTime, dateKey: doneDateKey });
-      // やることタブでも一瞬リアクションを見せてから消す
-      setJustDone((s) => new Set(s).add(todo.id));
-      setTimeout(() => {
-        setJustDone((s) => {
-          const n = new Set(s);
-          n.delete(todo.id);
-          return n;
-        });
-      }, 1100);
-    } else {
-      persist(todos.map((t) => (t.id === todo.id ? { ...t, done: false, doneTime: null, doneDateKey: null } : t)));
-      // 未完了へ戻す→日記側の行も削除
-      if (todo.doneDateKey) onTodoUncomplete({ text: todo.text, time: todo.doneTime, dateKey: todo.doneDateKey });
+  const complete = (todo) => {
+    const doneTime = nowTime();
+    const doneDateKey = todayKey();
+    persist(todos.map((t) => (t.id === todo.id ? { ...t, done: true, doneTime, doneDateKey } : t)));
+    // 完了→日記へ反映（完了した日の日記に）
+    onTodoComplete({ text: todo.text, time: doneTime, dateKey: doneDateKey });
+    // やることタブでも一瞬リアクションを見せてから消す
+    setJustDone((s) => new Set(s).add(todo.id));
+    setTimeout(() => {
       setJustDone((s) => {
         const n = new Set(s);
         n.delete(todo.id);
         return n;
       });
-    }
+    }, 1100);
+    // 直後に「もどす」バーを出す（誤操作対策）
+    setUndo({ id: todo.id, text: todo.text, doneTime, doneDateKey });
+    clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => setUndo(null), 6000);
   };
+
+  const uncomplete = (todo) => {
+    persist(todos.map((t) => (t.id === todo.id ? { ...t, done: false, doneTime: null, doneDateKey: null } : t)));
+    // 未完了へ戻す→日記側の行も削除
+    if (todo.doneDateKey) onTodoUncomplete({ text: todo.text, time: todo.doneTime, dateKey: todo.doneDateKey });
+    setJustDone((s) => {
+      const n = new Set(s);
+      n.delete(todo.id);
+      return n;
+    });
+    if (undo && undo.id === todo.id) { clearTimeout(undoTimer.current); setUndo(null); }
+  };
+
+  const toggle = (todo) => (todo.done ? uncomplete(todo) : complete(todo));
 
   const startEdit = (t) => {
     setEditing(t.id);
@@ -516,6 +525,13 @@ export default function TodoRoom({
         )}
       </div>
 
+      {undo && (
+        <div className="undo-bar">
+          <span className="undo-msg">🩷 完了にしたよ</span>
+          <button className="undo-btn" onClick={() => uncomplete(undo)}>↩︎ やることに戻す</button>
+        </div>
+      )}
+
       {tab === "todo" && (
         <div className="bar">
           {places.length > 0 && (
@@ -597,10 +613,13 @@ export default function TodoRoom({
               setMenu(null);
             }}
             onEdit={() => { setMenu(null); if (t) startEdit(t); }}
-            top={t && !t.done ? [{
+            top={!t ? [] : (t.done ? [{
+              label: "↩︎ やることに戻す",
+              onClick: () => { setMenu(null); uncomplete(t); }
+            }] : [{
               label: t.important ? "❣️重要を外す" : "❣️重要にする",
               onClick: () => { setMenu(null); toggleImportant(menu.id); }
-            }] : []}
+            }])}
             extra={t && places.length > 0 ? [{
               label: "📍 場所を選ぶ",
               onClick: () => { setMenu(null); setPlacePickFor(menu.id); }

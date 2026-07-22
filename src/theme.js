@@ -808,6 +808,21 @@ export const css = `
     padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
     flex-shrink: 0;
   }
+  .undo-bar {
+    flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+    justify-content: space-between;
+    margin: 0 10px 8px; padding: 9px 12px;
+    background: linear-gradient(90deg,#ff5fb0,#ff1478);
+    border-radius: 14px; box-shadow: 0 6px 18px rgba(255,20,120,.35);
+    animation: undo-in .22s ease-out;
+  }
+  .undo-msg { color: #fff; font-weight: 800; font-size: 13.5px; }
+  .undo-btn {
+    flex-shrink: 0; border: none; cursor: pointer;
+    background: #fff; color: #d5006a; font-weight: 800; font-size: 13px;
+    border-radius: 999px; padding: 7px 15px;
+  }
+  @keyframes undo-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   .chips { display: flex; gap: 6px; margin-bottom: 7px; align-items: center;
     overflow-x: auto; }
   .chip {
