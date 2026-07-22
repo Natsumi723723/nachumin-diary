@@ -502,6 +502,17 @@ export const css = `
   .todo-bubble.editing-now { outline: 2px solid #e0629f; }
   .todo-text { white-space: pre-wrap; font-size: 14.5px; line-height: 1.6; }
   .todo-text.done { text-decoration: line-through; color: #b79cab; }
+  .todo-text.deferred-text { color: #9a8b95; }
+  .todo-bubble.deferred { background: #f5eef2; opacity: .9; }
+  .todo-bubble.deferred::after { background: #f5eef2; }
+  .todo-undefer {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+    border: 1.5px solid #d9b8cd; background: #fff; color: #c0508f;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; cursor: pointer; margin-top: 3px;
+    -webkit-tap-highlight-color: transparent; padding: 0;
+  }
+  .todo-undefer:active { transform: scale(.9); }
   .todo-react {
     position: absolute; top: -10px; right: -6px; font-size: 16px;
     pointer-events: none; transform-origin: center;

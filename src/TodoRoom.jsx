@@ -160,6 +160,12 @@ export default function TodoRoom({
 
   const toggle = (todo) => (todo.done ? uncomplete(todo) : complete(todo));
 
+  // 見送り: 書いたけどやらなくてよくなったもの（消さずに退避／日記への反映はなし）
+  const defer = (todo) =>
+    persist(todos.map((t) => (t.id === todo.id ? { ...t, deferred: true, done: false, doneTime: null, doneDateKey: null } : t)));
+  const undefer = (todo) =>
+    persist(todos.map((t) => (t.id === todo.id ? { ...t, deferred: false } : t)));
+
   const startEdit = (t) => {
     setEditing(t.id);
     setQuery("");
@@ -240,7 +246,7 @@ export default function TodoRoom({
   /* export / import */
   // 未完了のみ・画面の並び順。重要は行頭に★。場所ごとにまとめて出力
   const exportText = () => {
-    const open = todos.filter((t) => !t.done);
+    const open = todos.filter((t) => !t.done && !t.deferred);
     const line = (t) => `${t.important ? "★ " : ""}☐ ${t.text}`;
     const out = [];
     // 定義順の場所ごと → 最後に場所なし
@@ -325,13 +331,17 @@ export default function TodoRoom({
 
   const q = query.toLowerCase();
   const matchQ = (t) => !query || t.text.toLowerCase().includes(q);
-  // やること: 未完了（完了直後は一瞬残す）。重要／場所フィルタは併用可
+  // やること: 未完了かつ見送りでない（完了直後は一瞬残す）。重要／場所フィルタは併用可
   const shown = todos.filter((t) =>
-    (!t.done || justDone.has(t.id)) && matchQ(t)
+    ((!t.done && !t.deferred) || justDone.has(t.id)) && matchQ(t)
     && (!onlyImportant || t.important)
     && (!placeFilter || t.placeId === placeFilter));
-  const importantCount = todos.filter((t) => !t.done && t.important).length;
-  const placeCount = (pid) => todos.filter((t) => !t.done && t.placeId === pid).length;
+  const importantCount = todos.filter((t) => !t.done && !t.deferred && t.important).length;
+  const placeCount = (pid) => todos.filter((t) => !t.done && !t.deferred && t.placeId === pid).length;
+  // 見送り: 古い順（新しいものが下）
+  const deferredList = todos.filter((t) => t.deferred && matchQ(t))
+    .sort((a, b) => (a.dateKey + a.time).localeCompare(b.dateKey + b.time));
+  const deferredCount = todos.filter((t) => t.deferred).length;
   // 完了: doneDateKey(29時制)でグループ化・古い順（新しい日が下）
   const doneGroups = {};
   for (const t of todos) {
@@ -342,7 +352,12 @@ export default function TodoRoom({
   const doneDates = Object.keys(doneGroups).sort();
   for (const dk of doneDates) doneGroups[dk].sort((a, b) => (a.doneTime || "").localeCompare(b.doneTime || ""));
 
-  const openCount = todos.filter((t) => !t.done).length;
+  const openCount = todos.filter((t) => !t.done && !t.deferred).length;
+
+  // 見送りが空になったら「見送り」タブから抜ける
+  useEffect(() => {
+    if (tab === "defer" && !todos.some((t) => t.deferred)) setTab("todo");
+  }, [todos, tab]);
 
   return (
     <>
@@ -373,6 +388,9 @@ export default function TodoRoom({
           やること{openCount ? ` ${openCount}` : ""}
         </button>
         <button className={"tab" + (tab === "done" ? " on" : "")} onClick={() => setTab("done")}>完了</button>
+        {deferredCount > 0 && (
+          <button className={"tab" + (tab === "defer" ? " on" : "")} onClick={() => setTab("defer")}>見送り {deferredCount}</button>
+        )}
       </div>
 
       {tab === "todo" && places.length > 0 && (
@@ -475,7 +493,7 @@ export default function TodoRoom({
               }}
             />
           </>
-        ) : (
+        ) : tab === "done" ? (
           <>
             {loaded && doneDates.length === 0 && (
               <div className="empty">
@@ -521,6 +539,43 @@ export default function TodoRoom({
                 </Fragment>
               );
             })}
+          </>
+        ) : (
+          <>
+            {loaded && deferredList.length === 0 && (
+              <div className="empty">
+                {query ? "みつかりませんでした 🥺" : "見送りにしたものはないよ💗"}
+              </div>
+            )}
+            {deferredList.map((t) => (
+              <div className="todo-row" key={t.id}>
+                <button
+                  className="todo-undefer"
+                  aria-label="やることに戻す"
+                  onClick={() => undefer(t)}
+                >↩︎</button>
+                <Pressable
+                  className={"todo-bubble deferred" + (editing === t.id ? " editing-now" : "")}
+                  onClick={editing === t.id ? undefined : () => startEdit(t)}
+                  onLongPress={editing === t.id ? undefined : (p) => setMenu({ id: t.id, x: p.x, y: p.y })}
+                  role="button" tabIndex={0}
+                  onKeyDown={(e) => editing !== t.id && e.key === "Enter" && startEdit(t)}
+                >
+                  {editing === t.id ? (
+                    <InlineEdit
+                      initial={t.text}
+                      onSave={(text) => saveEdit(t.id, text)}
+                      onCancel={() => setEditing(null)}
+                      onDelete={() => askDeleteTodo(t)}
+                      placeholder="TODOを書きなおしてね"
+                    />
+                  ) : (
+                    <span className="todo-text deferred-text">{highlight(t.text)}</span>
+                  )}
+                </Pressable>
+                <div className="todo-time">見送り</div>
+              </div>
+            ))}
           </>
         )}
       </div>
@@ -613,13 +668,21 @@ export default function TodoRoom({
               setMenu(null);
             }}
             onEdit={() => { setMenu(null); if (t) startEdit(t); }}
-            top={!t ? [] : (t.done ? [{
-              label: "↩︎ やることに戻す",
-              onClick: () => { setMenu(null); uncomplete(t); }
-            }] : [{
-              label: t.important ? "❣️重要を外す" : "❣️重要にする",
-              onClick: () => { setMenu(null); toggleImportant(menu.id); }
-            }])}
+            top={!t ? [] : (
+              t.done ? [{
+                label: "↩︎ やることに戻す",
+                onClick: () => { setMenu(null); uncomplete(t); }
+              }] : t.deferred ? [{
+                label: "↩︎ やることに戻す",
+                onClick: () => { setMenu(null); undefer(t); }
+              }] : [{
+                label: t.important ? "❣️重要を外す" : "❣️重要にする",
+                onClick: () => { setMenu(null); toggleImportant(menu.id); }
+              }, {
+                label: "⤵︎ 見送りにする",
+                onClick: () => { setMenu(null); defer(t); }
+              }]
+            )}
             extra={t && places.length > 0 ? [{
               label: "📍 場所を選ぶ",
               onClick: () => { setMenu(null); setPlacePickFor(menu.id); }
