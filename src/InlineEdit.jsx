@@ -11,7 +11,6 @@ export default function InlineEdit({
   const [draft, setDraft] = useState(
     appendNewline ? (initial ? initial + "\n" : "") : (initial || "")
   );
-  const [armDel, setArmDel] = useState(false);
   const kbGap = useKbGap(!!bottomToolbar);
   const ref = useRef(null);
 
@@ -45,10 +44,7 @@ export default function InlineEdit({
   const buttons = (
     <div className="inline-btns">
       {onDelete && (
-        <button
-          className={"ie-del" + (armDel ? " arm" : "")}
-          onClick={() => { if (!armDel) { setArmDel(true); return; } onDelete(); }}
-        >{armDel ? "ほんとに削除" : "削除"}</button>
+        <button className="ie-del" onClick={onDelete}>削除</button>
       )}
       <button className="ie-cancel" onClick={onCancel}>キャンセル</button>
       <button className="ie-save" onClick={() => onSave(draft)} aria-label="保存">💌</button>

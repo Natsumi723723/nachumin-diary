@@ -7,6 +7,7 @@ import {
 } from "./format.js";
 import { MIcon } from "./TalkRoom.jsx";
 import MemberEditor from "./MemberEditor.jsx";
+import ConfirmDialog from "./ConfirmDialog.jsx";
 import { PALETTE, memberText } from "./theme.js";
 
 /* だれログ型: 表そのものが記録画面。縦=日付(下が今日) 横=朝昼夜 */
@@ -17,6 +18,7 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
   const [menu, setMenu] = useState(null);      // 記録メニュー: record
   const [memoDraft, setMemoDraft] = useState("");
   const [recDel, setRecDel] = useState(false);
+  const [confirm, setConfirm] = useState(null); // 削除確認
   const [memOpen, setMemOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -92,12 +94,13 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
   };
 
   const deleteRec = () => {
-    if (!recDel) {
-      setRecDel(true);
-      return;
-    }
-    persist(records.filter((r) => r.id !== menu.id));
-    setMenu(null);
+    const id = menu.id;
+    const nm = memberOf(menu.memberId)?.name || "この記録";
+    setConfirm({ message: `「${nm}」の記録を削除しますか？`, onConfirm: () => {
+      persist(records.filter((r) => r.id !== id));
+      setMenu(null);
+      setConfirm(null);
+    } });
   };
 
   /* export / import */
@@ -323,8 +326,8 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
             />
             <div className="panel-btns">
               <button className="p-copy" onClick={saveMemo}>保存</button>
-              <button className={"p-del" + (recDel ? " arm" : "")} onClick={deleteRec}>
-                {recDel ? "ほんとに削除" : "この記録を削除"}
+              <button className="p-del" onClick={deleteRec}>
+                {"この記録を削除"}
               </button>
               <button className="p-close" onClick={() => setMenu(null)}>閉じる</button>
             </div>
@@ -334,6 +337,10 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
             >＋ この枠に人を追加</button>
           </div>
         </div>
+      )}
+
+      {confirm && (
+        <ConfirmDialog message={confirm.message} onConfirm={confirm.onConfirm} onCancel={() => setConfirm(null)} />
       )}
 
       {memOpen && (

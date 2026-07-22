@@ -198,6 +198,10 @@ export const css = `
   .ctx-item:active { background: #ffe4f1; }
   .ctx-del { color: #d5356f; }
   .ctx-del.arm { background: #e23d7c; color: #fff; }
+  /* 削除確認ダイアログ（メニューより前面） */
+  .overlay.confirm-over { z-index: 60; }
+  .confirm-panel { max-width: 340px; gap: 14px; text-align: center; }
+  .confirm-msg { font-size: 14.5px; font-weight: 700; color: #4a3140; line-height: 1.6; white-space: pre-wrap; padding: 6px 4px 0; }
   /* modal */
   .overlay {
     position: fixed; inset: 0; background: rgba(74,49,64,.45);

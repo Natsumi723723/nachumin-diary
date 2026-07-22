@@ -5,6 +5,7 @@ import {
   yen, monthOf, monthLabel, safeFileName
 } from "./format.js";
 import { MEMBER_COLORS, textOn } from "./theme.js";
+import ConfirmDialog from "./ConfirmDialog.jsx";
 
 /* 経費型ルーム: 表がメイン画面。カテゴリチップで最速記録、月合計・集計・サブスク計上。 */
 export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, onRoomChange }) {
@@ -21,6 +22,7 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
   const [subChecks, setSubChecks] = useState({});   // subId -> bool
   const [subAmts, setSubAmts] = useState({});        // subId -> string
   const [copied, setCopied] = useState(false);
+  const [confirm, setConfirm] = useState(null); // 削除確認
   const scrollRef = useRef(null);
   const exRef = useRef(null);
 
@@ -76,9 +78,12 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
     setEntry(null);
   };
   const deleteRow = () => {
-    if (!entry.armDel) { setEntry({ ...entry, armDel: true }); return; }
-    persist(expenses.filter((x) => x.id !== entry.id));
-    setEntry(null);
+    const id = entry.id;
+    setConfirm({ message: `${yen(entry.amount)}（${catName(entry.categoryId)}）を削除しますか？`, onConfirm: () => {
+      persist(expenses.filter((x) => x.id !== id));
+      setEntry(null);
+      setConfirm(null);
+    } });
   };
 
   /* ---------- カテゴリ管理 ---------- */
@@ -333,14 +338,18 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
             <div className="panel-btns">
               <button className="p-copy" onClick={submitEntry}>{entry.mode === "new" ? "記録する" : "保存"}</button>
               {entry.mode === "edit" && (
-                <button className={"p-del" + (entry.armDel ? " arm" : "")} onClick={deleteRow}>
-                  {entry.armDel ? "ほんとに削除" : "削除"}
+                <button className="p-del" onClick={deleteRow}>
+                  {"削除"}
                 </button>
               )}
               <button className="p-close" onClick={() => setEntry(null)}>閉じる</button>
             </div>
           </div>
         </div>
+      )}
+
+      {confirm && (
+        <ConfirmDialog message={confirm.message} onConfirm={confirm.onConfirm} onCancel={() => setConfirm(null)} />
       )}
 
       {/* カテゴリ管理 */}

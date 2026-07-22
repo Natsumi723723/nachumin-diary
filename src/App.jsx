@@ -16,6 +16,7 @@ import DragList from "./DragList.jsx";
 import DarelogRoom from "./DarelogRoom.jsx";
 import ExpenseRoom from "./ExpenseRoom.jsx";
 import SwipeBack from "./SwipeBack.jsx";
+import ConfirmDialog from "./ConfirmDialog.jsx";
 
 const EMOJI_PICKS = [
   "💗", "🩷", "💛", "🩵", "💜", "🤍", "🖤", "🌸", "🌷", "🎀",
@@ -32,6 +33,7 @@ export default function App() {
   const [cache, setCache] = useState(null); // { roomId: data } 横断検索用
   const [modal, setModal] = useState(null); // {mode:'new'|'edit', name, emoji, type, roomId?}
   const [roomDel, setRoomDel] = useState(false);
+  const [confirm, setConfirm] = useState(null); // 削除確認
   const [decl, setDecl] = useState(""); // 今日の宣言（空=未設定）
   const [declModal, setDeclModal] = useState(null); // null | 'view' | 'edit'
   const [declDraft, setDeclDraft] = useState("");
@@ -313,23 +315,25 @@ export default function App() {
     setModal(null);
   };
 
-  const deleteRoom = async () => {
-    if (!roomDel) {
-      setRoomDel(true);
-      return;
-    }
-    const id = modal.roomId;
+  const reallyDeleteRoom = async (id) => {
     try {
       // ハード削除はしない: データをゴミ箱キーへ退避してからルームを外す
       const data = await get(roomDataKey(id));
       if (data) await set(trashKey(id), data);
       saveRooms(rooms.filter((r) => r.id !== id));
       setModal(null);
-      setRoomDel(false);
+      setConfirm(null);
       showToast("ルームを削除しました");
     } catch (e) {
       showToast("削除に失敗しました");
     }
+  };
+  const deleteRoom = () => {
+    const r = rooms.find((x) => x.id === modal.roomId);
+    setConfirm({
+      message: `ルーム「${r?.name || ""}」を削除しますか？\n中の記録もすべて消えます。`,
+      onConfirm: () => reallyDeleteRoom(modal.roomId)
+    });
   };
 
   /* ---------- 全体バックアップ / 復元 ---------- */
@@ -466,7 +470,6 @@ export default function App() {
         <div className="hd hd-home">
           <div className="app-brand">
             <div className="app-title">💖Nachumin Lifelog💖</div>
-            <div className="app-sub">✧ わたしの人生ぜんぶ、ここに ✧</div>
           </div>
           <button
             className="icon-btn" style={{ marginLeft: "auto" }}
@@ -635,8 +638,8 @@ export default function App() {
                 {modal.mode === "new" ? "つくる" : "保存"}
               </button>
               {modal.mode === "edit" && (
-                <button className={"p-del" + (roomDel ? " arm" : "")} onClick={deleteRoom}>
-                  {roomDel ? "ほんとに削除" : "削除"}
+                <button className="p-del" onClick={deleteRoom}>
+                  {"削除"}
                 </button>
               )}
               <button className="p-close" onClick={() => { setModal(null); setRoomDel(false); }}>閉じる</button>
@@ -746,6 +749,10 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {confirm && (
+        <ConfirmDialog message={confirm.message} onConfirm={confirm.onConfirm} onCancel={() => setConfirm(null)} />
       )}
 
       {toast && <div className="toast">{toast}</div>}

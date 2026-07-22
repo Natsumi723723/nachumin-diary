@@ -11,6 +11,7 @@ import MarkBar, { insertAtCursor } from "./MarkBar.jsx";
 import useKbGap from "./useKbGap.js";
 import Pressable from "./Pressable.jsx";
 import ContextMenu from "./ContextMenu.jsx";
+import ConfirmDialog from "./ConfirmDialog.jsx";
 
 const DECL_TAG = "🎬"; // 今日のコマ用の擬似タグ（マーク一覧の一番右）
 
@@ -202,6 +203,9 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     persist(next);
     setEditing(null);
   };
+  const [confirm, setConfirm] = useState(null); // 削除確認
+  const askDeleteEntry = (k) =>
+    setConfirm({ message: `🩷${keyToDisp(k)}🩷 の日記を削除しますか？`, onConfirm: () => { deleteEntry(k); setConfirm(null); } });
 
   /* ---------- 習慣 ---------- */
   const toggleHabit = (dateKey, habitId) => {
@@ -467,7 +471,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                         appendNewline marks={marks} onEditMarks={onEditMarks} bottomToolbar
                         onSave={(t) => saveEdit(k, t)}
                         onCancel={() => setEditing(null)}
-                        onDelete={() => deleteEntry(k)}
+                        onDelete={() => askDeleteEntry(k)}
                         placeholder="内容を書きなおしてね"
                       />
                     ) : (
@@ -549,8 +553,12 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
             (menu.type === "diary" ? entries[menu.k]?.text || "" : doneTextOf(menu.k))
           )}
           onEdit={menu.type === "diary" ? () => { setMenu(null); startEdit(menu.k); } : undefined}
-          onDelete={menu.type === "diary" ? () => { setMenu(null); deleteEntry(menu.k); } : undefined}
+          onDelete={menu.type === "diary" ? () => { setMenu(null); askDeleteEntry(menu.k); } : undefined}
         />
+      )}
+
+      {confirm && (
+        <ConfirmDialog message={confirm.message} onConfirm={confirm.onConfirm} onCancel={() => setConfirm(null)} />
       )}
 
       {/* 🔖 マークで集める（全画面ビュー） */}

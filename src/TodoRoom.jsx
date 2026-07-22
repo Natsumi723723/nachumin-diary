@@ -8,6 +8,7 @@ import InlineEdit from "./InlineEdit.jsx";
 import DragList from "./DragList.jsx";
 import Pressable from "./Pressable.jsx";
 import ContextMenu from "./ContextMenu.jsx";
+import ConfirmDialog from "./ConfirmDialog.jsx";
 import { MEMBER_COLORS, textOn } from "./theme.js";
 
 /* TODO型ルーム: 1メッセージ=1TODO。チェックで完了→日記へライフログ */
@@ -166,6 +167,12 @@ export default function TodoRoom({
   const deleteTodo = (id) => {
     persist(todos.filter((t) => t.id !== id));
     setEditing(null);
+  };
+  const [confirm, setConfirm] = useState(null); // 削除確認ダイアログ
+  const askDeleteTodo = (t) => {
+    if (!t) return;
+    const label = t.text.length > 24 ? t.text.slice(0, 24) + "…" : t.text;
+    setConfirm({ message: `「${label}」を削除しますか？`, onConfirm: () => { deleteTodo(t.id); setConfirm(null); } });
   };
 
   /* クリップボードから一括取り込み（1タップ） */
@@ -429,7 +436,7 @@ export default function TodoRoom({
                           initial={t.text}
                           onSave={(text) => saveEdit(t.id, text)}
                           onCancel={() => setEditing(null)}
-                          onDelete={() => deleteTodo(t.id)}
+                          onDelete={() => askDeleteTodo(t)}
                           placeholder="TODOを書きなおしてね"
                         />
                       ) : (
@@ -492,7 +499,7 @@ export default function TodoRoom({
                             initial={t.text}
                             onSave={(text) => saveEdit(t.id, text)}
                             onCancel={() => setEditing(null)}
-                            onDelete={() => deleteTodo(t.id)}
+                            onDelete={() => askDeleteTodo(t)}
                             placeholder="TODOを書きなおしてね"
                           />
                         ) : (
@@ -598,10 +605,14 @@ export default function TodoRoom({
               label: "📍 場所を選ぶ",
               onClick: () => { setMenu(null); setPlacePickFor(menu.id); }
             }] : []}
-            onDelete={() => { setMenu(null); deleteTodo(menu.id); }}
+            onDelete={() => { setMenu(null); askDeleteTodo(t); }}
           />
         );
       })()}
+
+      {confirm && (
+        <ConfirmDialog message={confirm.message} onConfirm={confirm.onConfirm} onCancel={() => setConfirm(null)} />
+      )}
 
       {/* 場所の管理 */}
       {placeModal && (

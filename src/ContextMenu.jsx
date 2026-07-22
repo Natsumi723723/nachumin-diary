@@ -1,8 +1,6 @@
-import { useState } from "react";
-
-/* 長押しで出す小さなメニュー。(先頭項目)/コピー/編集/(任意の追加項目)/削除(2段階)。 */
+/* 長押しで出す小さなメニュー。(先頭項目)/コピー/編集/(任意の追加項目)/削除。
+   削除は onDelete を1回呼ぶ（確認は呼び出し側でダイアログ表示）。 */
 export default function ContextMenu({ x, y, onCopy, onEdit, onDelete, onClose, top: topItems, extra }) {
-  const [armDel, setArmDel] = useState(false);
   const W = 168;
   const left = Math.max(8, Math.min(x - W / 2, window.innerWidth - W - 8));
   const posTop = Math.max(8, Math.min(y + 8, window.innerHeight - 190));
@@ -18,10 +16,7 @@ export default function ContextMenu({ x, y, onCopy, onEdit, onDelete, onClose, t
           <button key={i} className="ctx-item" onClick={it.onClick}>{it.label}</button>
         ))}
         {onDelete && (
-          <button
-            className={"ctx-item ctx-del" + (armDel ? " arm" : "")}
-            onClick={() => { if (!armDel) { setArmDel(true); return; } onDelete(); }}
-          >🗑 {armDel ? "ほんとに削除" : "削除"}</button>
+          <button className="ctx-item ctx-del" onClick={onDelete}>🗑 削除</button>
         )}
       </div>
     </div>
