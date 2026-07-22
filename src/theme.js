@@ -423,7 +423,6 @@ export const css = `
   /* 重要TODO: 反転色＋縁取り（未完了のうちだけ目立たせる） */
   .todo-bubble.important {
     background: #ff1478; color: #fff;
-    border: 2.5px solid #b5005c;
     box-shadow: 0 2px 10px rgba(255,20,120,.45);
   }
   .todo-bubble.important .todo-text { color: #fff; }
