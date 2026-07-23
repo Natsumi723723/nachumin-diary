@@ -326,7 +326,10 @@ export const css = `
     border-right: 1.5px solid #e3d2f7; border-top: 1.5px solid #e3d2f7;
     transform: rotate(35deg) skewX(-8deg);
   }
-  .done-head { font-weight: 700; font-size: 12.5px; color: #8659c4; margin-bottom: 4px; }
+  .done-head {
+    font-weight: 700; font-size: 12.5px; color: #8659c4; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 8px;
+  }
   .done-line { font-size: 12.5px; line-height: 1.7; color: #5b4570; white-space: pre-wrap; }
   .done-time { color: #a08bc0; font-size: 11px; }
   /* chat area (shared) */
@@ -604,6 +607,140 @@ export const css = `
     position: fixed; inset: 0; z-index: 30;
     display: flex; flex-direction: column;
     background: ${bgUrl} #f6bedd; background-size: 240px 240px;
+  }
+
+  /* ===== 🎯 習慣ビュー（月間スタンプ表） ===== */
+  .overlay.habit-over { z-index: 50; }
+  .hv-open {
+    margin-left: auto; flex-shrink: 0; cursor: pointer;
+    border: none; border-radius: 999px; padding: 3px 9px;
+    background: linear-gradient(90deg,#ff5fb0,#ff1478); color: #fff;
+    font-size: 10.5px; font-weight: 800; letter-spacing: .02em;
+    box-shadow: 0 2px 6px rgba(255,20,120,.32);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hv-open:active { transform: scale(.94); }
+  .hv-screen {
+    position: fixed; inset: 0; z-index: 30;
+    display: flex; flex-direction: column;
+    background: ${bgUrl} #f6bedd; background-size: 240px 240px;
+  }
+  .hv-monthbar {
+    flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: rgba(255,240,249,.94);
+    border-bottom: 1px solid #f3b9d9;
+  }
+  .hv-mbtn {
+    width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+    border: 1.5px solid #f0a6cf; background: #fff; color: #d5006a;
+    font-size: 18px; font-weight: 900; line-height: 1; cursor: pointer;
+    -webkit-tap-highlight-color: transparent; padding: 0;
+  }
+  .hv-mbtn:active { transform: scale(.9); }
+  .hv-month {
+    font-size: 17px; font-weight: 900; color: #b5005c;
+    letter-spacing: .02em; min-width: 108px; text-align: center;
+  }
+  .hv-now {
+    margin-left: auto; flex-shrink: 0; cursor: pointer;
+    border: 1.5px solid #ff1478; background: #fff; color: #d5006a;
+    border-radius: 999px; padding: 4px 12px; font-size: 11.5px; font-weight: 800;
+  }
+  .hv-scroll { flex: 1; overflow: auto; padding: 0 0 24px; -webkit-overflow-scrolling: touch; }
+  .hv-table { width: max-content; min-width: 100%; }
+  .hv-row { display: flex; align-items: stretch; }
+
+  /* 習慣名の列（左に固定） */
+  .hv-name {
+    position: sticky; left: 0; z-index: 3;
+    flex: 0 0 60px; width: 60px; box-sizing: border-box;
+    display: flex; align-items: center; gap: 2px;
+    padding: 0 4px; min-height: 32px;
+    background: #fff2f9; border-right: 1.5px solid #f3b9d9;
+    border-bottom: 1px solid #fadcec;
+  }
+  .hv-emoji { font-size: 12px; flex-shrink: 0; }
+  .hv-nm {
+    font-size: 10.5px; font-weight: 700; color: #7d3a63;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* 日付セルの並び。画面幅に1ヶ月が収まるならぴったり、狭ければ13pxで下げ止まり→横スクロール */
+  .hv-cells {
+    display: flex; gap: 1px; padding: 2px 4px;
+    --cw: clamp(13px, calc((100vw - 116px) / 31 - 1px), 22px);
+  }
+  .hv-cell {
+    width: var(--cw); height: 28px; flex-shrink: 0; padding: 0;
+    border-radius: 5px; cursor: pointer;
+    border: 1px solid #f0c4de; background: rgba(255,255,255,.55);
+    color: #fff; font-size: 10px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hv-cell.on {
+    background: linear-gradient(160deg,#ff5fb0,#ff1478);
+    border-color: #ff1478;
+    box-shadow: 0 1px 5px rgba(255,20,120,.5);
+  }
+  .hv-cell.off {
+    background: rgba(190,175,185,.22); border-color: rgba(170,150,165,.28);
+    cursor: default;
+  }
+  .hv-cell.future { opacity: .38; cursor: default; }
+  .hv-cell.today { border-color: #8a0044; border-width: 2px; }
+  .hv-cell:not(:disabled):active { transform: scale(.86); }
+
+  /* 日付ヘッダー */
+  .hv-head { position: sticky; top: 0; z-index: 4; }
+  .hv-head .hv-name, .hv-head .hv-count { z-index: 5; background: #ffe4f3; }
+  .hv-head .hv-cells { background: rgba(255,228,243,.96); }
+  .hv-dcell {
+    width: var(--cw); flex-shrink: 0; border-radius: 5px;
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    padding: 3px 0; color: #9a5b83;
+  }
+  .hv-dnum { font-size: 10px; font-weight: 800; line-height: 1; }
+  .hv-dow { font-size: 8px; line-height: 1; opacity: .85; }
+  .hv-dcell.sat { color: #2f7fc4; }
+  .hv-dcell.sun { color: #ff1478; }
+  .hv-dcell.today {
+    background: #ff1478; color: #fff;
+    box-shadow: 0 2px 7px rgba(255,20,120,.5);
+  }
+  .hv-corner {
+    font-size: 10px; font-weight: 800; color: #b5005c;
+    justify-content: center; text-align: center;
+  }
+
+  /* 達成回数（右に固定・数字を主役に） */
+  .hv-count {
+    position: sticky; right: 0; z-index: 3;
+    flex: 0 0 46px; width: 46px; box-sizing: border-box;
+    display: flex; align-items: baseline; justify-content: center; gap: 1px;
+    padding: 0 4px; background: #fff2f9;
+    border-left: 1.5px solid #f3b9d9; border-bottom: 1px solid #fadcec;
+  }
+  .hv-n { font-size: 21px; font-weight: 900; line-height: 1.1; letter-spacing: -.01em; }
+  .hv-d { font-size: 10px; font-weight: 700; color: #c69ab4; }
+  .hv-count.lv0 .hv-n { color: #d9aec6; }
+  .hv-count.lv1 .hv-n { color: #ff7ec0; }
+  .hv-count.lv2 .hv-n { color: #ff1478; }
+  .hv-count.lv3 .hv-n {
+    color: #d5006a; text-shadow: 0 0 10px rgba(255,20,120,.55);
+  }
+  .hv-count.lv3 { background: linear-gradient(180deg,#fff2f9,#ffe0f0); }
+
+  /* 毎日 / 毎週 の区切り */
+  .hv-seprow {
+    height: 24px; border-top: 2px dashed #ef6bb0;
+    margin-top: 8px; display: flex; align-items: center;
+  }
+  .hv-seplabel {
+    position: sticky; left: 6px; display: inline-block;
+    background: #ff1478; color: #fff; border-radius: 999px;
+    padding: 3px 10px; font-size: 10px; font-weight: 800;
+    box-shadow: 0 2px 6px rgba(255,20,120,.35);
   }
   .mv-marks {
     display: flex; gap: 6px; overflow-x: auto; flex-shrink: 0;

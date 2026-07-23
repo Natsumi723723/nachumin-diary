@@ -12,8 +12,10 @@ import useKbGap from "./useKbGap.js";
 import Pressable from "./Pressable.jsx";
 import ContextMenu from "./ContextMenu.jsx";
 import ConfirmDialog from "./ConfirmDialog.jsx";
+import HabitView from "./HabitView.jsx";
 
 const DECL_TAG = "🎬"; // 今日のコマ用の擬似タグ（マーク一覧の一番右）
+const MON_FIRST = [1, 2, 3, 4, 5, 6, 0]; // 曜日チップは月曜始まり
 
 /* 日記型ルーム: 1日=1吹き出し。下部入力欄で送信=追記、吹き出しタップで全文編集。
    「できたこと」吹き出しに完了TODO＋習慣チップを表示。 */
@@ -33,6 +35,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
   const [importText, setImportText] = useState("");
   const [habitModal, setHabitModal] = useState(false);
   const [habitDel, setHabitDel] = useState(null);
+  const [habitView, setHabitView] = useState(false); // 🎯 月間スタンプ表
   const [menu, setMenu] = useState(null); // 長押しメニュー {type,k,x,y}
   const [markView, setMarkView] = useState(null); // 🔖 マーク抽出ビュー: 選択中のマーク
   const [copied, setCopied] = useState(false);
@@ -486,7 +489,16 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                     className="done-bubble"
                     onLongPress={(p) => setMenu({ type: "done", k, x: p.x, y: p.y })}
                   >
-                    <div className="done-head">🩷 できたこと</div>
+                    <div className="done-head">
+                      <span>🩷 できたこと</span>
+                      {showHabits && (
+                        <button
+                          className="hv-open"
+                          aria-label="習慣ビューをひらく"
+                          onClick={(e) => { e.stopPropagation(); setHabitView(true); }}
+                        >🎯 習慣ビュー</button>
+                      )}
+                    </div>
                     {done.map((it, i) => (
                       <div className="done-line" key={i}>
                         ☑ {highlight(it.text)}
@@ -608,9 +620,20 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
         </div>
       )}
 
+      {/* 🎯 習慣ビュー（月間スタンプ表・全画面） */}
+      {habitView && (
+        <HabitView
+          habits={habits}
+          habitAch={habitAch}
+          onToggle={toggleHabit}
+          onClose={() => setHabitView(false)}
+          onManage={() => setHabitModal(true)}
+        />
+      )}
+
       {/* 習慣モーダル */}
       {habitModal && (
-        <div className="overlay" onClick={closeHabitModal}>
+        <div className="overlay habit-over" onClick={closeHabitModal}>
           <div className="panel" onClick={(e) => e.stopPropagation()}>
             <h3>🎯 習慣</h3>
             <p className="panel-note">毎日くり返すこと。日記の「できたこと」からワンタップで記録できます。</p>
@@ -639,12 +662,12 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                 </div>
                 {h.freq === "weekly" && (
                   <div className="dow-row">
-                    {WEEKDAYS.map((w, di) => (
+                    {MON_FIRST.map((di) => (
                       <button
                         key={di}
                         className={"dow-chip" + ((h.days || []).includes(di) ? " on" : "")}
                         onClick={() => toggleHabitDay(h.id, di)}
-                      >{w}</button>
+                      >{WEEKDAYS[di]}</button>
                     ))}
                   </div>
                 )}
