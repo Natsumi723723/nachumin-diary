@@ -609,6 +609,87 @@ export const css = `
     background: ${bgUrl} #f6bedd; background-size: 240px 240px;
   }
 
+  /* ===== 🚃 旅費交通費 ===== */
+  .overlay.station-over { z-index: 45; }
+  .exp-route { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+  .exp-rt {
+    font-size: 11.5px; font-weight: 700; color: #0d7f8c;
+    background: #e2f7fa; border-radius: 999px; padding: 2px 9px;
+  }
+  .exp-rt-arw { color: #ff1478; font-weight: 900; margin: 0 3px; }
+  .exp-rt-badge {
+    font-size: 10px; font-weight: 800; color: #fff;
+    background: linear-gradient(90deg,#ff5fb0,#ff1478);
+    border-radius: 999px; padding: 2px 8px;
+    box-shadow: 0 1px 4px rgba(255,20,120,.35);
+  }
+  .tr-gear {
+    float: right; border: none; background: #ffe4f3; color: #d5006a;
+    border-radius: 50%; width: 26px; height: 26px; font-size: 13px;
+    cursor: pointer; padding: 0;
+  }
+  .tr-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 2px; }
+  .tr-chip {
+    border: 1.5px solid #8fd6de; background: #fff; color: #0d7f8c;
+    border-radius: 999px; padding: 7px 13px; font-size: 13px;
+    font-weight: 700; cursor: pointer; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tr-chip.on {
+    background: linear-gradient(90deg,#00c4d6,#00a5b5); border-color: #00a5b5;
+    color: #fff; box-shadow: 0 2px 8px rgba(0,165,181,.4);
+  }
+  .tr-chip:active { transform: scale(.94); }
+  .tr-chip-add { border-style: dashed; border-color: #f0a6cf; color: #d5006a; }
+  .tr-newst { width: 118px; flex: 0 0 auto; padding: 6px 10px; font-size: 13px; }
+  .tr-hist {
+    border: 1.5px solid #f0a6cf; background: #fff5fa; color: #b04a86;
+    border-radius: 999px; padding: 7px 13px; font-size: 12.5px;
+    font-weight: 800; cursor: pointer; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tr-hist.on {
+    background: linear-gradient(90deg,#ff5fb0,#ff1478); border-color: #ff1478;
+    color: #fff; box-shadow: 0 2px 8px rgba(255,20,120,.4);
+  }
+  .tr-hist.on .exp-rt-arw { color: #fff; }
+  .tr-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .tr-round {
+    border: 2px solid #f0a6cf; background: #fff; color: #b04a86;
+    border-radius: 999px; padding: 8px 18px; font-size: 14px;
+    font-weight: 900; cursor: pointer; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tr-round.on {
+    background: linear-gradient(90deg,#ff5fb0,#ff1478); border-color: #ff1478;
+    color: #fff; box-shadow: 0 3px 10px rgba(255,20,120,.45);
+  }
+  .tr-round:active { transform: scale(.95); }
+  .tr-fare-hint { font-size: 11.5px; font-weight: 700; color: #a4517f; }
+  .tr-savefare {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    margin-top: 10px; cursor: pointer; text-align: left;
+    border: 1.5px dashed #f0a6cf; background: #fff8fc; color: #b04a86;
+    border-radius: 12px; padding: 9px 12px; font-size: 12.5px; font-weight: 700;
+  }
+  .tr-savefare.on { border-style: solid; border-color: #ff1478; background: #ffeef7; color: #d5006a; }
+  .tr-savebox {
+    width: 18px; height: 18px; flex-shrink: 0; border-radius: 5px;
+    border: 1.5px solid #f0a6cf; background: #fff; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 900;
+  }
+  .tr-savefare.on .tr-savebox { background: #ff1478; border-color: #ff1478; }
+  .tr-def {
+    width: 30px; height: 30px; flex-shrink: 0; padding: 0; cursor: pointer;
+    border: 1.5px solid #f0a6cf; background: #fff; color: #ff1478;
+    border-radius: 50%; font-size: 15px; line-height: 1;
+  }
+  .tr-def.on { background: #ff1478; border-color: #ff1478; color: #fff; }
+  .tr-sel { flex: 1; min-width: 0; padding: 7px 8px; }
+  .sum-route { font-size: 12.5px; font-weight: 700; color: #0d7f8c; }
+  .sum-n { font-size: 10.5px; color: #a4517f; margin-left: 6px; font-weight: 700; }
+
   /* ===== 🎯 習慣ビュー（月間スタンプ表） ===== */
   .overlay.habit-over { z-index: 50; }
   .hv-open {

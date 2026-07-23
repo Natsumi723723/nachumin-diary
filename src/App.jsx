@@ -291,14 +291,18 @@ export default function App() {
       ? [
           { id: uid(), name: "AI費用", emoji: "🤖", color: "#2196F3" },
           { id: uid(), name: "ピンクグッズ", emoji: "🎀", color: "#E91E63" },
-          { id: uid(), name: "ネイル", emoji: "💅", color: "#9C27B0" }
+          { id: uid(), name: "ネイル", emoji: "💅", color: "#9C27B0" },
+          { id: uid(), name: "旅費交通費", emoji: "🚃", color: "#00A5B5", transit: true }
         ]
       : undefined;
     const room = {
       id: uid(), type: modal.type, name,
       emoji: modal.emoji.trim() || defaultEmoji,
       members: initMembers, createdAt: Date.now(), lastAt: 0, preview: "",
-      ...(initCategories ? { categories: initCategories, subscriptions: [], subsPosted: {} } : {})
+      ...(initCategories
+        ? { categories: initCategories, subscriptions: [], subsPosted: {}, transitSeeded: true,
+            stations: [], fares: [], defaultFromId: null, roundTripDefault: false }
+        : {})
     };
     saveRooms([...rooms, room]);
     setModal(null);
