@@ -2,13 +2,14 @@ import { useState } from "react";
 import { uid } from "./format.js";
 import { MEMBER_COLORS, TEXT_COLORS, memberText } from "./theme.js";
 import { MIcon } from "./TalkRoom.jsx";
+import ConfirmDialog from "./ConfirmDialog.jsx";
 
 /* メンバー（人格）の登録・編集モーダル。トーク型・だれログ型で共用 */
 export default function MemberEditor({ members, onChange, onClose, showToast }) {
   const [page, setPage] = useState("list"); // 'list' | 'form'
   const [member, setMember] = useState(null);
   const [isNew, setIsNew] = useState(false);
-  const [memDel, setMemDel] = useState(false);
+  const [confirm, setConfirm] = useState(null); // 削除確認ポップアップ
 
   const openNew = () => {
     setMember({
@@ -19,14 +20,14 @@ export default function MemberEditor({ members, onChange, onClose, showToast }) 
       side: members.length % 2 === 0 ? "left" : "right"
     });
     setIsNew(true);
-    setMemDel(false);
+    setConfirm(null);
     setPage("form");
   };
 
   const openEdit = (m) => {
     setMember({ ...m });
     setIsNew(false);
-    setMemDel(false);
+    setConfirm(null);
     setPage("form");
   };
 
@@ -41,13 +42,15 @@ export default function MemberEditor({ members, onChange, onClose, showToast }) 
   };
 
   const del = () => {
-    if (!memDel) {
-      setMemDel(true);
-      return;
-    }
-    onChange(members.filter((x) => x.id !== member.id));
-    setMemDel(false);
-    setPage("list");
+    const nm = member.name.trim() || "この人";
+    setConfirm({
+      message: `「${nm}」を削除しますか？\n記録した会話は残ります。`,
+      onConfirm: () => {
+        onChange(members.filter((x) => x.id !== member.id));
+        setConfirm(null);
+        setPage("list");
+      }
+    });
   };
 
   const move = (i, dir) => {
@@ -79,6 +82,7 @@ export default function MemberEditor({ members, onChange, onClose, showToast }) 
   };
 
   return (
+    <>
     <div className="overlay" onClick={onClose}>
       <div className="panel" onClick={(e) => e.stopPropagation()}>
         {page === "list" ? (
@@ -155,16 +159,16 @@ export default function MemberEditor({ members, onChange, onClose, showToast }) 
             </div>
             <div className="panel-btns">
               <button className="p-copy" onClick={save}>保存</button>
-              {!isNew && (
-                <button className={"p-del" + (memDel ? " arm" : "")} onClick={del}>
-                  {memDel ? "ほんとに削除" : "削除"}
-                </button>
-              )}
+              {!isNew && <button className="p-del" onClick={del}>削除</button>}
               <button className="p-close" onClick={() => setPage("list")}>もどる</button>
             </div>
           </>
         )}
       </div>
     </div>
+    {confirm && (
+      <ConfirmDialog message={confirm.message} onConfirm={confirm.onConfirm} onCancel={() => setConfirm(null)} />
+    )}
+    </>
   );
 }

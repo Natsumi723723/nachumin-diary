@@ -34,7 +34,6 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [habitModal, setHabitModal] = useState(false);
-  const [habitDel, setHabitDel] = useState(null);
   const [habitView, setHabitView] = useState(false); // 🎯 月間スタンプ表
   const [menu, setMenu] = useState(null); // 長押しメニュー {type,k,x,y}
   const [markView, setMarkView] = useState(null); // 🔖 マーク抽出ビュー: 選択中のマーク
@@ -247,16 +246,19 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     saveHabits(next);
   };
   const removeHabit = (id) => {
-    if (habitDel !== id) { setHabitDel(id); return; }
-    saveHabits(habits.filter((h) => h.id !== id));
-    setHabitDel(null);
+    const h = habits.find((x) => x.id === id);
+    const done = Object.values(habitAch).filter((ids) => (ids || []).includes(id)).length;
+    setConfirm({
+      message: `習慣「${(h?.emoji || "") + (h?.name || "")}」を削除しますか？`
+        + (done ? `\nこれまでの達成 ${done}日分 の記録も消えます。` : ""),
+      onConfirm: () => { saveHabits(habits.filter((x) => x.id !== id)); setConfirm(null); }
+    });
   };
   const closeHabitModal = () => {
     // 名前空の習慣は片付ける
     const cleaned = habits.filter((h) => h.name.trim() || (h.emoji && h.emoji.trim()));
     if (cleaned.length !== habits.length) saveHabits(cleaned);
     setHabitModal(false);
-    setHabitDel(null);
   };
 
   /* ---------- export / import ---------- */
@@ -652,10 +654,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                 />
                 <button className="mem-btn" disabled={i === 0} onClick={() => moveHabit(i, -1)} aria-label="上へ">↑</button>
                 <button className="mem-btn" disabled={i === habits.length - 1} onClick={() => moveHabit(i, 1)} aria-label="下へ">↓</button>
-                <button
-                  className="mem-btn" style={habitDel === h.id ? { background: "#e23d7c", color: "#fff" } : undefined}
-                  onClick={() => removeHabit(h.id)} aria-label="削除"
-                >{habitDel === h.id ? "!" : "🗑"}</button>
+                <button className="mem-btn" onClick={() => removeHabit(h.id)} aria-label="削除">🗑</button>
                 <div className="seg" style={{ flexBasis: "100%", marginTop: 4 }}>
                   <button className={h.freq !== "weekly" ? "on" : ""} onClick={() => setHabitFreq(h.id, "daily")}>毎日</button>
                   <button className={h.freq === "weekly" ? "on" : ""} onClick={() => setHabitFreq(h.id, "weekly")}>毎週</button>

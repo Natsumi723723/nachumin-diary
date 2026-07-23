@@ -21,7 +21,6 @@ export default function TodoRoom({
   const [tab, setTab] = useState("todo"); // 'todo'=やること(未完了) | 'done'=完了
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(null); // todo id
-  const [confirmDel, setConfirmDel] = useState(false);
   const [searchOpen, setSearchOpen] = useState(!!initialQuery);
   const [query, setQuery] = useState(initialQuery || "");
   const [justDone, setJustDone] = useState(() => new Set()); // 完了直後に一瞬残す
@@ -38,7 +37,6 @@ export default function TodoRoom({
   const [selPlace, setSelPlace] = useState(null); // 入力に付ける場所（次のTODOにも保持）
   const [placeFilter, setPlaceFilter] = useState(null); // やること: 場所で絞り込み
   const [placeModal, setPlaceModal] = useState(false); // 場所の管理
-  const [placeDel, setPlaceDel] = useState(null);
   const [placePickFor, setPlacePickFor] = useState(null); // このTODOの場所を選ぶ
   const scrollRef = useRef(null);
   const taRef = useRef(null);
@@ -113,16 +111,23 @@ export default function TodoRoom({
     const next = [...places]; [next[i], next[j]] = [next[j], next[i]]; savePlaces(next);
   };
   const removePlace = (id) => {
-    if (placeDel !== id) { setPlaceDel(id); return; }
-    savePlaces(places.filter((p) => p.id !== id));
-    if (selPlace === id) setSelPlace(null);
-    if (placeFilter === id) setPlaceFilter(null);
-    setPlaceDel(null);
+    const p = places.find((x) => x.id === id);
+    const used = todos.filter((t) => t.placeId === id).length;
+    setConfirm({
+      message: `場所タグ「${p?.name || ""}」を削除しますか？`
+        + (used ? `\nこのタグが付いた ${used}件 のTODOは残ります（タグだけ外れます）。` : ""),
+      onConfirm: () => {
+        savePlaces(places.filter((x) => x.id !== id));
+        if (selPlace === id) setSelPlace(null);
+        if (placeFilter === id) setPlaceFilter(null);
+        setConfirm(null);
+      }
+    });
   };
   const closePlaceModal = () => {
     const cleaned = places.filter((p) => p.name.trim());
     if (cleaned.length !== places.length) savePlaces(cleaned);
-    setPlaceModal(false); setPlaceDel(null);
+    setPlaceModal(false);
   };
 
   const complete = (todo) => {
@@ -710,8 +715,7 @@ export default function TodoRoom({
                   value={p.name} onChange={(e) => updatePlace(p.id, { name: e.target.value })} />
                 <button className="mem-btn" disabled={i === 0} onClick={() => movePlace(i, -1)} aria-label="上へ">↑</button>
                 <button className="mem-btn" disabled={i === places.length - 1} onClick={() => movePlace(i, 1)} aria-label="下へ">↓</button>
-                <button className="mem-btn" style={placeDel === p.id ? { background: "#e23d7c", color: "#fff" } : undefined}
-                  onClick={() => removePlace(p.id)} aria-label="削除">{placeDel === p.id ? "!" : "🗑"}</button>
+                <button className="mem-btn" onClick={() => removePlace(p.id)} aria-label="削除">🗑</button>
                 <div className="swatches" style={{ flexBasis: "100%", marginTop: 4 }}>
                   {MEMBER_COLORS.map((col) => (
                     <button key={col} className={"swatch" + (p.color === col ? " on" : "")}

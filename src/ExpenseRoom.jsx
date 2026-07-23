@@ -13,9 +13,7 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
   const [loaded, setLoaded] = useState(false);
   const [entry, setEntry] = useState(null);   // 金額入力/編集モーダル
   const [catModal, setCatModal] = useState(false);
-  const [catDel, setCatDel] = useState(null);
   const [subModal, setSubModal] = useState(false);
-  const [subDel, setSubDel] = useState(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
@@ -25,8 +23,6 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
   const [confirm, setConfirm] = useState(null); // 削除確認
   const [transit, setTransit] = useState(null);      // 🚃 旅費交通費の入力パネル
   const [stationModal, setStationModal] = useState(false);
-  const [stDel, setStDel] = useState(null);
-  const [fareDel, setFareDel] = useState(null);
   const [addSt, setAddSt] = useState(null);          // "from" | "to"（新しい駅を入力中）
   const [addStName, setAddStName] = useState("");
   const scrollRef = useRef(null);
@@ -180,26 +176,38 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
     const next = [...stations]; [next[i], next[j]] = [next[j], next[i]]; saveStations(next);
   };
   const removeStation = (id) => {
-    if (stDel !== id) { setStDel(id); return; }
-    // 記録済みの経費は駅名を持っているので消えない。区間マスタのみ整理する
-    onRoomChange({
-      stations: stations.filter((s) => s.id !== id),
-      fares: fares.filter((f) => f.fromId !== id && f.toId !== id),
-      ...(room.defaultFromId === id ? { defaultFromId: null } : {})
+    const s = stations.find((x) => x.id === id);
+    const used = fares.filter((f) => f.fromId === id || f.toId === id).length;
+    setConfirm({
+      message: `駅「${s?.name || ""}」を削除しますか？`
+        + (used ? `\nこの駅を使う区間 ${used}件 も一緒に消えます。` : "")
+        + "\n記録ずみの経費は消えません。",
+      onConfirm: () => {
+        // 記録済みの経費は駅名を持っているので消えない。区間マスタのみ整理する
+        onRoomChange({
+          stations: stations.filter((x) => x.id !== id),
+          fares: fares.filter((f) => f.fromId !== id && f.toId !== id),
+          ...(room.defaultFromId === id ? { defaultFromId: null } : {})
+        });
+        setConfirm(null);
+      }
     });
-    setStDel(null);
   };
   const saveFares = (next) => onRoomChange({ fares: next });
   const addFare = () => saveFares([...fares, { id: uid(), fromId: stations[0]?.id || "", toId: stations[1]?.id || "", fare: 0, memo: "" }]);
   const updateFare = (id, patch) => saveFares(fares.map((f) => (f.id === id ? { ...f, ...patch } : f)));
   const removeFare = (id) => {
-    if (fareDel !== id) { setFareDel(id); return; }
-    saveFares(fares.filter((f) => f.id !== id)); setFareDel(null);
+    const f = fares.find((x) => x.id === id);
+    const label = f ? `${stName(f.fromId) || "?"}→${stName(f.toId) || "?"}` : "";
+    setConfirm({
+      message: `区間「${label}」を削除しますか？\n運賃の自動入力ができなくなります。`,
+      onConfirm: () => { saveFares(fares.filter((x) => x.id !== id)); setConfirm(null); }
+    });
   };
   const closeStationModal = () => {
     const cleaned = stations.filter((s) => s.name.trim());
     if (cleaned.length !== stations.length) saveStations(cleaned);
-    setStationModal(false); setStDel(null); setFareDel(null);
+    setStationModal(false);
   };
 
   // よく使う区間（過去の記録から回数順・上位6件）
@@ -244,13 +252,16 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
     const next = [...categories]; [next[i], next[j]] = [next[j], next[i]]; saveCats(next);
   };
   const removeCat = (id) => {
-    if (catDel !== id) { setCatDel(id); return; }
-    saveCats(categories.filter((c) => c.id !== id)); setCatDel(null);
+    const c = catOf(id);
+    setConfirm({
+      message: `カテゴリ「${c?.name || ""}」を削除しますか？\n記録ずみの支出は消えません。`,
+      onConfirm: () => { saveCats(categories.filter((x) => x.id !== id)); setConfirm(null); }
+    });
   };
   const closeCatModal = () => {
     const cleaned = categories.filter((c) => c.name.trim());
     if (cleaned.length !== categories.length) saveCats(cleaned);
-    setCatModal(false); setCatDel(null);
+    setCatModal(false);
   };
 
   /* ---------- サブスク管理 ---------- */
@@ -258,13 +269,16 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
   const addSub = () => saveSubs([...subscriptions, { id: uid(), name: "", amount: 0, categoryId: categories[0]?.id || "" }]);
   const updateSub = (id, patch) => saveSubs(subscriptions.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   const removeSub = (id) => {
-    if (subDel !== id) { setSubDel(id); return; }
-    saveSubs(subscriptions.filter((s) => s.id !== id)); setSubDel(null);
+    const s = subscriptions.find((x) => x.id === id);
+    setConfirm({
+      message: `サブスク「${s?.name || ""}」を削除しますか？\n計上ずみの支出は消えません。`,
+      onConfirm: () => { saveSubs(subscriptions.filter((x) => x.id !== id)); setConfirm(null); }
+    });
   };
   const closeSubModal = () => {
     const cleaned = subscriptions.filter((s) => s.name.trim());
     if (cleaned.length !== subscriptions.length) saveSubs(cleaned);
-    setSubModal(false); setSubDel(null);
+    setSubModal(false);
   };
 
   /* ---------- サブスク計上バナー ---------- */
@@ -659,8 +673,7 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
                   value={s.name} onChange={(e) => updateStation(s.id, { name: e.target.value })} />
                 <button className="mem-btn" disabled={i === 0} onClick={() => moveStation(i, -1)} aria-label="上へ">↑</button>
                 <button className="mem-btn" disabled={i === stations.length - 1} onClick={() => moveStation(i, 1)} aria-label="下へ">↓</button>
-                <button className="mem-btn" style={stDel === s.id ? { background: "#e23d7c", color: "#fff" } : undefined}
-                  onClick={() => removeStation(s.id)} aria-label="削除">{stDel === s.id ? "!" : "🗑"}</button>
+                <button className="mem-btn" onClick={() => removeStation(s.id)} aria-label="削除">🗑</button>
               </div>
             ))}
             {stations.length === 0 && <p className="panel-note">駅を追加してね💗</p>}
@@ -678,8 +691,7 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
                   <option value="">到着</option>
                   {stations.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
-                <button className="mem-btn" style={fareDel === f.id ? { background: "#e23d7c", color: "#fff" } : undefined}
-                  onClick={() => removeFare(f.id)} aria-label="削除">{fareDel === f.id ? "!" : "🗑"}</button>
+                <button className="mem-btn" onClick={() => removeFare(f.id)} aria-label="削除">🗑</button>
                 <div style={{ display: "flex", gap: 6, flexBasis: "100%", marginTop: 4, alignItems: "center" }}>
                   <span className="exp-yen">¥</span>
                   <input className="f-input" style={{ width: 92 }} inputMode="numeric" value={f.fare || ""}
@@ -723,8 +735,7 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
                   value={c.name} onChange={(e) => updateCat(c.id, { name: e.target.value })} />
                 <button className="mem-btn" disabled={i === 0} onClick={() => moveCat(i, -1)} aria-label="上へ">↑</button>
                 <button className="mem-btn" disabled={i === categories.length - 1} onClick={() => moveCat(i, 1)} aria-label="下へ">↓</button>
-                <button className="mem-btn" style={catDel === c.id ? { background: "#e23d7c", color: "#fff" } : undefined}
-                  onClick={() => removeCat(c.id)} aria-label="削除">{catDel === c.id ? "!" : "🗑"}</button>
+                <button className="mem-btn" onClick={() => removeCat(c.id)} aria-label="削除">🗑</button>
                 <div className="swatches" style={{ flexBasis: "100%", marginTop: 4 }}>
                   {MEMBER_COLORS.map((col) => (
                     <button key={col} className={"swatch" + (c.color === col ? " on" : "")}
@@ -752,8 +763,7 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
               <div className="mem-row" key={s.id} style={{ flexWrap: "wrap" }}>
                 <input className="f-input" style={{ flex: 1, minWidth: 0 }} placeholder="名前（例: Claude Code）"
                   value={s.name} onChange={(e) => updateSub(s.id, { name: e.target.value })} />
-                <button className="mem-btn" style={subDel === s.id ? { background: "#e23d7c", color: "#fff" } : undefined}
-                  onClick={() => removeSub(s.id)} aria-label="削除">{subDel === s.id ? "!" : "🗑"}</button>
+                <button className="mem-btn" onClick={() => removeSub(s.id)} aria-label="削除">🗑</button>
                 <div style={{ display: "flex", gap: 6, flexBasis: "100%", marginTop: 4, alignItems: "center" }}>
                   <span className="exp-yen">¥</span>
                   <input className="f-input" style={{ width: 100 }} inputMode="numeric"
