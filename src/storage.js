@@ -25,6 +25,8 @@ export const doneLogKey = (roomId) => `donelog-v1:${roomId}`;
 export const habitsKey = (roomId) => `habits-v1:${roomId}`;
 export const habitLogKey = (roomId) => `habitlog-v1:${roomId}`;
 export const habitSeedKey = (roomId) => `habitseed-v1:${roomId}`; // 週報を一度だけ用意した印
+// まるごとバックアップの記録（最後に書き出した日・バナーを閉じた日）
+export const BACKUP_KEY = "backup-v1";
 
 export const DIARY_ROOM_ID = "diary-main";
 

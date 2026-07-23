@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
   get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID, DECL_KEY,
-  MARKS_KEY, DEFAULT_MARKS, doneLogKey
+  MARKS_KEY, DEFAULT_MARKS, doneLogKey, BACKUP_KEY
 } from "./storage.js";
 import {
-  keyToDisp, homeDate, uid, escapeRegExp, todayKey, nowTime,
+  keyToDisp, keyToDate, homeDate, uid, escapeRegExp, todayKey, nowTime,
   applyDeclToEntryText
 } from "./format.js";
-import { dumpAll, restoreAll } from "./backup.js";
+import {
+  dumpAll, restoreAll, validateBackup, summarizeBackup, BACKUP_FILENAME
+} from "./backup.js";
 import { css } from "./theme.js";
 import DiaryRoom from "./DiaryRoom.jsx";
 import TalkRoom from "./TalkRoom.jsx";
@@ -44,6 +46,9 @@ export default function App() {
   const [backupOpen, setBackupOpen] = useState(false);
   const [backupText, setBackupText] = useState("");
   const [restoreText, setRestoreText] = useState("");
+  const [backupMeta, setBackupMeta] = useState(null); // {lastDateKey,lastAt,dismissedDateKey}
+  const [busy, setBusy] = useState(false);            // 書き出し中の二重タップ防止
+  const [restoreAsk, setRestoreAsk] = useState(null); // 復元の2段階確認 {obj,counts,exportedAt}
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState("");
   const toastTimer = useRef(null);
@@ -68,6 +73,7 @@ export default function App() {
         if (d && d.dateKey === todayKey()) setDecl(d.text);
         const mk = await get(MARKS_KEY);
         if (Array.isArray(mk) && mk.length) setMarks(mk);
+        setBackupMeta((await get(BACKUP_KEY)) || {});
       } catch (e) {
         showToast("データの読み込みに失敗しました");
         setRooms([]);
@@ -353,21 +359,89 @@ export default function App() {
     setBackupOpen(true);
   };
 
+  /* 最後にバックアップした日を記録（29時制の日付キー） */
+  const markBackedUp = async () => {
+    const next = { ...(backupMeta || {}), lastDateKey: todayKey(), lastAt: Date.now() };
+    setBackupMeta(next);
+    try { await set(BACKUP_KEY, next); } catch (e) { /* 記録できなくても書き出しは成功 */ }
+  };
+
+  const saveByDownload = (json) => {
+    const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = BACKUP_FILENAME;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  };
+
+  /* 1タップでまるごと書き出し。
+     iOSは共有シート（ファイルに保存→同名で置き換え）、非対応環境はダウンロード。 */
+  const runBackup = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      let json;
+      try {
+        json = JSON.stringify(await dumpAll(), null, 2);
+      } catch (e) {
+        showToast("バックアップの作成に失敗しました 🥺");
+        return;
+      }
+      // Web Share API（ファイル共有に対応している場合だけ）
+      try {
+        const file = new File([json], BACKUP_FILENAME, { type: "application/json" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: BACKUP_FILENAME });
+          await markBackedUp();
+          showToast("バックアップを保存したよ💗 同じファイルに置き換えできたかな？");
+          return;
+        }
+      } catch (e) {
+        // ユーザーがキャンセルしたときは何もしない（バックアップ済みにもしない）
+        if (e && (e.name === "AbortError" || e.name === "NotAllowedError")) return;
+        // それ以外の失敗はダウンロードにフォールバック
+      }
+      try {
+        saveByDownload(json);
+        await markBackedUp();
+        showToast("バックアップを保存したよ💗 iCloud/ファイルに入れておくと安心");
+      } catch (e) {
+        showToast("保存できない環境みたい。コピーを使ってね");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const downloadBackup = () => {
     try {
-      const blob = new Blob([backupText], { type: "application/json;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `nachumin-diary-backup.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      saveByDownload(backupText);
+      markBackedUp();
       showToast("バックアップを保存したよ💗 iCloud/ファイルに入れておくと安心");
     } catch (e) {
       showToast("保存できない環境みたい。コピーを使ってね");
     }
+  };
+
+  /* バックアップバナー（1日1回・29時制） */
+  const today = todayKey();
+  const daysSinceBackup = (() => {
+    if (!backupMeta?.lastDateKey) return null; // 一度もバックアップしていない
+    const ms = keyToDate(today) - keyToDate(backupMeta.lastDateKey);
+    return Math.max(0, Math.round(ms / 86400000));
+  })();
+  const backupStale = daysSinceBackup === null || daysSinceBackup >= 7;
+  const showBackupBanner = !!backupMeta
+    && backupMeta.lastDateKey !== today
+    && backupMeta.dismissedDateKey !== today;
+  const dismissBackupBanner = async () => {
+    const next = { ...(backupMeta || {}), dismissedDateKey: today };
+    setBackupMeta(next);
+    try { await set(BACKUP_KEY, next); } catch (e) { /* noop */ }
   };
 
   const copyBackup = async () => {
@@ -390,14 +464,29 @@ export default function App() {
     e.target.value = "";
   };
 
-  const doRestore = async () => {
+  /* 復元 1段階目: 形式を検証して、中身を見せてから確認する */
+  const askRestore = () => {
     let obj;
     try {
       obj = JSON.parse(restoreText);
     } catch (e) {
-      showToast("バックアップの形式が読めませんでした 🥺");
+      showToast("JSONとして読めませんでした。ファイルが壊れているかも 🥺", 4000);
       return;
     }
+    const err = validateBackup(obj);
+    if (err) { showToast(err, 4500); return; }
+    setRestoreAsk({
+      obj,
+      counts: summarizeBackup(obj),
+      exportedAt: obj.exportedAt || "",
+      version: obj.version
+    });
+  };
+
+  /* 復元 2段階目: 実行 */
+  const doRestore = async () => {
+    const obj = restoreAsk?.obj;
+    if (!obj) return;
     try {
       const res = await restoreAll(obj);
       setRooms(res.rooms);
@@ -406,11 +495,13 @@ export default function App() {
         setDecl(obj.declaration.text);
       }
       setDiarySync((s) => s + 1);
+      setRestoreAsk(null);
       setBackupOpen(false);
       setRestoreText("");
       showToast(`復元完了💗 ${res.addedRooms}ルーム / ${res.addedItems}件を追加`);
     } catch (e) {
-      showToast("これはこのアプリのバックアップではないみたい 🥺");
+      setRestoreAsk(null);
+      showToast("復元中にエラーが出ました。ファイルが壊れているかも 🥺", 4000);
     }
   };
 
@@ -490,6 +581,22 @@ export default function App() {
             onClick={() => { setSearchOpen(!searchOpen); setGq(""); }}
           >{searchOpen ? "✕" : "🔍"}</button>
         </div>
+
+        {showBackupBanner && (
+          <div className={"bk-banner" + (backupStale ? " stale" : "")}>
+            <button className="bk-main" onClick={runBackup} disabled={busy}>
+              <span className="bk-ttl">💾 今日のバックアップ🩷</span>
+              <span className="bk-sub">
+                {daysSinceBackup === null
+                  ? "まだ一度も保存していません"
+                  : backupStale
+                    ? `最後の保存から ${daysSinceBackup}日 たっています`
+                    : "タップで1ファイルに書き出し"}
+              </span>
+            </button>
+            <button className="bk-x" aria-label="閉じる" onClick={dismissBackupBanner}>✕</button>
+          </div>
+        )}
 
         {searchOpen && (
           <div className="search-row">
@@ -658,13 +765,26 @@ export default function App() {
           <div className="panel" onClick={(e) => e.stopPropagation()}>
             <h3>💾 まるごとバックアップ</h3>
             <p className="panel-note">
-              全ルーム・全メンバー・宣言をまるごと1ファイルに保存します。<br />
-              端末が変わっても、このファイルから元どおり復元できます。
+              全ルーム・全データ（日記 / TODO / だれログ / 経費 / 習慣 / 各種設定）を
+              まるごと1ファイルに保存します。端末が変わっても元どおり復元できます。
             </p>
+            <div className={"bk-last" + (backupStale ? " stale" : "")}>
+              <span className="bk-last-l">最後にバックアップした日</span>
+              <span className="bk-last-v">
+                {backupMeta?.lastDateKey
+                  ? `${keyToDisp(backupMeta.lastDateKey)}${daysSinceBackup === 0 ? "（今日）" : `（${daysSinceBackup}日前）`}`
+                  : "まだありません"}
+              </span>
+            </div>
             <div className="panel-btns">
-              <button className="p-copy" onClick={downloadBackup}>💾 ファイルに保存</button>
+              <button className="p-copy" onClick={runBackup} disabled={busy}>💾 1タップで書き出し</button>
+              <button className="p-dl" onClick={downloadBackup}>ダウンロード</button>
               <button className="p-dl" onClick={copyBackup}>{copied ? "コピーしたよ💗" : "コピー"}</button>
             </div>
+            <p className="panel-note">
+              ファイル名は毎回 <b>{BACKUP_FILENAME}</b> で固定。iPhoneの共有シートから
+              「ファイルに保存」を選ぶと、前のファイルを置き換えて上書きできます。
+            </p>
             <div className="f-label" style={{ marginTop: 6 }}>復元する（バックアップから読み込み）</div>
             <p className="panel-note">既存のデータは消さず、足りない分だけ追加します（安全マージ）</p>
             <label className="upload-btn" style={{ alignSelf: "flex-start" }}>
@@ -678,8 +798,38 @@ export default function App() {
               style={{ minHeight: 120 }}
             />
             <div className="panel-btns">
-              <button className="p-copy" disabled={!restoreText.trim()} onClick={doRestore}>復元する</button>
+              <button className="p-copy" disabled={!restoreText.trim()} onClick={askRestore}>復元する</button>
               <button className="p-close" onClick={() => { setBackupOpen(false); setRestoreText(""); }}>閉じる</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 復元の2段階目: 中身を見せて最終確認 */}
+      {restoreAsk && (
+        <div className="overlay bk-ask-over" onClick={() => setRestoreAsk(null)}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>⚠️ 復元まえの確認</h3>
+            <div className="bk-ask-box">
+              <div className="bk-ask-row"><span>ルーム</span><b>{restoreAsk.counts.rooms}</b></div>
+              <div className="bk-ask-row"><span>記録の件数</span><b>{restoreAsk.counts.items}</b></div>
+              {restoreAsk.exportedAt && (
+                <div className="bk-ask-row">
+                  <span>書き出し日時</span>
+                  <b>{new Date(restoreAsk.exportedAt).toLocaleString("ja-JP")}</b>
+                </div>
+              )}
+            </div>
+            <p className="panel-note">
+              今のデータは消えません（足りない分を追加する安全マージ）。
+              それでも念のため、<b>先に今のデータをバックアップ</b>しておくのがおすすめです💗
+            </p>
+            <button className="bk-first" onClick={runBackup} disabled={busy}>
+              💾 先に今のデータをバックアップする
+            </button>
+            <div className="panel-btns">
+              <button className="p-copy" onClick={doRestore}>この内容で復元する</button>
+              <button className="p-close" onClick={() => setRestoreAsk(null)}>キャンセル</button>
             </div>
           </div>
         </div>

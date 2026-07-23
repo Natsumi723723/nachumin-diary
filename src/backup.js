@@ -5,6 +5,51 @@ import {
 
 const SLOT_EMOJI = { morning: "🌅", noon: "☀️", night: "🌙" };
 
+// 書き出すファイル名は固定（iPhoneの「ファイルに保存」で同じファイルを置き換え続けるため）
+export const BACKUP_FILENAME = "nachumin-diary-backup.json";
+export const BACKUP_VERSION = 1;
+
+/* 読み込んだJSONの形式を検証する。
+   問題なければ null、ダメなら画面に出すエラーメッセージを返す。
+   バージョン違いでも壊れないよう、構造だけを見て判定する。 */
+export function validateBackup(obj) {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
+    return "バックアップの形式が読めませんでした 🥺";
+  }
+  if (obj.app !== "nachumin-diary") {
+    return "これは Nachumin Lifelog のバックアップファイルではないみたい 🥺";
+  }
+  if (!Array.isArray(obj.rooms)) {
+    return "ルームの情報が入っていません。ファイルが壊れているかも 🥺";
+  }
+  if (obj.rooms.some((r) => !r || typeof r !== "object" || !r.id || !r.type)) {
+    return "ルームの形式が壊れています 🥺";
+  }
+  if (obj.data != null && (typeof obj.data !== "object" || Array.isArray(obj.data))) {
+    return "ルームの中身の形式が壊れています 🥺";
+  }
+  for (const k of ["doneLogs", "habits", "habitLogs", "habitSeeds"]) {
+    if (obj[k] != null && (typeof obj[k] !== "object" || Array.isArray(obj[k]))) {
+      return `${k} の形式が壊れています 🥺`;
+    }
+  }
+  return null;
+}
+
+// 復元前に「何が入っているか」を数えて見せる
+export function summarizeBackup(obj) {
+  const counts = { rooms: (obj.rooms || []).length, items: 0 };
+  const arrKeyOf = (t) => (t === "talk" ? "messages" : t === "todo" ? "todos"
+    : t === "darelog" ? "records" : t === "expense" ? "expenses" : null);
+  for (const r of obj.rooms || []) {
+    const d = obj.data ? obj.data[r.id] : undefined;
+    if (!d) continue;
+    const ak = arrKeyOf(r.type);
+    counts.items += ak ? (d[ak] || []).length : Object.keys(d).length;
+  }
+  return counts;
+}
+
 // ルーム本文から一覧プレビュー用のメタを作る
 function metaFromData(room, data) {
   if (room.type === "talk") {
@@ -13,7 +58,7 @@ function metaFromData(room, data) {
     const nameOf = (id) => (room.members || []).find((m) => m.id === id)?.name || "";
     return {
       previewName: last ? nameOf(last.memberId) : "",
-      preview: last ? last.text.split("\n")[0].slice(0, 40) : "",
+      preview: typeof last?.text === "string" ? last.text.split("\n")[0].slice(0, 40) : "",
       lastAt: room.lastAt || (last ? Date.now() : 0)
     };
   }
@@ -21,7 +66,7 @@ function metaFromData(room, data) {
     const ts = (data && data.todos) || [];
     const last = ts[ts.length - 1];
     return {
-      preview: last ? `${last.done ? "☑" : "☐"} ${last.text.split("\n")[0]}`.slice(0, 40) : "",
+      preview: typeof last?.text === "string" ? `${last.done ? "☑" : "☐"} ${last.text.split("\n")[0]}`.slice(0, 40) : "",
       todoOpen: ts.filter((t) => !t.done).length,
       lastAt: room.lastAt || (last ? Date.now() : 0)
     };
@@ -48,7 +93,7 @@ function metaFromData(room, data) {
   const ks = Object.keys(es).sort();
   const lastKey = ks[ks.length - 1];
   return {
-    preview: lastKey ? es[lastKey].text.split("\n")[0].slice(0, 40) : "",
+    preview: typeof es[lastKey]?.text === "string" ? es[lastKey].text.split("\n")[0].slice(0, 40) : "",
     lastAt: room.lastAt || (lastKey ? Date.now() : 0)
   };
 }

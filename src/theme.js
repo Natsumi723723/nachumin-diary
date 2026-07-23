@@ -609,6 +609,63 @@ export const css = `
     background: ${bgUrl} #f6bedd; background-size: 240px 240px;
   }
 
+  /* ===== 💾 まるごとバックアップ ===== */
+  .bk-banner {
+    flex-shrink: 0; display: flex; align-items: stretch; gap: 6px;
+    margin: 8px 12px 0; padding: 3px;
+    background: rgba(255,245,250,.95); border: 1.5px solid #f3b9d9;
+    border-radius: 15px; box-shadow: 0 2px 8px rgba(180,90,140,.14);
+  }
+  .bk-banner.stale {
+    border-color: #ff1478; border-width: 2px;
+    background: linear-gradient(100deg,#fff0f7,#ffe2f0);
+    box-shadow: 0 3px 14px rgba(255,20,120,.32);
+  }
+  .bk-main {
+    flex: 1; min-width: 0; text-align: left; cursor: pointer;
+    border: none; background: transparent; padding: 8px 10px;
+    display: flex; flex-direction: column; gap: 2px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bk-main:active { transform: scale(.99); }
+  .bk-main:disabled { opacity: .55; }
+  .bk-ttl { font-size: 13px; font-weight: 800; color: #b04a86; }
+  .bk-banner.stale .bk-ttl { color: #d5006a; }
+  .bk-sub { font-size: 10.5px; font-weight: 700; color: #a4517f; }
+  .bk-banner.stale .bk-sub { color: #ff1478; }
+  .bk-x {
+    flex: 0 0 30px; border: none; background: transparent; cursor: pointer;
+    color: #c98cb0; font-size: 14px; font-weight: 900; border-radius: 12px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bk-last {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: #fff5fa; border: 1.5px solid #f3b9d9; border-radius: 12px;
+    padding: 9px 12px; margin-bottom: 4px;
+  }
+  .bk-last.stale { border-color: #ff1478; background: #ffeef7; }
+  .bk-last-l { font-size: 11.5px; font-weight: 700; color: #a4517f; }
+  .bk-last-v { font-size: 12.5px; font-weight: 900; color: #b5005c; }
+  .bk-last.stale .bk-last-v { color: #ff1478; }
+  .overlay.bk-ask-over { z-index: 55; }
+  .bk-ask-box {
+    background: #fff5fa; border: 1.5px solid #f3b9d9;
+    border-radius: 12px; padding: 8px 12px; margin-bottom: 4px;
+  }
+  .bk-ask-row {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12.5px; color: #7d3a63; padding: 4px 0;
+  }
+  .bk-ask-row b { font-size: 14px; font-weight: 900; color: #d5006a; }
+  .bk-first {
+    width: 100%; cursor: pointer; margin-bottom: 4px;
+    border: 2px solid #ff1478; background: #fff; color: #d5006a;
+    border-radius: 999px; padding: 10px 14px; font-size: 13px; font-weight: 800;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bk-first:active { transform: scale(.98); }
+  .bk-first:disabled { opacity: .55; }
+
   /* ===== 🚃 旅費交通費 ===== */
   .overlay.station-over { z-index: 45; }
   .exp-route { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
