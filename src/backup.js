@@ -232,11 +232,35 @@ export async function restoreAll(obj) {
       await set(key, merged);
     }
   }
-  // 習慣定義（そのルームに未設定のときだけ取り込む）
+  /* 習慣定義を取り込む。
+     新しい端末では日記ルームを開いた時点で初期習慣（同じ名前・別ID）が自動生成されるので、
+     ただスキップすると復元した達成ログが「どの習慣のものか分からない」状態になってしまう。
+     そこで 同じID → そのまま / 同じ名前 → 既存IDに寄せる / どちらも無い → 追加
+     という対応表(idMap)を作り、あとで達成ログのIDを付け替える。 */
+  const habitIdMap = {}; // roomId -> { バックアップ側のID: 実際に使うID }
   if (obj.habits) {
-    for (const [rid, hb] of Object.entries(obj.habits)) {
+    for (const [rid, incoming] of Object.entries(obj.habits)) {
+      if (!Array.isArray(incoming)) continue;
       const cur = await get(habitsKey(rid));
-      if (cur === undefined) await set(habitsKey(rid), hb);
+      if (cur === undefined) { await set(habitsKey(rid), incoming); continue; }
+      const curArr = Array.isArray(cur) ? cur : [];
+      const ids = new Set(curArr.map((h) => h.id));
+      const names = new Map(curArr.filter((h) => (h.name || "").trim()).map((h) => [h.name.trim(), h.id]));
+      const next = curArr.slice();
+      const idMap = {};
+      for (const h of incoming) {
+        if (!h || !h.id) continue;
+        if (ids.has(h.id)) { idMap[h.id] = h.id; continue; }
+        const nm = (h.name || "").trim();
+        const same = nm ? names.get(nm) : null;
+        if (same) { idMap[h.id] = same; continue; } // 自動生成された同名の習慣に寄せる
+        next.push(h);                                // こちらに無い習慣は追加する
+        ids.add(h.id);
+        if (nm) names.set(nm, h.id);
+        idMap[h.id] = h.id;
+      }
+      if (next.length !== curArr.length) await set(habitsKey(rid), next);
+      habitIdMap[rid] = idMap;
     }
   }
   // 習慣シード印（週報の二重追加を防ぐ）
@@ -245,14 +269,16 @@ export async function restoreAll(obj) {
       if (obj.habitSeeds[rid]) await set(habitSeedKey(rid), true);
     }
   }
-  // 習慣の達成ログ（日付ごとにマージ・重複除外）
+  // 習慣の達成ログ（日付ごとにマージ・重複除外）。上で作った対応表でIDを付け替える
   if (obj.habitLogs) {
     for (const [rid, log] of Object.entries(obj.habitLogs)) {
+      const map = habitIdMap[rid] || {};
       const key = habitLogKey(rid);
       const cur = (await get(key)) || {};
       const merged = { ...cur };
-      for (const [dk, ids] of Object.entries(log)) {
-        merged[dk] = [...new Set([...(merged[dk] || []), ...ids])];
+      for (const [dk, hids] of Object.entries(log)) {
+        const mapped = (hids || []).map((id) => map[id] || id);
+        merged[dk] = [...new Set([...(merged[dk] || []), ...mapped])];
       }
       await set(key, merged);
     }
