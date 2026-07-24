@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import {
   get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID, DECL_KEY,
   MARKS_KEY, DEFAULT_MARKS, doneLogKey, BACKUP_KEY
@@ -12,13 +12,15 @@ import {
 } from "./backup.js";
 import { css } from "./theme.js";
 import DiaryRoom from "./DiaryRoom.jsx";
-import TalkRoom from "./TalkRoom.jsx";
-import TodoRoom from "./TodoRoom.jsx";
 import DragList from "./DragList.jsx";
-import DarelogRoom from "./DarelogRoom.jsx";
-import ExpenseRoom from "./ExpenseRoom.jsx";
 import SwipeBack from "./SwipeBack.jsx";
 import ConfirmDialog from "./ConfirmDialog.jsx";
+// 起動時は日記ルームしか使わないので、他のルームは遅延読み込み（コード分割）。
+// バンドルを分けて、スマホでの起動時パースを軽くする。チャンクはSWがプリキャッシュ済み。
+const TalkRoom = lazy(() => import("./TalkRoom.jsx"));
+const TodoRoom = lazy(() => import("./TodoRoom.jsx"));
+const DarelogRoom = lazy(() => import("./DarelogRoom.jsx"));
+const ExpenseRoom = lazy(() => import("./ExpenseRoom.jsx"));
 
 const EMOJI_PICKS = [
   "💗", "🩷", "💛", "🩵", "💜", "🤍", "🖤", "🌸", "🌷", "🎀",
@@ -69,11 +71,13 @@ export default function App() {
           setView({ screen: "room", roomId: DIARY_ROOM_ID });
         }
         setRooms(loaded);
-        const d = await get(DECL_KEY);
+        // 残りの設定は独立キーなので並列で読む（起動の初回描画はもう出ている）
+        const [d, mk, bk] = await Promise.all([
+          get(DECL_KEY), get(MARKS_KEY), get(BACKUP_KEY)
+        ]);
         if (d && d.dateKey === todayKey()) setDecl(d.text);
-        const mk = await get(MARKS_KEY);
         if (Array.isArray(mk) && mk.length) setMarks(mk);
-        setBackupMeta((await get(BACKUP_KEY)) || {});
+        setBackupMeta(bk || {});
       } catch (e) {
         showToast("データの読み込みに失敗しました");
         setRooms([]);
@@ -554,7 +558,10 @@ export default function App() {
               : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
       content = (
         <SwipeBack key={room.id} onBack={() => setView({ screen: "home" })}>
-          {roomEl}
+          {/* 日記以外は遅延読み込み。チャンク取得中はヘッダー＋ピンだけ先に出す */}
+          <Suspense fallback={<><div className="hd hd-loading" /><div className="chat" /></>}>
+            {roomEl}
+          </Suspense>
         </SwipeBack>
       );
     }

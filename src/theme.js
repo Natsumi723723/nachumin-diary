@@ -98,6 +98,8 @@ export const css = `
     flex-shrink: 0;
   }
   .hd-title { font-weight: 700; font-size: 16px; letter-spacing: .04em; }
+  /* 遅延読み込み中のヘッダー枠（一瞬だけ表示・レイアウトずれ防止） */
+  .hd-loading { min-height: calc(48px + env(safe-area-inset-top)); }
   /* ホームのブランドヘッダー（ピンクギラギラ） */
   .hd-home {
     position: relative; overflow: hidden;
