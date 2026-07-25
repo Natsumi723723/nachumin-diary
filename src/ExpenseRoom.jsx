@@ -28,11 +28,32 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
   const scrollRef = useRef(null);
   const exRef = useRef(null);
 
+  const [catTab, setCatTab] = useState("expense"); // カテゴリ管理の 支出/収入 タブ
   const categories = room.categories || [];
+  const incomeCategories = room.incomeCategories || [];
   const subscriptions = room.subscriptions || [];
   const subsPosted = room.subsPosted || {};
   const catOf = (id) => categories.find((c) => c.id === id);
   const catName = (id) => catOf(id)?.name || "未分類";
+
+  /* ---------- 収入（売上・返金など） ---------- */
+  const isIncome = (e) => e.kind === "income";
+  const catListOf = (kind) => (kind === "income" ? incomeCategories : categories);
+  const catOfE = (e) => catListOf(e.kind).find((c) => c.id === e.categoryId);
+  const catNameE = (e) => catOfE(e)?.name || (isIncome(e) ? "収入" : "未分類");
+  // 既存の経費ルームにも収入カテゴリを一度だけ用意する（消したら戻さない）
+  useEffect(() => {
+    if (room.incomeSeeded) return;
+    if (incomeCategories.length) { onRoomChange({ incomeSeeded: true }); return; }
+    onRoomChange({
+      incomeCategories: [
+        { id: uid(), name: "売上", emoji: "💰", color: "#2E9E5B" },
+        { id: uid(), name: "返金", emoji: "↩️", color: "#3BA7A0" },
+        { id: uid(), name: "その他", emoji: "✨", color: "#7FB800" }
+      ],
+      incomeSeeded: true
+    });
+  }, [room.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- 🚃 旅費交通費（駅・区間マスタ） ---------- */
   const stations = room.stations || [];
@@ -72,7 +93,9 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
     setExpenses(next);
     try {
       await set(roomDataKey(room.id), { expenses: next });
-      const thisMonth = next.filter((e) => monthOf(e.dateKey) === curMonth).reduce((s, e) => s + e.amount, 0);
+      const thisMonth = next
+        .filter((e) => monthOf(e.dateKey) === curMonth && e.kind !== "income")
+        .reduce((s, e) => s + e.amount, 0);
       onMeta({ preview: `今月 ${yen(thisMonth)}`, lastAt: Date.now() });
     } catch (e) { showToast("保存に失敗しました。ストレージを確認してね"); }
   };
@@ -84,8 +107,10 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
   /* ---------- 記録・編集 ---------- */
   const openEntry = (categoryId) => {
     if (catOf(categoryId)?.transit) { openTransit(); return; }
-    setEntry({ mode: "new", categoryId, amount: "", memo: "", date: todayKey(), armDel: false });
+    setEntry({ mode: "new", kind: "expense", categoryId, amount: "", memo: "", date: todayKey() });
   };
+  const openIncome = () =>
+    setEntry({ mode: "new", kind: "income", categoryId: incomeCategories[0]?.id || "", amount: "", memo: "", date: todayKey() });
   const editRow = (e) => {
     if (e.fromId && e.toId) { // 🚃 の行は専用パネルで編集
       setTransit({
@@ -97,7 +122,7 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
       });
       return;
     }
-    setEntry({ mode: "edit", id: e.id, categoryId: e.categoryId, amount: String(e.amount), memo: e.memo || "", date: e.dateKey, armDel: false });
+    setEntry({ mode: "edit", id: e.id, kind: isIncome(e) ? "income" : "expense", categoryId: e.categoryId, amount: String(e.amount), memo: e.memo || "", date: e.dateKey });
   };
 
   /* 🚃 入力フロー */
@@ -226,41 +251,57 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
   const submitEntry = () => {
     const amount = parseInt(entry.amount, 10);
     if (!amount || amount <= 0) { showToast("金額を入れてね"); return; }
+    const inc = entry.kind === "income";
+    if (inc && !entry.categoryId) { showToast("収入カテゴリを選んでね"); return; }
     if (entry.mode === "new") {
-      persist([...expenses, { id: uid(), dateKey: entry.date, categoryId: entry.categoryId, amount, memo: entry.memo.trim() }]);
+      const row = { id: uid(), dateKey: entry.date, categoryId: entry.categoryId, amount, memo: entry.memo.trim() };
+      if (inc) row.kind = "income";
+      persist([...expenses, row]);
       scrollBottom();
     } else {
-      persist(expenses.map((x) => (x.id === entry.id ? { ...x, categoryId: entry.categoryId, amount, memo: entry.memo.trim(), dateKey: entry.date } : x)));
+      persist(expenses.map((x) => {
+        if (x.id !== entry.id) return x;
+        const n = { ...x, categoryId: entry.categoryId, amount, memo: entry.memo.trim(), dateKey: entry.date };
+        if (inc) n.kind = "income"; else delete n.kind;
+        return n;
+      }));
     }
     setEntry(null);
   };
   const deleteRow = () => {
     const id = entry.id;
-    setConfirm({ message: `${yen(entry.amount)}（${catName(entry.categoryId)}）を削除しますか？`, onConfirm: () => {
-      persist(expenses.filter((x) => x.id !== id));
-      setEntry(null);
-      setConfirm(null);
-    } });
+    const inc = entry.kind === "income";
+    const nm = catListOf(entry.kind).find((c) => c.id === entry.categoryId)?.name || (inc ? "収入" : "未分類");
+    setConfirm({
+      message: `${inc ? "＋" : ""}${yen(entry.amount)}（${nm}）を削除しますか？`,
+      onConfirm: () => { persist(expenses.filter((x) => x.id !== id)); setEntry(null); setConfirm(null); }
+    });
   };
 
-  /* ---------- カテゴリ管理 ---------- */
+  /* ---------- カテゴリ管理（支出／収入 共通・catTab で切替） ---------- */
   const saveCats = (next) => onRoomChange({ categories: next });
-  const addCat = () => saveCats([...categories, { id: uid(), name: "", emoji: "🏷️", color: MEMBER_COLORS[categories.length % MEMBER_COLORS.length] }]);
-  const updateCat = (id, patch) => saveCats(categories.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  const saveIncCats = (next) => onRoomChange({ incomeCategories: next });
+  const tabCats = catTab === "income" ? incomeCategories : categories;
+  const saveTabCats = (next) => (catTab === "income" ? saveIncCats(next) : saveCats(next));
+  const addCat = () => saveTabCats([...tabCats, { id: uid(), name: "",
+    emoji: catTab === "income" ? "💰" : "🏷️", color: MEMBER_COLORS[tabCats.length % MEMBER_COLORS.length] }]);
+  const updateCat = (id, patch) => saveTabCats(tabCats.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   const moveCat = (i, dir) => {
-    const j = i + dir; if (j < 0 || j >= categories.length) return;
-    const next = [...categories]; [next[i], next[j]] = [next[j], next[i]]; saveCats(next);
+    const j = i + dir; if (j < 0 || j >= tabCats.length) return;
+    const next = [...tabCats]; [next[i], next[j]] = [next[j], next[i]]; saveTabCats(next);
   };
   const removeCat = (id) => {
-    const c = catOf(id);
+    const c = tabCats.find((x) => x.id === id);
     setConfirm({
-      message: `カテゴリ「${c?.name || ""}」を削除しますか？\n記録ずみの支出は消えません。`,
-      onConfirm: () => { saveCats(categories.filter((x) => x.id !== id)); setConfirm(null); }
+      message: `カテゴリ「${c?.name || ""}」を削除しますか？\n記録ずみの${catTab === "income" ? "収入" : "支出"}は消えません。`,
+      onConfirm: () => { saveTabCats(tabCats.filter((x) => x.id !== id)); setConfirm(null); }
     });
   };
   const closeCatModal = () => {
-    const cleaned = categories.filter((c) => c.name.trim());
-    if (cleaned.length !== categories.length) saveCats(cleaned);
+    const c1 = categories.filter((c) => c.name.trim());
+    if (c1.length !== categories.length) saveCats(c1);
+    const c2 = incomeCategories.filter((c) => c.name.trim());
+    if (c2.length !== incomeCategories.length) saveIncCats(c2);
     setCatModal(false);
   };
 
@@ -310,26 +351,42 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
     setBannerDismissed(true);
   };
 
-  /* ---------- 集計 ---------- */
+  /* ---------- 集計（支出と収入を分けて扱う） ---------- */
   const sorted = [...expenses].sort((a, b) =>
     a.dateKey < b.dateKey ? -1 : a.dateKey > b.dateKey ? 1 : (a.id < b.id ? -1 : 1));
-  const monthTotals = {};
-  for (const e of sorted) monthTotals[monthOf(e.dateKey)] = (monthTotals[monthOf(e.dateKey)] || 0) + e.amount;
-  const thisMonthTotal = monthTotals[curMonth] || 0;
-  const grandTotal = expenses.reduce((s, e) => s + e.amount, 0);
-  const catTotals = (filterFn) => {
+  const monthExpense = {};
+  const monthIncome = {};
+  for (const e of sorted) {
+    const mk = monthOf(e.dateKey);
+    if (isIncome(e)) monthIncome[mk] = (monthIncome[mk] || 0) + e.amount;
+    else monthExpense[mk] = (monthExpense[mk] || 0) + e.amount;
+  }
+  const thisMonthExpense = monthExpense[curMonth] || 0;
+  const thisMonthIncome = monthIncome[curMonth] || 0;
+  const grandExpense = expenses.filter((e) => !isIncome(e)).reduce((s, e) => s + e.amount, 0);
+  const grandIncome = expenses.filter(isIncome).reduce((s, e) => s + e.amount, 0);
+  // カテゴリ別（kind="expense" | "income"）
+  const catTotals = (kind, filterFn) => {
     const m = {};
-    for (const e of expenses) if (!filterFn || filterFn(e)) m[e.categoryId] = (m[e.categoryId] || 0) + e.amount;
+    for (const e of expenses) {
+      if ((kind === "income") !== isIncome(e)) continue;
+      if (filterFn && !filterFn(e)) continue;
+      m[e.categoryId] = (m[e.categoryId] || 0) + e.amount;
+    }
     return m;
   };
-  const catThisMonth = catTotals((e) => monthOf(e.dateKey) === curMonth);
-  const catAll = catTotals();
-  const months = Object.keys(monthTotals).sort();
-  // 区間ごとの合計（A→B と B→A はまとめて集計）
+  const inThisMonth = (e) => monthOf(e.dateKey) === curMonth;
+  const catThisMonth = catTotals("expense", inThisMonth);
+  const catAll = catTotals("expense");
+  const incThisMonth = catTotals("income", inThisMonth);
+  const incAll = catTotals("income");
+  const hasIncome = grandIncome > 0;
+  const months = [...new Set([...Object.keys(monthExpense), ...Object.keys(monthIncome)])].sort();
+  // 区間ごとの合計（A→B と B→A はまとめて集計・支出の交通費のみ）
   const routeTotals = useMemo(() => {
     const m = {};
     for (const e of expenses) {
-      if (!e.fromName || !e.toName) continue;
+      if (isIncome(e) || !e.fromName || !e.toName) continue;
       const pair = [e.fromName, e.toName].sort().join(" ⇄ ");
       if (!m[pair]) m[pair] = { pair, total: 0, n: 0 };
       m[pair].total += e.amount; m[pair].n += 1;
@@ -342,12 +399,13 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
   const buildTxt = () =>
     sorted.map((e) => {
       const r = routeLabel(e);
-      return `${keyToDisp(e.dateKey)}  ${catName(e.categoryId)}  ${yen(e.amount)}${r ? "  " + r : ""}${e.memo ? "  " + e.memo : ""}`;
+      const inc = isIncome(e);
+      return `${keyToDisp(e.dateKey)}  ${inc ? "[収入] " : ""}${catNameE(e)}  ${inc ? "＋" : ""}${yen(e.amount)}${r ? "  " + r : ""}${e.memo ? "  " + e.memo : ""}`;
     }).join("\n");
   const csvEsc = (s) => (/[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s);
   const buildCsv = () =>
-    ["日付,カテゴリ,金額,メモ,出発駅,到着駅,往復", ...sorted.map((e) =>
-      [keyToDisp(e.dateKey), catName(e.categoryId), e.amount, e.memo || "",
+    ["日付,種別,カテゴリ,金額,メモ,出発駅,到着駅,往復", ...sorted.map((e) =>
+      [keyToDisp(e.dateKey), isIncome(e) ? "収入" : "支出", catNameE(e), e.amount, e.memo || "",
         e.fromName || "", e.toName || "", e.fromName ? (e.round ? "往復" : "片道") : ""
       ].map((x) => csvEsc(String(x))).join(","))].join("\n");
   const download = (content, ext, mime) => {
@@ -379,20 +437,22 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
       cm = mk;
       tableRows.push(
         <div className="exp-divider" key={"d-" + mk}>
-          <span>── {monthLabel(mk, curYear)} 合計 {yen(monthTotals[mk])} ──</span>
+          <span>── {monthLabel(mk, curYear)} 支出 {yen(monthExpense[mk] || 0)}
+            {monthIncome[mk] ? <span className="exp-div-inc"> ・ 収入 {yen(monthIncome[mk])}</span> : null} ──</span>
         </div>
       );
     }
-    const c = catOf(e.categoryId);
+    const inc = isIncome(e);
+    const c = catOfE(e);
     const d = keyToDate(e.dateKey);
     tableRows.push(
-      <div className="exp-row" key={e.id} onClick={() => editRow(e)} role="button" tabIndex={0}>
+      <div className={"exp-row" + (inc ? " income" : "")} key={e.id} onClick={() => editRow(e)} role="button" tabIndex={0}>
         <div className="exp-main">
           <span className="exp-date">{d.getMonth() + 1}/{d.getDate()}</span>
           <span className="exp-cat" style={{ background: c?.color || "#eee", color: textOn(c?.color) }}>
-            {c?.emoji ? c.emoji + " " : ""}{catName(e.categoryId)}
+            {c?.emoji ? c.emoji + " " : ""}{catNameE(e)}
           </span>
-          <span className="exp-amt">{yen(e.amount)}</span>
+          <span className={"exp-amt" + (inc ? " income" : "")}>{inc ? "＋" : ""}{yen(e.amount)}</span>
         </div>
         {e.fromName && e.toName && (
           <div className="exp-route">
@@ -436,7 +496,8 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
       {/* サマリーバー */}
       <button className="exp-summary" onClick={() => setSummaryOpen(true)}>
         <span className="exp-summary-label">今月</span>
-        <span className="exp-summary-amt">{yen(thisMonthTotal)}</span>
+        <span className="exp-summary-amt">{yen(thisMonthExpense)}</span>
+        {thisMonthIncome > 0 && <span className="exp-summary-income">＋{yen(thisMonthIncome)}</span>}
         <span className="exp-summary-arrow">集計 ›</span>
       </button>
 
@@ -471,7 +532,7 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
       {/* 表 */}
       <div className="exp-table" ref={scrollRef}>
         {loaded && sorted.length === 0 && (
-          <div className="empty">まだ支出がありません。\n下のカテゴリをタップして記録しよう💗</div>
+          <div className="empty">{"まだ記録がありません。\n下のカテゴリで支出、「＋収入」で収入を記録できるよ💗"}</div>
         )}
         {tableRows}
       </div>
@@ -487,6 +548,7 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
             >{c.emoji ? c.emoji + " " : ""}{c.name}</button>
           ))}
           <button className="exp-chip exp-chip-add" onClick={() => setCatModal(true)} aria-label="カテゴリ編集">＋</button>
+          <button className="exp-chip exp-chip-income" onClick={openIncome}>＋ 収入</button>
         </div>
       </div>
 
@@ -494,10 +556,22 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
       {entry && (
         <div className="overlay" onClick={() => setEntry(null)}>
           <div className="panel" onClick={(e) => e.stopPropagation()}>
-            <h3>{entry.mode === "new" ? "支出を記録" : "支出を編集"}</h3>
+            <h3>{(entry.kind === "income" ? "収入" : "支出") + (entry.mode === "new" ? "を記録" : "を編集")}</h3>
+            <div className="seg exp-kind-seg">
+              <button
+                className={entry.kind !== "income" ? "on" : ""}
+                onClick={() => setEntry((o) => (o.kind === "income"
+                  ? { ...o, kind: "expense", categoryId: categories[0]?.id || "" } : o))}
+              >支出</button>
+              <button
+                className={entry.kind === "income" ? "on income" : ""}
+                onClick={() => setEntry((o) => (o.kind === "income"
+                  ? o : { ...o, kind: "income", categoryId: incomeCategories[0]?.id || "" }))}
+              >収入</button>
+            </div>
             <div className="f-label">カテゴリ</div>
-            <div className="chips exp-cat-chips">
-              {categories.map((c) => (
+            <div className="chips exp-cat-chips" style={{ flexWrap: "wrap" }}>
+              {catListOf(entry.kind).map((c) => (
                 <button
                   key={c.id}
                   className={"exp-chip" + (entry.categoryId === c.id ? " sel" : "")}
@@ -505,10 +579,13 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
                   onClick={() => setEntry((o) => ({ ...o, categoryId: c.id }))}
                 >{c.emoji ? c.emoji + " " : ""}{c.name}</button>
               ))}
+              {catListOf(entry.kind).length === 0 && (
+                <button className="exp-chip exp-chip-add" onClick={() => { setCatTab(entry.kind); setCatModal(true); }}>＋ カテゴリを作る</button>
+              )}
             </div>
             <div className="f-label">金額</div>
-            <div className="exp-amt-field">
-              <span className="exp-yen-big">¥</span>
+            <div className={"exp-amt-field" + (entry.kind === "income" ? " income" : "")}>
+              <span className="exp-yen-big">{entry.kind === "income" ? "＋¥" : "¥"}</span>
               <input
                 className="exp-amt-input" inputMode="numeric" pattern="[0-9]*" autoFocus
                 placeholder="0" value={entry.amount ? Number(entry.amount).toLocaleString("ja-JP") : ""}
@@ -517,7 +594,7 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
             </div>
             <div className="f-label">メモ（任意）</div>
             <input
-              className="f-input" placeholder="なにに使った？"
+              className="f-input" placeholder={entry.kind === "income" ? "何の収入？（売上・返金など）" : "なにに使った？"}
               value={entry.memo} onChange={(e) => setEntry((o) => ({ ...o, memo: e.target.value }))}
             />
             <div className="f-label">日付</div>
@@ -722,19 +799,23 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
         <ConfirmDialog message={confirm.message} onConfirm={confirm.onConfirm} onCancel={() => setConfirm(null)} />
       )}
 
-      {/* カテゴリ管理 */}
+      {/* カテゴリ管理（支出／収入） */}
       {catModal && (
         <div className="overlay" onClick={closeCatModal}>
           <div className="panel" onClick={(e) => e.stopPropagation()}>
             <h3>🏷️ カテゴリ</h3>
-            {categories.map((c, i) => (
+            <div className="seg exp-kind-seg">
+              <button className={catTab !== "income" ? "on" : ""} onClick={() => setCatTab("expense")}>支出</button>
+              <button className={catTab === "income" ? "on income" : ""} onClick={() => setCatTab("income")}>収入</button>
+            </div>
+            {tabCats.map((c, i) => (
               <div className="mem-row" key={c.id} style={{ flexWrap: "wrap" }}>
                 <input className="f-input" style={{ width: 54, textAlign: "center", flex: "0 0 auto" }} maxLength={4}
-                  placeholder="🏷️" value={c.emoji || ""} onChange={(e) => updateCat(c.id, { emoji: e.target.value })} />
+                  placeholder={catTab === "income" ? "💰" : "🏷️"} value={c.emoji || ""} onChange={(e) => updateCat(c.id, { emoji: e.target.value })} />
                 <input className="f-input" style={{ flex: 1, minWidth: 0 }} placeholder="カテゴリ名"
                   value={c.name} onChange={(e) => updateCat(c.id, { name: e.target.value })} />
                 <button className="mem-btn" disabled={i === 0} onClick={() => moveCat(i, -1)} aria-label="上へ">↑</button>
-                <button className="mem-btn" disabled={i === categories.length - 1} onClick={() => moveCat(i, 1)} aria-label="下へ">↓</button>
+                <button className="mem-btn" disabled={i === tabCats.length - 1} onClick={() => moveCat(i, 1)} aria-label="下へ">↓</button>
                 <button className="mem-btn" onClick={() => removeCat(c.id)} aria-label="削除">🗑</button>
                 <div className="swatches" style={{ flexBasis: "100%", marginTop: 4 }}>
                   {MEMBER_COLORS.map((col) => (
@@ -744,9 +825,9 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
                 </div>
               </div>
             ))}
-            {categories.length === 0 && <p className="panel-note">カテゴリを追加してね💗</p>}
+            {tabCats.length === 0 && <p className="panel-note">{catTab === "income" ? "収入カテゴリを追加してね💗" : "カテゴリを追加してね💗"}</p>}
             <div className="panel-btns">
-              <button className="p-copy" onClick={addCat}>＋ カテゴリ追加</button>
+              <button className="p-copy" onClick={addCat}>＋ {catTab === "income" ? "収入カテゴリ" : "カテゴリ"}追加</button>
               <button className="p-close" onClick={closeCatModal}>閉じる</button>
             </div>
           </div>
@@ -789,17 +870,20 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
         <div className="overlay" onClick={() => setSummaryOpen(false)}>
           <div className="panel" onClick={(e) => e.stopPropagation()}>
             <h3>📊 集計</h3>
-            <div className="f-label">月ごとの合計</div>
+            <div className="f-label">月ごと（支出 / 収入）</div>
             <div className="sum-list">
               {months.length === 0 && <p className="panel-note">まだ記録がありません</p>}
               {months.map((mk) => (
                 <div className="sum-row" key={mk}>
                   <span>{monthLabel(mk, curYear)}</span>
-                  <span className="sum-amt">{yen(monthTotals[mk])}</span>
+                  <span className="sum-amt">
+                    {yen(monthExpense[mk] || 0)}
+                    {monthIncome[mk] ? <span className="sum-inc"> / ＋{yen(monthIncome[mk])}</span> : null}
+                  </span>
                 </div>
               ))}
             </div>
-            <div className="f-label">カテゴリ別（今月 / 全期間）</div>
+            <div className="f-label">支出カテゴリ別（今月 / 全期間）</div>
             <div className="sum-list">
               {categories.map((c) => (
                 <div className="sum-row" key={c.id}>
@@ -808,6 +892,19 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
                 </div>
               ))}
             </div>
+            {hasIncome && (
+              <>
+                <div className="f-label">収入カテゴリ別（今月 / 全期間）</div>
+                <div className="sum-list">
+                  {incomeCategories.map((c) => (
+                    <div className="sum-row" key={c.id}>
+                      <span><span className="exp-cat" style={{ background: c.color, color: textOn(c.color) }}>{c.emoji} {c.name}</span></span>
+                      <span className="sum-amt sum-inc">＋{yen(incThisMonth[c.id] || 0)} / ＋{yen(incAll[c.id] || 0)}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
             {routeTotals.length > 0 && (
               <>
                 <div className="f-label">🚃 区間ごとの合計（全期間）</div>
@@ -822,9 +919,23 @@ export default function ExpenseRoom({ room, onBack, onMeta, showToast, pinned, o
               </>
             )}
             <div className="sum-row sum-grand">
-              <span>全期間の累計</span>
-              <span className="sum-amt">{yen(grandTotal)}</span>
+              <span>全期間の支出</span>
+              <span className="sum-amt">{yen(grandExpense)}</span>
             </div>
+            {hasIncome && (
+              <>
+                <div className="sum-row sum-grand">
+                  <span>全期間の収入</span>
+                  <span className="sum-amt sum-inc">＋{yen(grandIncome)}</span>
+                </div>
+                <div className="sum-row sum-grand sum-net">
+                  <span>純収支（収入−支出）</span>
+                  <span className={"sum-amt" + (grandIncome - grandExpense >= 0 ? " sum-inc" : " sum-neg")}>
+                    {grandIncome - grandExpense >= 0 ? "＋" : "−"}{yen(Math.abs(grandIncome - grandExpense))}
+                  </span>
+                </div>
+              </>
+            )}
             <div className="panel-btns">
               <button className="p-close" onClick={() => setSummaryOpen(false)}>閉じる</button>
             </div>

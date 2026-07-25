@@ -311,7 +311,12 @@ export default function App() {
       members: initMembers, createdAt: Date.now(), lastAt: 0, preview: "",
       ...(initCategories
         ? { categories: initCategories, subscriptions: [], subsPosted: {}, transitSeeded: true,
-            stations: [], fares: [], defaultFromId: null, roundTripDefault: false }
+            stations: [], fares: [], defaultFromId: null, roundTripDefault: false,
+            incomeSeeded: true, incomeCategories: [
+              { id: uid(), name: "売上", emoji: "💰", color: "#2E9E5B" },
+              { id: uid(), name: "返金", emoji: "↩️", color: "#3BA7A0" },
+              { id: uid(), name: "その他", emoji: "✨", color: "#7FB800" }
+            ] }
         : {})
     };
     saveRooms([...rooms, room]);

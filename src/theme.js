@@ -1009,6 +1009,7 @@ export const css = `
   }
   .exp-summary-label { font-size: 12.5px; font-weight: 700; }
   .exp-summary-amt { font-size: 18px; font-weight: 800; letter-spacing: .02em; }
+  .exp-summary-income { font-size: 13.5px; font-weight: 800; color: #1e9e5b; }
   .exp-summary-arrow { margin-left: auto; font-size: 12px; color: #c2478f; font-weight: 700; }
   .exp-banner {
     flex-shrink: 0; background: #fff0f8; border-bottom: 1px solid #f3b9d9;
@@ -1039,6 +1040,9 @@ export const css = `
     box-shadow: 0 1px 2px rgba(180,90,140,.12);
   }
   .exp-row:active { background: #ffe4f1; }
+  /* 収入の行: 緑の左アクセント＋ほんのり緑背景 */
+  .exp-row.income { background: rgba(230,250,238,.85); box-shadow: inset 3px 0 0 #2E9E5B, 0 1px 2px rgba(90,170,120,.16); }
+  .exp-row.income:active { background: #d6f3e2; }
   .exp-main { display: flex; align-items: center; gap: 8px; }
   .exp-date { font-size: 12px; color: #7d5570; flex-shrink: 0; width: 38px; }
   .exp-cat {
@@ -1046,6 +1050,8 @@ export const css = `
     max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .exp-amt { margin-left: auto; font-size: 15px; font-weight: 800; color: #4a3140; flex-shrink: 0; }
+  .exp-amt.income { color: #1e9e5b; }
+  .exp-div-inc { color: #1e9e5b; }
   .exp-memo { font-size: 11.5px; color: #a4517f; margin: 3px 0 0 46px; white-space: pre-wrap; }
   /* 下部カテゴリチップ */
   .exp-cat-chips { flex-wrap: nowrap; }
@@ -1057,10 +1063,15 @@ export const css = `
   .exp-chip:active { transform: scale(.95); }
   .exp-chip-add { background: #fff !important; color: #c2478f !important;
     border: 1.5px dashed #e9a8cc; box-shadow: none; }
+  .exp-chip-income { background: linear-gradient(90deg,#34c17a,#1e9e5b) !important; color: #fff !important; }
   .exp-chip.sel { box-shadow: 0 0 0 2px #4a3140 inset; }
   /* 金額入力 */
   .exp-amt-field { display: flex; align-items: center; gap: 6px;
     border: 1.5px solid #e0629f; border-radius: 12px; padding: 6px 12px; background: #fff; }
+  .exp-amt-field.income { border-color: #2E9E5B; }
+  .exp-amt-field.income .exp-yen-big { color: #1e9e5b; }
+  /* 支出/収入 切替（収入タブは緑） */
+  .exp-kind-seg button.on.income { background: #1e9e5b; border-color: #1e9e5b; color: #fff; }
   .exp-yen-big { font-size: 24px; font-weight: 800; color: #a4356f; }
   .exp-amt-input { flex: 1; border: none; outline: none; font-size: 26px; font-weight: 800;
     color: #4a3140; background: transparent; text-align: right; width: 100%; }
@@ -1069,6 +1080,9 @@ export const css = `
   .sum-row { display: flex; align-items: center; justify-content: space-between; gap: 8px;
     padding: 7px 4px; border-bottom: 1px dashed #f3b9d9; font-size: 13px; color: #4a3140; }
   .sum-amt { font-weight: 800; color: #a4356f; flex-shrink: 0; }
+  .sum-inc { color: #1e9e5b; }
+  .sum-neg { color: #d5356f; }
+  .sum-net { border-top: 1.5px solid #f0a6cf; padding-top: 8px; margin-top: 2px; }
   .sum-grand { border-bottom: none; font-size: 14.5px; font-weight: 800;
     background: #ffe4f1; border-radius: 10px; padding: 10px 12px; margin-top: 6px; }
   /* 習慣チップ（できたこと吹き出し内） */
