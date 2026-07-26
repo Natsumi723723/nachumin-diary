@@ -309,6 +309,7 @@ export default function App() {
       id: uid(), type: modal.type, name,
       emoji: modal.emoji.trim() || defaultEmoji,
       members: initMembers, createdAt: Date.now(), lastAt: 0, preview: "",
+      ...(modal.type === "todo" ? { shopping: !!modal.shopping } : {}),
       ...(initCategories
         ? { categories: initCategories, subscriptions: [], subsPosted: {}, transitSeeded: true,
             stations: [], fares: [], defaultFromId: null, roundTripDefault: false,
@@ -330,7 +331,10 @@ export default function App() {
       showToast("ルーム名を入れてね");
       return;
     }
-    updateRoom(modal.roomId, { name, emoji: modal.emoji.trim() || "💗" });
+    updateRoom(modal.roomId, {
+      name, emoji: modal.emoji.trim() || "💗",
+      ...(modal.type === "todo" ? { shopping: !!modal.shopping } : {})
+    });
     setModal(null);
   };
 
@@ -681,7 +685,7 @@ export default function App() {
                         className="r-more" aria-label="ルーム設定"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setModal({ mode: "edit", roomId: r.id, name: r.name, emoji: r.emoji, type: r.type });
+                          setModal({ mode: "edit", roomId: r.id, name: r.name, emoji: r.emoji, type: r.type, shopping: !!r.shopping });
                           setRoomDel(false);
                         }}
                       >⋯</button>
@@ -756,6 +760,18 @@ export default function App() {
                 onClick={() => setModal((o) => ({ ...o, type: "expense" }))}
               >💰 経費<small>支出を記録</small></button>
             </div>
+            {modal.type === "todo" && (
+              <>
+                <div className="f-label">用途</div>
+                <button
+                  className={"shop-toggle" + (modal.shopping ? " on" : "")}
+                  onClick={() => setModal((o) => ({ ...o, shopping: !o.shopping }))}
+                >
+                  <span className="shop-box">{modal.shopping ? "✓" : ""}</span>
+                  🛒 買い物リストとして使う（よく買うものクイック追加）
+                </button>
+              </>
+            )}
             <div className="panel-btns">
               <button className="p-copy" onClick={modal.mode === "new" ? createRoom : saveEdit}>
                 {modal.mode === "new" ? "つくる" : "保存"}

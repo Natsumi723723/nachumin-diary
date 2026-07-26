@@ -454,6 +454,21 @@ export const css = `
   }
   .pf-chip.on { background: #e0629f; border-color: #e0629f; color: #fff; }
   /* 場所セレクト（入力欄の上） */
+  /* ルーム設定: 買い物リスト切替トグル */
+  .shop-toggle {
+    display: flex; align-items: center; gap: 8px; width: 100%; cursor: pointer;
+    border: 1.5px dashed #f0a6cf; background: #fff8fc; color: #b04a86;
+    border-radius: 12px; padding: 10px 12px; font-size: 12.5px; font-weight: 700;
+    text-align: left; -webkit-tap-highlight-color: transparent;
+  }
+  .shop-toggle.on { border-style: solid; border-color: #ff1478; background: #ffeef7; color: #d5006a; }
+  .shop-box {
+    width: 20px; height: 20px; flex-shrink: 0; border-radius: 6px;
+    border: 1.5px solid #f0a6cf; background: #fff; color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900;
+  }
+  .shop-toggle.on .shop-box { background: #ff1478; border-color: #ff1478; }
+
   /* 🛒 よく買うもの（日用品クイック追加） */
   .staple-bar { display: flex; padding: 0 0 6px; }
   .staple-toggle {

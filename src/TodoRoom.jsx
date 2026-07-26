@@ -84,11 +84,13 @@ export default function TodoRoom({
   const places = room.places || [];
   const placeOf = (id) => places.find((p) => p.id === id);
 
-  /* ---------- 🛒 日用品マスタ（よく買うもの・ルーム単位） ---------- */
+  /* ---------- 🛒 日用品マスタ（よく買うもの・買い物リストルームのみ） ---------- */
+  const isShopping = !!room.shopping;
   const staples = room.staples || [];
   const saveStaples = (next) => onRoomChange({ staples: next });
-  // 初回だけサンプルを用意（消したら戻さない）
+  // 買い物リストにしたルームだけ、初回にサンプルを用意（消したら戻さない）
   useEffect(() => {
+    if (!isShopping) return;
     if (room.staplesSeeded) return;
     if (staples.length) { onRoomChange({ staplesSeeded: true }); return; }
     onRoomChange({
@@ -100,7 +102,7 @@ export default function TodoRoom({
         { id: uid(), name: "洗剤", emoji: "🧴", placeId: "", memo: "" }
       ]
     });
-  }, [room.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [room.id, isShopping]); // eslint-disable-line react-hooks/exhaustive-deps
   const addStaple = () => saveStaples([...staples, { id: uid(), name: "", emoji: "", placeId: "", memo: "" }]);
   const updateStaple = (id, patch) => saveStaples(staples.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   const moveStaple = (i, dir) => {
@@ -660,14 +662,14 @@ export default function TodoRoom({
 
       {tab === "todo" && (
         <div className="bar">
-          <div className="staple-bar">
+          {isShopping && <div className="staple-bar">
             <button
               className={"staple-toggle" + (staplesOpen ? " on" : "")}
               aria-expanded={staplesOpen}
               onClick={() => setStaplesOpen((v) => !v)}
             >🛒 よく買うもの {staplesOpen ? "▲" : "▼"}</button>
-          </div>
-          {staplesOpen && (
+          </div>}
+          {isShopping && staplesOpen && (
             <div className="staple-quick">
               {staples.length === 0 && (
                 <span className="staple-empty">「⚙︎ 編集」から登録してね💗</span>
@@ -781,7 +783,7 @@ export default function TodoRoom({
                 label: "📍 場所を選ぶ",
                 onClick: () => { setMenu(null); setPlacePickFor(menu.id); }
               }] : []),
-              ...(!t.done && !staples.some((s) => s.name.trim() === (t.text || "").split("\n")[0].trim()) ? [{
+              ...(isShopping && !t.done && !staples.some((s) => s.name.trim() === (t.text || "").split("\n")[0].trim()) ? [{
                 label: "🛒 よく買うものに登録",
                 onClick: () => { setMenu(null); registerStaple(t); }
               }] : [])
