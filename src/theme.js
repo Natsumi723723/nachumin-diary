@@ -51,6 +51,28 @@ export const MEMBER_COLORS = [
   "#FF4081", // ホットピンク
   "#009688"  // ティール
 ];
+// ルームアイコンのテーマカラー（ぷっくりタイルのベース色）。先頭がデフォルト（ピンク）
+export const ROOM_THEMES = [
+  "#ff6fb2", // ピンク（デフォルト）
+  "#c58cff", // ラベンダー
+  "#6fb8ff", // ブルー
+  "#5fd6b0", // ミント
+  "#ffcf5f", // イエロー
+  "#ff9d6f", // ピーチ
+  "#7ed957", // グリーン
+  "#ff8fa8"  // コーラル
+];
+export const DEFAULT_THEME = ROOM_THEMES[0];
+// ベース色から、ぷっくりタイルのインラインstyleを作る（白→淡→色のグラデ＋色付きの厚み影）
+export const roomTileStyle = (color) => {
+  const c = color || DEFAULT_THEME;
+  return {
+    background: `linear-gradient(163deg, #ffffff 0%, #fff6fb 40%, ${c}2e 100%)`,
+    boxShadow: `0 6px 13px ${c}42, 0 2px 0 ${c}66, inset 0 1.5px 0 #ffffff`,
+    borderColor: `${c}55`
+  };
+};
+
 // 文字色の選択肢（自動＝背景に応じて白か黒）
 export const TEXT_COLORS = [
   { key: "auto", label: "自動", value: null },
@@ -273,7 +295,82 @@ export const css = `
     color: #4a3140;
   }
   .search-row input:focus { border-color: #e0629f; }
-  /* room list (home) */
+  /* ===== ホーム: アイコングリッド ===== */
+  .home-scroll { flex: 1; overflow-y: auto; padding: 12px 14px calc(24px + env(safe-area-inset-bottom)); }
+  /* 日記の大きな横長カード */
+  .diary-card {
+    width: 100%; display: flex; align-items: center; gap: 14px;
+    border: 2px solid #ffffff; border-radius: 22px; cursor: pointer;
+    padding: 14px 16px; margin-bottom: 16px; text-align: left;
+    background: linear-gradient(163deg, #ffffff 0%, #fff2f9 45%, #ffd9ec 100%);
+    box-shadow: 0 8px 18px rgba(255,105,178,.28), inset 0 1.5px 0 #fff;
+    -webkit-tap-highlight-color: transparent; transition: transform .12s ease;
+  }
+  .diary-card:active { transform: translateY(2px) scale(.99); }
+  .dc-ic {
+    width: 58px; height: 58px; border-radius: 18px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 34px;
+    background: linear-gradient(163deg,#ffffff,#ffe3f2);
+    box-shadow: 0 3px 8px rgba(255,105,178,.35), inset 0 1.5px 0 #fff;
+  }
+  .dc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .dc-name { font-weight: 900; font-size: 18px; color: #b5005c; letter-spacing: .02em; }
+  .dc-sub {
+    font-size: 12.5px; color: #a4517f; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .dc-arw { font-size: 22px; color: #ff7ec0; font-weight: 900; flex-shrink: 0; }
+  /* 3列グリッド */
+  .ig-grid {
+    position: relative;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 10px;
+  }
+  .ig-cell { touch-action: pan-y; }
+  .ig-cell.dragging { opacity: .96; }
+  .ig-tile {
+    width: 100%; border: none; background: transparent; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    -webkit-tap-highlight-color: transparent; padding: 0;
+  }
+  .ig-btn {
+    position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 78px;
+    border-radius: 22px; border: 1.5px solid #ffffff;
+    display: flex; align-items: center; justify-content: center; font-size: 34px;
+    transition: transform .12s ease;
+  }
+  .ig-tile:active .ig-btn { transform: translateY(3px) scale(.94); }
+  .ig-cell.dragging .ig-btn { transform: scale(1.02); }
+  .ig-name {
+    font-size: 11.5px; font-weight: 700; color: #7d3a63; line-height: 1.25;
+    text-align: center; max-width: 100%;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; word-break: break-word;
+  }
+  .ig-badge {
+    position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px;
+    box-sizing: border-box; padding: 0 5px;
+    background: linear-gradient(180deg,#ff5fb0,#ff1478); color: #fff;
+    font-size: 11px; font-weight: 800; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid #fff; box-shadow: 0 2px 5px rgba(255,20,120,.45);
+  }
+  .ig-add .ig-btn {
+    background: rgba(255,255,255,.55) !important; border: 2px dashed #f0a6cf !important;
+    box-shadow: none !important; color: #d5006a; font-size: 30px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ig-btn, .diary-card { transition: none !important; }
+    .ig-tile:active .ig-btn, .diary-card:active { transform: none !important; }
+  }
+  /* テーマカラーのスウォッチ（ルーム設定） */
+  .theme-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+  .theme-sw {
+    width: 34px; height: 34px; border-radius: 12px; cursor: pointer;
+    border: 2px solid #fff; box-shadow: 0 2px 5px rgba(180,90,140,.3);
+  }
+  .theme-sw.on { outline: 2.5px solid #4a3140; outline-offset: 1px; }
+
+  /* room list (home・検索結果で使用) */
   .rooms { flex: 1; overflow-y: auto; padding: 6px 0 20px; }
   .room-row {
     display: flex; gap: 10px; align-items: center; padding: 10px 14px;

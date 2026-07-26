@@ -4,15 +4,15 @@ import {
   MARKS_KEY, DEFAULT_MARKS, doneLogKey, BACKUP_KEY
 } from "./storage.js";
 import {
-  keyToDisp, keyToDate, homeDate, uid, escapeRegExp, todayKey, nowTime,
+  keyToDisp, keyToDate, uid, escapeRegExp, todayKey, nowTime,
   applyDeclToEntryText
 } from "./format.js";
 import {
   dumpAll, restoreAll, validateBackup, summarizeBackup, BACKUP_FILENAME
 } from "./backup.js";
-import { css } from "./theme.js";
+import { css, ROOM_THEMES, DEFAULT_THEME, roomTileStyle } from "./theme.js";
 import DiaryRoom from "./DiaryRoom.jsx";
-import DragList from "./DragList.jsx";
+import IconGrid from "./IconGrid.jsx";
 import SwipeBack from "./SwipeBack.jsx";
 import ConfirmDialog from "./ConfirmDialog.jsx";
 // 起動時は日記ルームしか使わないので、他のルームは遅延読み込み（コード分割）。
@@ -27,7 +27,6 @@ const EMOJI_PICKS = [
   "🌟", "✨", "⭐️", "👑", "🫶", "🐰", "🐻", "🐱", "🦄", "🌙",
   "🌊", "🌿", "🍓", "🍒", "🧸", "📖", "💬", "✅", "🌗", "💰"
 ];
-const TYPE_LABEL = { diary: "日記", talk: "トーク", todo: "TODO", darelog: "だれログ", expense: "経費" };
 
 export default function App() {
   const [rooms, setRooms] = useState(null);
@@ -42,6 +41,9 @@ export default function App() {
   const [declModal, setDeclModal] = useState(null); // null | 'view' | 'edit'
   const [declDraft, setDeclDraft] = useState("");
   const [diarySync, setDiarySync] = useState(0); // 開いている日記ルームへ再読込を通知
+  const [diaryToday, setDiaryToday] = useState(null); // ホームの日記カード用 {written,preview}
+  const homeScrollRef = useRef(null);
+  const homeScrollPos = useRef(0);
   const [marks, setMarks] = useState(DEFAULT_MARKS);
   const [markSettingsOpen, setMarkSettingsOpen] = useState(false);
   const [newMark, setNewMark] = useState("");
@@ -84,6 +86,33 @@ export default function App() {
       }
     })();
   }, []);
+
+  // ホームに戻るたび、日記カードの「今日書いたか」を軽く読み直す
+  useEffect(() => {
+    if (view.screen !== "home") return;
+    let alive = true;
+    (async () => {
+      try {
+        let raw = await get(roomDataKey(DIARY_ROOM_ID));
+        raw = typeof raw === "string" ? JSON.parse(raw) : (raw || {});
+        const t = raw[todayKey()];
+        if (!alive) return;
+        if (t && typeof t.text === "string" && t.text.trim()) {
+          setDiaryToday({ written: true, preview: t.text.split("\n")[0].slice(0, 34) });
+        } else {
+          setDiaryToday({ written: false });
+        }
+      } catch (e) { if (alive) setDiaryToday({ written: false }); }
+    })();
+    return () => { alive = false; };
+  }, [view.screen, diarySync]);
+
+  // ホームのスクロール位置を保持（ルームを開いて戻っても元の位置へ）
+  useEffect(() => {
+    if (view.screen === "home" && homeScrollRef.current) {
+      homeScrollRef.current.scrollTop = homeScrollPos.current;
+    }
+  }, [view.screen]);
 
   // 日記ルームの存在を保証しつつメタ更新＋開いてる日記へ再読込を通知
   const bumpDiary = (preview) => {
@@ -308,6 +337,7 @@ export default function App() {
     const room = {
       id: uid(), type: modal.type, name,
       emoji: modal.emoji.trim() || defaultEmoji,
+      theme: modal.theme || DEFAULT_THEME,
       members: initMembers, createdAt: Date.now(), lastAt: 0, preview: "",
       ...(modal.type === "todo" ? { shopping: !!modal.shopping } : {}),
       ...(initCategories
@@ -333,9 +363,16 @@ export default function App() {
     }
     updateRoom(modal.roomId, {
       name, emoji: modal.emoji.trim() || "💗",
+      theme: modal.theme || DEFAULT_THEME,
       ...(modal.type === "todo" ? { shopping: !!modal.shopping } : {})
     });
     setModal(null);
+  };
+
+  // ルーム設定モーダルを開く（アイコン長押し・検索結果の⋯から共通で使う）
+  const openRoomSettings = (r) => {
+    setModal({ mode: "edit", roomId: r.id, name: r.name, emoji: r.emoji, type: r.type, shopping: !!r.shopping, theme: r.theme || DEFAULT_THEME });
+    setRoomDel(false);
   };
 
   const reallyDeleteRoom = async (id) => {
@@ -625,10 +662,10 @@ export default function App() {
           </div>
         )}
 
-        {/* room list / search results */}
-        <div className="rooms">
-          {results ? (
-            results.length === 0 ? (
+        {results ? (
+          /* 検索結果はこれまで通りのリスト表示 */
+          <div className="rooms">
+            {results.length === 0 ? (
               <div className="empty">みつかりませんでした 🥺</div>
             ) : (
               results.map(({ room, hits }) => (
@@ -647,55 +684,68 @@ export default function App() {
                   </div>
                 </div>
               ))
-            )
-          ) : (
-            <DragList
-              items={sorted}
-              keyOf={(r) => r.id}
-              onReorder={(next) => saveRooms(next)}
-              renderItem={(r) => {
-                // 1行目=ルーム名。2行目はトーク型なら「話者名: 内容」、日記型は内容のみ
-                const isTalk = r.type === "talk";
-                const isTodo = r.type === "todo";
-                const emptyMsg = isTalk ? "かけあいを書こう💗"
-                  : isTodo ? "やることを追加しよう💗"
-                  : r.type === "darelog" ? "朝昼夜の記録をつけよう💗"
-                  : r.type === "expense" ? "支出を記録しよう💗"
-                  : "日記を書こう💗";
-                const line2 = r.preview
-                  ? (isTalk && r.previewName ? `${r.previewName}: ${r.preview}` : r.preview)
-                  : emptyMsg;
-                return (
-                  <div
-                    className="room-row"
-                    onClick={() => setView({ screen: "room", roomId: r.id })}
-                  >
-                    <div className="r-ic">{r.emoji}</div>
-                    <div className="r-main">
-                      <div className="r-name">
-                        {r.name}
-                        <span className="r-type">{TYPE_LABEL[r.type] || ""}</span>
+            )}
+          </div>
+        ) : (
+          /* ホーム: 日記の大カード ＋ 3列アイコングリッド */
+          <div
+            className="home-scroll" ref={homeScrollRef}
+            onScroll={(e) => { homeScrollPos.current = e.target.scrollTop; }}
+          >
+            {(() => {
+              const diaryRoom = rooms.find((r) => r.id === DIARY_ROOM_ID);
+              const gridRooms = sorted.filter((r) => r.id !== DIARY_ROOM_ID);
+              const td = keyToDate(todayKey());
+              const diarySub = !diaryToday ? "…"
+                : diaryToday.written ? diaryToday.preview
+                : `${td.getMonth() + 1}/${td.getDate()}・きょうの分はまだ`;
+              const onReorderGrid = (newGrid) => {
+                const q = [...newGrid];
+                saveRooms(rooms.map((r) => (r.id === DIARY_ROOM_ID ? r : q.shift())));
+              };
+              return (
+                <>
+                  {diaryRoom && (
+                    <button className="diary-card" onClick={() => setView({ screen: "room", roomId: diaryRoom.id })}>
+                      <span className="dc-ic">{diaryRoom.emoji}</span>
+                      <span className="dc-main">
+                        <span className="dc-name">{diaryRoom.name}</span>
+                        <span className="dc-sub">{diarySub}</span>
+                      </span>
+                      <span className="dc-arw">›</span>
+                    </button>
+                  )}
+                  <IconGrid
+                    items={gridRooms}
+                    keyOf={(r) => r.id}
+                    onReorder={onReorderGrid}
+                    onLongPress={({ item }) => { if (item) openRoomSettings(item); }}
+                    footer={
+                      <div className="ig-cell ig-add">
+                        <button className="ig-tile" onClick={() => setModal({ mode: "new", name: "", emoji: "", type: "talk" })}>
+                          <span className="ig-btn">＋</span>
+                          <span className="ig-name">つくる</span>
+                        </button>
                       </div>
-                      <div className="r-prev">{line2}</div>
-                    </div>
-                    <div className="r-side">
-                      {isTodo && r.todoOpen > 0 && <span className="r-badge">{r.todoOpen}</span>}
-                      <span className="r-date">{homeDate(r.lastAt)}</span>
-                      <button
-                        className="r-more" aria-label="ルーム設定"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setModal({ mode: "edit", roomId: r.id, name: r.name, emoji: r.emoji, type: r.type, shopping: !!r.shopping });
-                          setRoomDel(false);
-                        }}
-                      >⋯</button>
-                    </div>
-                  </div>
-                );
-              }}
-            />
-          )}
-        </div>
+                    }
+                    renderItem={(r) => {
+                      const badge = r.type === "todo" && r.todoOpen > 0 ? r.todoOpen : null;
+                      return (
+                        <button className="ig-tile" onClick={() => setView({ screen: "room", roomId: r.id })}>
+                          <span className="ig-btn" style={roomTileStyle(r.theme)}>
+                            {r.emoji}
+                            {badge != null && <span className="ig-badge">{badge > 99 ? "99+" : badge}</span>}
+                          </span>
+                          <span className="ig-name">{r.name}</span>
+                        </button>
+                      );
+                    }}
+                  />
+                </>
+              );
+            })()}
+          </div>
+        )}
       </>
     );
   }
@@ -732,6 +782,21 @@ export default function App() {
               value={modal.emoji}
               onChange={(e) => setModal((o) => ({ ...o, emoji: e.target.value }))}
             />
+            <div className="f-label">テーマカラー</div>
+            <div className="theme-swatches">
+              {ROOM_THEMES.map((c) => {
+                const sel = (modal.theme || DEFAULT_THEME) === c;
+                return (
+                  <button
+                    key={c}
+                    className={"theme-sw" + (sel ? " on" : "")}
+                    style={roomTileStyle(c)}
+                    aria-label={c}
+                    onClick={() => setModal((o) => ({ ...o, theme: c }))}
+                  />
+                );
+              })}
+            </div>
             <div className="f-label">タイプ{modal.mode === "edit" ? "（変更できません）" : ""}</div>
             <div className="type-row">
               <button
