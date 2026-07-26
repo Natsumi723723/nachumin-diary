@@ -578,7 +578,7 @@ export default function TodoRoom({
               return (
                 <Fragment key={dk}>
                   <div className="date-pill">
-                    <span>🩷{keyToDisp(dk)}🩷 <span className={dowClass(dk) ? "wd-" + dowClass(dk) : undefined}>{WEEKDAYS[d.getDay()]}</span></span>
+                    <span className={dowClass(dk) ? "wd-" + dowClass(dk) : undefined}>🩷{keyToDisp(dk)}🩷 {WEEKDAYS[d.getDay()]}</span>
                   </div>
                   {doneGroups[dk].map((t) => (
                     <div className="todo-row" key={t.id}>

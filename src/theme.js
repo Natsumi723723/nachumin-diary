@@ -369,6 +369,11 @@ export const css = `
   .wd-sun { color: #ff1478; }
   .d-head .lnk.wd-sat { color: #2f7fc4; }
   .d-head .lnk.wd-sun { color: #ff1478; }
+  /* TODO完了ピル・だれログの日付は、既存の色指定より詳細度を上げて上書き */
+  .date-pill span.wd-sat { color: #2f7fc4; }
+  .date-pill span.wd-sun { color: #ff1478; }
+  .dl-datecol.wd-sat .dl-md, .dl-datecol.wd-sat .dl-wd { color: #2f7fc4; }
+  .dl-datecol.wd-sun .dl-md, .dl-datecol.wd-sun .dl-wd { color: #ff1478; }
   .body { white-space: pre-wrap; font-size: 14.5px; line-height: 1.75; }
   /* talk bubbles */
   .date-pill { text-align: center; margin: 14px 0 10px; }

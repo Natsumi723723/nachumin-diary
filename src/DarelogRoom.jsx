@@ -211,9 +211,9 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
               const isToday = dk === today;
               return (
                 <tr key={dk} className={isToday ? "dl-todayrow" : ""}>
-                  <th className="dl-datecol">
+                  <th className={"dl-datecol" + (dowClass(dk) ? " wd-" + dowClass(dk) : "")}>
                     <span className="dl-md">{d.getMonth() + 1}/{d.getDate()}</span>
-                    <span className={"dl-wd" + (dowClass(dk) ? " wd-" + dowClass(dk) : "")}>{WEEKDAYS[d.getDay()]}</span>
+                    <span className="dl-wd">{WEEKDAYS[d.getDay()]}</span>
                   </th>
                   {SLOTS.map((s) => {
                     const recs = cellRecs(dk, s.key);
