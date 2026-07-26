@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { todayKey, pad, WEEKDAYS } from "./format.js";
+import { todayKey, pad, WEEKDAYS1, dowClass } from "./format.js";
 
 /* 🎯 習慣ビュー: 横=その月の1日〜末日 / 縦=習慣 の月間スタンプ表。
    セルタップでその日の達成をトグル（過去日も修正可・未来日は不可）。
@@ -124,11 +124,11 @@ export default function HabitView({ habits, habitAch, onToggle, onClose, onManag
                     key={dd.key}
                     className={
                       "hv-dcell" + (dd.isToday ? " today" : "") +
-                      (dd.dow === 0 ? " sun" : dd.dow === 6 ? " sat" : "")
+                      (dowClass(dd.key) ? " " + dowClass(dd.key) : "")
                     }
                   >
                     <span className="hv-dnum">{dd.d}</span>
-                    <span className="hv-dow">{WEEKDAYS[dd.dow]}</span>
+                    <span className="hv-dow">{WEEKDAYS1[dd.dow]}</span>
                   </div>
                 ))}
               </div>

@@ -3,7 +3,7 @@ import {
   get, set, roomDataKey, doneLogKey, habitsKey, habitLogKey, habitSeedKey
 } from "./storage.js";
 import {
-  keyToDisp, keyToDate, WEEKDAYS, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
+  keyToDisp, keyToDate, WEEKDAYS, dowClass, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
   diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER, DECL_MARKER, safeFileName, copyText
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
@@ -469,7 +469,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                     onKeyDown={(e) => !isEditing && e.key === "Enter" && startEdit(k)}
                   >
                     <span className="spark">✨</span>
-                    <div className="d-head">🩷<span className="lnk">{keyToDisp(k)}</span>🩷</div>
+                    <div className="d-head">🩷<span className={"lnk" + (dowClass(k) ? " wd-" + dowClass(k) : "")}>{keyToDisp(k)} {WEEKDAYS[keyToDate(k).getDay()]}</span>🩷</div>
                     {isEditing ? (
                       <InlineEdit
                         initial={entries[k].text}

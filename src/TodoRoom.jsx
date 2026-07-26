@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 import { get, set, roomDataKey } from "./storage.js";
 import {
-  keyToDisp, keyToDate, WEEKDAYS, todayKey, nowTime, escapeRegExp, uid,
+  keyToDisp, keyToDate, WEEKDAYS, dowClass, todayKey, nowTime, escapeRegExp, uid,
   parseTodoText, parseTodoLines, safeFileName, copyText
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
@@ -578,7 +578,7 @@ export default function TodoRoom({
               return (
                 <Fragment key={dk}>
                   <div className="date-pill">
-                    <span>🩷{keyToDisp(dk)}🩷 {WEEKDAYS[d.getDay()]}</span>
+                    <span>🩷{keyToDisp(dk)}🩷 <span className={dowClass(dk) ? "wd-" + dowClass(dk) : undefined}>{WEEKDAYS[d.getDay()]}</span></span>
                   </div>
                   {doneGroups[dk].map((t) => (
                     <div className="todo-row" key={t.id}>

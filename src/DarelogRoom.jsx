@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { get, set, roomDataKey } from "./storage.js";
 import {
-  keyToDisp, keyToDate, todayKey, uid, WEEKDAYS,
+  keyToDisp, keyToDate, todayKey, uid, WEEKDAYS, dowClass,
   SLOTS, slotOfNow, groupDarelog, darelogDateRows,
   darelogToText, parseDarelogText, safeFileName
 } from "./format.js";
@@ -213,7 +213,7 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
                 <tr key={dk} className={isToday ? "dl-todayrow" : ""}>
                   <th className="dl-datecol">
                     <span className="dl-md">{d.getMonth() + 1}/{d.getDate()}</span>
-                    <span className="dl-wd">{WEEKDAYS[d.getDay()]}</span>
+                    <span className={"dl-wd" + (dowClass(dk) ? " wd-" + dowClass(dk) : "")}>{WEEKDAYS[d.getDay()]}</span>
                   </th>
                   {SLOTS.map((s) => {
                     const recs = cellRecs(dk, s.key);

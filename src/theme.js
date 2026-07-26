@@ -364,6 +364,11 @@ export const css = `
   .bubble.editing-now { outline: 2px solid #e0629f; }
   .d-head { font-weight: 700; margin-bottom: 8px; font-size: 15px; }
   .d-head .lnk { color: #2f6fd6; text-decoration: underline; }
+  /* 曜日・祝日の色分け（日/祝=ピンク, 土=青） */
+  .wd-sat { color: #2f7fc4; }
+  .wd-sun { color: #ff1478; }
+  .d-head .lnk.wd-sat { color: #2f7fc4; }
+  .d-head .lnk.wd-sun { color: #ff1478; }
   .body { white-space: pre-wrap; font-size: 14.5px; line-height: 1.75; }
   /* talk bubbles */
   .date-pill { text-align: center; margin: 14px 0 10px; }
