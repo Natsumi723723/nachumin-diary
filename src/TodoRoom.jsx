@@ -38,6 +38,10 @@ export default function TodoRoom({
   const [placeFilter, setPlaceFilter] = useState(null); // やること: 場所で絞り込み
   const [placeModal, setPlaceModal] = useState(false); // 場所の管理
   const [placePickFor, setPlacePickFor] = useState(null); // このTODOの場所を選ぶ
+  const [staplesOpen, setStaplesOpen] = useState(false); // 🛒 よく買うものパネルの開閉
+  const [staplesModal, setStaplesModal] = useState(false); // 日用品マスタの管理
+  const [flash, setFlash] = useState(null); // 追加できたチップを一瞬光らせる
+  const flashTimer = useRef(null);
   const scrollRef = useRef(null);
   const taRef = useRef(null);
   const exRef = useRef(null);
@@ -79,6 +83,68 @@ export default function TodoRoom({
 
   const places = room.places || [];
   const placeOf = (id) => places.find((p) => p.id === id);
+
+  /* ---------- 🛒 日用品マスタ（よく買うもの・ルーム単位） ---------- */
+  const staples = room.staples || [];
+  const saveStaples = (next) => onRoomChange({ staples: next });
+  // 初回だけサンプルを用意（消したら戻さない）
+  useEffect(() => {
+    if (room.staplesSeeded) return;
+    if (staples.length) { onRoomChange({ staplesSeeded: true }); return; }
+    onRoomChange({
+      staplesSeeded: true,
+      staples: [
+        { id: uid(), name: "ティッシュ", emoji: "🧻", placeId: "", memo: "" },
+        { id: uid(), name: "ナプキン", emoji: "", placeId: "", memo: "" },
+        { id: uid(), name: "トイレットペーパー", emoji: "🧻", placeId: "", memo: "" },
+        { id: uid(), name: "洗剤", emoji: "🧴", placeId: "", memo: "" }
+      ]
+    });
+  }, [room.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const addStaple = () => saveStaples([...staples, { id: uid(), name: "", emoji: "", placeId: "", memo: "" }]);
+  const updateStaple = (id, patch) => saveStaples(staples.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  const moveStaple = (i, dir) => {
+    const j = i + dir; if (j < 0 || j >= staples.length) return;
+    const next = [...staples]; [next[i], next[j]] = [next[j], next[i]]; saveStaples(next);
+  };
+  const removeStaple = (id) => {
+    const s = staples.find((x) => x.id === id);
+    setConfirm({
+      message: `「${s?.name || ""}」をよく買うものから外しますか？`,
+      onConfirm: () => { saveStaples(staples.filter((x) => x.id !== id)); setConfirm(null); }
+    });
+  };
+  const closeStaplesModal = () => {
+    const cleaned = staples.filter((s) => s.name.trim());
+    if (cleaned.length !== staples.length) saveStaples(cleaned);
+    setStaplesModal(false);
+  };
+  // 手打ちTODOをマスタに登録（学習・任意。長押しメニューから）
+  const registerStaple = (t) => {
+    const name = (t.text || "").split("\n")[0].trim();
+    if (!name) return;
+    if (staples.some((s) => s.name.trim() === name)) { showToast("もう登録されてるよ🩷"); return; }
+    saveStaples([...staples, { id: uid(), name, emoji: "", placeId: placeOf(t.placeId) ? t.placeId : "", memo: "" }]);
+    showToast(`「${name}」をよく買うものに登録したよ🩷`);
+  };
+  // 🛒 チップ1タップでTODOに追加（金額入力などは挟まない・連続追加OK）
+  const quickAddStaple = (s) => {
+    const name = (s.name || "").trim();
+    if (!name) return;
+    const active = todos.filter((t) => !t.done && !t.deferred).map((t) => (t.text || "").split("\n")[0].trim());
+    if (active.includes(name)) { showToast(`「${name}」はもう入ってるよ🩷`); return; }
+    const memo = (s.memo || "").trim();
+    const text = memo ? `${name}\n${memo}` : name;
+    const placeId = placeOf(s.placeId) ? s.placeId : (placeFilter || selPlace || null);
+    persist([...todos, {
+      id: uid(), dateKey: todayKey(), time: nowTime(),
+      text, done: false, doneTime: null, doneDateKey: null, important: false, placeId
+    }]);
+    setTab("todo");
+    setFlash(s.id);
+    clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlash(null), 650);
+  };
 
   const send = () => {
     const text = draft.trim();
@@ -594,6 +660,28 @@ export default function TodoRoom({
 
       {tab === "todo" && (
         <div className="bar">
+          <div className="staple-bar">
+            <button
+              className={"staple-toggle" + (staplesOpen ? " on" : "")}
+              aria-expanded={staplesOpen}
+              onClick={() => setStaplesOpen((v) => !v)}
+            >🛒 よく買うもの {staplesOpen ? "▲" : "▼"}</button>
+          </div>
+          {staplesOpen && (
+            <div className="staple-quick">
+              {staples.length === 0 && (
+                <span className="staple-empty">「⚙︎ 編集」から登録してね💗</span>
+              )}
+              {staples.map((s) => (
+                <button
+                  key={s.id}
+                  className={"staple-chip" + (flash === s.id ? " flash" : "")}
+                  onClick={() => quickAddStaple(s)}
+                >{s.emoji ? s.emoji + " " : ""}{s.name}</button>
+              ))}
+              <button className="staple-chip staple-edit" onClick={() => setStaplesModal(true)} aria-label="よく買うものを編集">⚙︎ 編集</button>
+            </div>
+          )}
           {places.length > 0 && (
             <div className="place-select">
               {places.map((p) => {
@@ -688,10 +776,16 @@ export default function TodoRoom({
                 onClick: () => { setMenu(null); defer(t); }
               }]
             )}
-            extra={t && places.length > 0 ? [{
-              label: "📍 場所を選ぶ",
-              onClick: () => { setMenu(null); setPlacePickFor(menu.id); }
-            }] : []}
+            extra={!t ? [] : [
+              ...(places.length > 0 ? [{
+                label: "📍 場所を選ぶ",
+                onClick: () => { setMenu(null); setPlacePickFor(menu.id); }
+              }] : []),
+              ...(!t.done && !staples.some((s) => s.name.trim() === (t.text || "").split("\n")[0].trim()) ? [{
+                label: "🛒 よく買うものに登録",
+                onClick: () => { setMenu(null); registerStaple(t); }
+              }] : [])
+            ]}
             onDelete={() => { setMenu(null); askDeleteTodo(t); }}
           />
         );
@@ -728,6 +822,41 @@ export default function TodoRoom({
             <div className="panel-btns">
               <button className="p-copy" onClick={addPlace}>＋ 場所を追加</button>
               <button className="p-close" onClick={closePlaceModal}>閉じる</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🛒 よく買うもの（日用品マスタ）の管理 */}
+      {staplesModal && (
+        <div className="overlay" onClick={closeStaplesModal}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>🛒 よく買うもの</h3>
+            <p className="panel-note">切らしそうと気づいた瞬間に、下のパネルから1タップでTODOに足せます。</p>
+            {staples.map((s, i) => (
+              <div className="mem-row" key={s.id} style={{ flexWrap: "wrap" }}>
+                <input className="f-input" style={{ width: 54, textAlign: "center", flex: "0 0 auto" }} maxLength={4}
+                  placeholder="🛒" value={s.emoji || ""} onChange={(e) => updateStaple(s.id, { emoji: e.target.value })} />
+                <input className="f-input" style={{ flex: 1, minWidth: 0 }} placeholder="品名（例: ティッシュ）"
+                  value={s.name} onChange={(e) => updateStaple(s.id, { name: e.target.value })} />
+                <button className="mem-btn" disabled={i === 0} onClick={() => moveStaple(i, -1)} aria-label="上へ">↑</button>
+                <button className="mem-btn" disabled={i === staples.length - 1} onClick={() => moveStaple(i, 1)} aria-label="下へ">↓</button>
+                <button className="mem-btn" onClick={() => removeStaple(s.id)} aria-label="削除">🗑</button>
+                <div style={{ display: "flex", gap: 6, flexBasis: "100%", marginTop: 4, alignItems: "center" }}>
+                  <select className="f-input" style={{ flex: "0 0 auto", width: 120 }}
+                    value={s.placeId || ""} onChange={(e) => updateStaple(s.id, { placeId: e.target.value })}>
+                    <option value="">📍 場所なし</option>
+                    {places.map((p) => <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}
+                  </select>
+                  <input className="f-input" style={{ flex: 1, minWidth: 0 }} placeholder="メモ（任意）"
+                    value={s.memo || ""} onChange={(e) => updateStaple(s.id, { memo: e.target.value })} />
+                </div>
+              </div>
+            ))}
+            {staples.length === 0 && <p className="panel-note">よく買うものを追加してね💗</p>}
+            <div className="panel-btns">
+              <button className="p-copy" onClick={addStaple}>＋ 追加</button>
+              <button className="p-close" onClick={closeStaplesModal}>閉じる</button>
             </div>
           </div>
         </div>

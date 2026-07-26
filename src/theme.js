@@ -454,6 +454,29 @@ export const css = `
   }
   .pf-chip.on { background: #e0629f; border-color: #e0629f; color: #fff; }
   /* 場所セレクト（入力欄の上） */
+  /* 🛒 よく買うもの（日用品クイック追加） */
+  .staple-bar { display: flex; padding: 0 0 6px; }
+  .staple-toggle {
+    border: 1.5px solid #f0a6cf; background: #fff; color: #b04a86;
+    border-radius: 999px; padding: 6px 14px; font-size: 12.5px; font-weight: 800;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .staple-toggle.on { background: linear-gradient(90deg,#ff5fb0,#ff1478); border-color: #ff1478; color: #fff; }
+  .staple-toggle:active { transform: scale(.96); }
+  .staple-quick { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 8px; }
+  .staple-empty { font-size: 12px; color: #a4517f; font-weight: 700; align-self: center; }
+  .staple-chip {
+    flex-shrink: 0; border: 1.5px solid #f0a6cf; background: #fff5fa; color: #b04a86;
+    border-radius: 999px; padding: 7px 13px; font-size: 13px; font-weight: 700;
+    cursor: pointer; min-height: 36px; -webkit-tap-highlight-color: transparent;
+  }
+  .staple-chip:active { transform: scale(.94); }
+  .staple-chip.staple-edit { border-style: dashed; color: #c2478f; }
+  .staple-chip.flash { animation: staple-flash .65s ease-out; }
+  @keyframes staple-flash {
+    0% { background: #ff1478; color: #fff; box-shadow: 0 0 0 0 rgba(255,20,120,.6); transform: scale(1.06); }
+    100% { background: #fff5fa; color: #b04a86; box-shadow: 0 0 0 10px rgba(255,20,120,0); transform: scale(1); }
+  }
   .place-select { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 7px; }
   .ps-chip {
     flex-shrink: 0; border: 1.5px solid #f0a6cf; background: #fff; color: #4a3140;
