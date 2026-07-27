@@ -204,7 +204,7 @@ export default function TodoRoom({
     persist(todos.map((t) => (t.id === todo.id ? { ...t, done: true, doneTime, doneDateKey } : t)));
     // 完了→日記へ反映（完了した日の日記に）
     onTodoComplete({ text: todo.text, time: doneTime, dateKey: doneDateKey });
-    // やることタブでも一瞬リアクションを見せてから消す
+    // 完了アクション（ポップ→スッと退場）を見せてから消す。もたつかない短さに
     setJustDone((s) => new Set(s).add(todo.id));
     setTimeout(() => {
       setJustDone((s) => {
@@ -212,7 +212,7 @@ export default function TodoRoom({
         n.delete(todo.id);
         return n;
       });
-    }, 1100);
+    }, 460);
     // 直後に「もどす」バーを出す（誤操作対策）
     setUndo({ id: todo.id, text: todo.text, doneTime, doneDateKey });
     clearTimeout(undoTimer.current);
@@ -518,10 +518,11 @@ export default function TodoRoom({
               renderItem={(t) => {
                 const imp = t.important && !t.done;
                 const pl = placeOf(t.placeId);
+                const doneNow = t.done && justDone.has(t.id);
                 return (
-                  <div className="todo-row">
+                  <div className={"todo-row" + (doneNow ? " completing" : "")}>
                     <button
-                      className="todo-check"
+                      className={"todo-check" + (t.done ? " on" : "")}
                       aria-label="完了にする"
                       onClick={() => toggle(t)}
                     />

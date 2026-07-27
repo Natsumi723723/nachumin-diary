@@ -5,7 +5,7 @@ import { useRef, useState, useEffect } from "react";
    - 動かさず離す → onLongPress({item,x,y})（メニュー用）
    - タップ（長押し前に離す） → 子の onClick が発火
    footer は並べ替え対象外のセル（＋つくる 等）。 */
-export default function IconGrid({ items, keyOf, onReorder, renderItem, onLongPress, longPress = 400, footer }) {
+export default function IconGrid({ items, keyOf, onReorder, renderItem, onLongPress, longPress = 320, footer }) {
   const [work, setWork] = useState(null);
   const [dragKey, setDragKey] = useState(null);
   const cRef = useRef(null);
@@ -108,9 +108,10 @@ export default function IconGrid({ items, keyOf, onReorder, renderItem, onLongPr
       const t = e.touches[0];
       S.current.pointerX = t.clientX; S.current.pointerY = t.clientY;
       if (S.current.dragKey == null) {
-        if (Math.abs(t.clientX - S.current.startX) > 8 || Math.abs(t.clientY - S.current.startY) > 8) {
+        // 長押し成立前に大きく動いたらスクロール意図とみなす（指の微ブレは許容）
+        if (Math.abs(t.clientX - S.current.startX) > 12 || Math.abs(t.clientY - S.current.startY) > 12) {
           S.current.moved = true;
-          clearTimeout(S.current.timer); // スクロール意図
+          clearTimeout(S.current.timer);
         }
         return;
       }
@@ -122,15 +123,19 @@ export default function IconGrid({ items, keyOf, onReorder, renderItem, onLongPr
       clearTimeout(S.current.timer);
       if (S.current.dragKey != null) endDrag();
     };
+    // iOSの長押しコールアウト（コピー等）がジェスチャーを奪うのを防ぐ
+    const onCtx = (e) => e.preventDefault();
     c.addEventListener("touchstart", onStart, { passive: true });
     c.addEventListener("touchmove", onMove, { passive: false });
     c.addEventListener("touchend", onEnd, { passive: true });
     c.addEventListener("touchcancel", onEnd, { passive: true });
+    c.addEventListener("contextmenu", onCtx);
     return () => {
       c.removeEventListener("touchstart", onStart);
       c.removeEventListener("touchmove", onMove);
       c.removeEventListener("touchend", onEnd);
       c.removeEventListener("touchcancel", onEnd);
+      c.removeEventListener("contextmenu", onCtx);
     };
   }, [longPress]);
 

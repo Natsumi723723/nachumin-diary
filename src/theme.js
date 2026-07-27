@@ -300,23 +300,31 @@ export const css = `
   /* 日記の大きな横長カード */
   .diary-card {
     width: 100%; display: flex; align-items: center; gap: 14px;
-    border: 2px solid #ffffff; border-radius: 22px; cursor: pointer;
-    padding: 14px 16px; margin-bottom: 16px; text-align: left;
-    background: linear-gradient(163deg, #ffffff 0%, #fff2f9 45%, #ffd9ec 100%);
-    box-shadow: 0 8px 18px rgba(255,105,178,.28), inset 0 1.5px 0 #fff;
+    border: 2px solid rgba(255,255,255,.9); border-radius: 24px; cursor: pointer;
+    padding: 15px 18px; margin-bottom: 16px; text-align: left;
+    background: linear-gradient(120deg, #fff2fb 0%, #ffe0f2 55%, #ffd0ef 100%);
+    box-shadow: 0 10px 22px rgba(255,80,170,.32), inset 0 2px 0 #fff;
     -webkit-tap-highlight-color: transparent; transition: transform .12s ease;
   }
   .diary-card:active { transform: translateY(2px) scale(.99); }
   .dc-ic {
-    width: 58px; height: 58px; border-radius: 18px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center; font-size: 34px;
-    background: linear-gradient(163deg,#ffffff,#ffe3f2);
-    box-shadow: 0 3px 8px rgba(255,105,178,.35), inset 0 1.5px 0 #fff;
+    width: 60px; height: 60px; border-radius: 19px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 35px;
+    background: linear-gradient(160deg,#ffffff 0%,#ffe3f2 60%,#ffc4e6 100%);
+    box-shadow: 0 4px 10px rgba(255,80,170,.4), inset 0 1.5px 0 #fff;
   }
-  .dc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-  .dc-name { font-weight: 900; font-size: 18px; color: #b5005c; letter-spacing: .02em; }
+  .dc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  /* DIARY 英字ワードマーク: 極太・レタースペース・ピンク→パープルのグラデ */
+  .dc-name {
+    font-family: "Avenir Next", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+    font-weight: 900; font-size: 25px; line-height: 1; letter-spacing: .14em;
+    background: linear-gradient(92deg, #ff2e97 0%, #ff5fb0 45%, #b45cff 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 1px 1px rgba(255,80,160,.28));
+  }
   .dc-sub {
-    font-size: 12.5px; color: #a4517f; font-weight: 600;
+    font-size: 12.5px; color: #b0567f; font-weight: 700;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .dc-arw { font-size: 22px; color: #ff7ec0; font-weight: 900; flex-shrink: 0; }
@@ -325,12 +333,16 @@ export const css = `
     position: relative;
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 10px;
   }
-  .ig-cell { touch-action: pan-y; }
+  .ig-cell {
+    touch-action: pan-y;
+    -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+  }
   .ig-cell.dragging { opacity: .96; }
   .ig-tile {
     width: 100%; border: none; background: transparent; cursor: pointer;
     display: flex; flex-direction: column; align-items: center; gap: 6px;
     -webkit-tap-highlight-color: transparent; padding: 0;
+    -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
   }
   .ig-btn {
     position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 78px;
@@ -627,6 +639,19 @@ export const css = `
   .ta.ta-important::placeholder { color: rgba(255,255,255,.85); }
   /* TODO: 行 */
   .todo-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 11px; }
+  /* 完了アクション: チェックが入る→ポップ→スッと右へ退場（もたつかない） */
+  .todo-row.completing { animation: todo-complete .46s ease forwards; }
+  .todo-row.completing .todo-check { animation: check-pop .32s cubic-bezier(.3,1.7,.5,1); }
+  @keyframes todo-complete {
+    0% { opacity: 1; transform: none; }
+    22% { transform: scale(1.03); }
+    100% { opacity: 0; transform: scale(.92) translateX(26px); }
+  }
+  @keyframes check-pop {
+    0% { transform: scale(.6); }
+    55% { transform: scale(1.28); }
+    100% { transform: scale(1); }
+  }
   .todo-check {
     width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
     border: 2px solid #e0629f; background: #fff; cursor: pointer;
@@ -1358,6 +1383,7 @@ export const css = `
   }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; }
-    .todo-react { animation: none !important; }
+    .todo-react, .todo-row.completing, .todo-row.completing .todo-check { animation: none !important; }
+    .todo-row.completing { opacity: .5; }
   }
 `;

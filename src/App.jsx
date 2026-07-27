@@ -709,7 +709,7 @@ export default function App() {
                     <button className="diary-card" onClick={() => setView({ screen: "room", roomId: diaryRoom.id })}>
                       <span className="dc-ic">{diaryRoom.emoji}</span>
                       <span className="dc-main">
-                        <span className="dc-name">{diaryRoom.name}</span>
+                        <span className="dc-name">DIARY</span>
                         <span className="dc-sub">{diarySub}</span>
                       </span>
                       <span className="dc-arw">›</span>
@@ -722,22 +722,26 @@ export default function App() {
                     onLongPress={({ item }) => { if (item) openRoomSettings(item); }}
                     footer={
                       <div className="ig-cell ig-add">
-                        <button className="ig-tile" onClick={() => setModal({ mode: "new", name: "", emoji: "", type: "talk" })}>
+                        <div className="ig-tile" role="button" tabIndex={0}
+                          onClick={() => setModal({ mode: "new", name: "", emoji: "", type: "talk" })}
+                          onKeyDown={(e) => e.key === "Enter" && setModal({ mode: "new", name: "", emoji: "", type: "talk" })}>
                           <span className="ig-btn">＋</span>
                           <span className="ig-name">つくる</span>
-                        </button>
+                        </div>
                       </div>
                     }
                     renderItem={(r) => {
                       const badge = r.type === "todo" && r.todoOpen > 0 ? r.todoOpen : null;
                       return (
-                        <button className="ig-tile" onClick={() => setView({ screen: "room", roomId: r.id })}>
+                        <div className="ig-tile" role="button" tabIndex={0}
+                          onClick={() => setView({ screen: "room", roomId: r.id })}
+                          onKeyDown={(e) => e.key === "Enter" && setView({ screen: "room", roomId: r.id })}>
                           <span className="ig-btn" style={roomTileStyle(r.theme)}>
                             {r.emoji}
                             {badge != null && <span className="ig-badge">{badge > 99 ? "99+" : badge}</span>}
                           </span>
                           <span className="ig-name">{r.name}</span>
-                        </button>
+                        </div>
                       );
                     }}
                   />
