@@ -14,7 +14,8 @@ import { MEMBER_COLORS, textOn } from "./theme.js";
 /* TODO型ルーム: 1メッセージ=1TODO。チェックで完了→日記へライフログ */
 export default function TodoRoom({
   room, onBack, onMeta, initialQuery, showToast, pinned,
-  onTodoComplete, onTodoUncomplete, onRoomChange
+  onTodoComplete, onTodoUncomplete, onRoomChange,
+  todoRooms = [], onMoveTodo
 }) {
   const [todos, setTodos] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -38,6 +39,8 @@ export default function TodoRoom({
   const [placeFilter, setPlaceFilter] = useState(null); // やること: 場所で絞り込み
   const [placeModal, setPlaceModal] = useState(false); // 場所の管理
   const [placePickFor, setPlacePickFor] = useState(null); // このTODOの場所を選ぶ
+  const [moveFor, setMoveFor] = useState(null); // 📦 別ルームへ移動するTODOのid
+  const [moving, setMoving] = useState(false);  // 移動中の二重タップ防止
   const [staplesOpen, setStaplesOpen] = useState(false); // 🛒 よく買うものパネルの開閉
   const [staplesModal, setStaplesModal] = useState(false); // 日用品マスタの管理
   const [flash, setFlash] = useState(null); // 追加できたチップを一瞬光らせる
@@ -255,6 +258,28 @@ export default function TodoRoom({
   const deleteTodo = (id) => {
     persist(todos.filter((t) => t.id !== id));
     setEditing(null);
+  };
+
+  /* 📦 別のルームへ移動。先に移動先へ書き込み、成功してから元ルームから外す
+     （途中で失敗しても項目が消えないように） */
+  const doMoveTodo = async (targetRoom) => {
+    if (moving) return;
+    const t = todos.find((x) => x.id === moveFor);
+    if (!t || !onMoveTodo) { setMoveFor(null); return; }
+    setMoving(true);
+    try {
+      const res = await onMoveTodo(t, targetRoom.id, placeOf(t.placeId)?.name || "");
+      if (!res || !res.ok) { showToast("移動できませんでした 🥺"); return; }
+      persist(todos.filter((x) => x.id !== t.id));
+      setEditing(null);
+      const label = t.text.split("\n")[0];
+      const short = label.length > 16 ? label.slice(0, 16) + "…" : label;
+      showToast(`「${short}」を ${targetRoom.emoji || ""}${targetRoom.name} へ移動したよ🩷`
+        + (res.placeDropped ? "（場所タグは外れました）" : ""));
+    } finally {
+      setMoving(false);
+      setMoveFor(null);
+    }
   };
   const [confirm, setConfirm] = useState(null); // 削除確認ダイアログ
   const askDeleteTodo = (t) => {
@@ -787,10 +812,43 @@ export default function TodoRoom({
               ...(isShopping && !t.done && !staples.some((s) => s.name.trim() === (t.text || "").split("\n")[0].trim()) ? [{
                 label: "🛒 よく買うものに登録",
                 onClick: () => { setMenu(null); registerStaple(t); }
+              }] : []),
+              ...(todoRooms.length > 0 ? [{
+                label: "📦 ほかのルームへ移動",
+                onClick: () => { setMenu(null); setMoveFor(menu.id); }
               }] : [])
             ]}
             onDelete={() => { setMenu(null); askDeleteTodo(t); }}
           />
+        );
+      })()}
+
+      {/* 📦 移動先のルームを選ぶ */}
+      {moveFor && (() => {
+        const t = todos.find((x) => x.id === moveFor);
+        const label = t ? t.text.split("\n")[0] : "";
+        return (
+          <div className="overlay" onClick={() => !moving && setMoveFor(null)}>
+            <div className="panel" onClick={(e) => e.stopPropagation()}>
+              <h3>📦 どのルームへ移動する？</h3>
+              <p className="panel-note">
+                「{label.length > 22 ? label.slice(0, 22) + "…" : label}」を移動します。
+                完了や❣️重要の状態はそのまま引き継ぎます。
+              </p>
+              <div className="move-list">
+                {todoRooms.map((r) => (
+                  <button key={r.id} className="move-item" disabled={moving} onClick={() => doMoveTodo(r)}>
+                    <span className="move-ic">{r.emoji}</span>
+                    <span className="move-name">{r.name}</span>
+                    <span className="move-arw">›</span>
+                  </button>
+                ))}
+              </div>
+              <div className="panel-btns">
+                <button className="p-close" disabled={moving} onClick={() => setMoveFor(null)}>キャンセル</button>
+              </div>
+            </div>
+          </div>
         );
       })()}
 

@@ -589,6 +589,23 @@ export const css = `
   }
   .shop-toggle.on .shop-box { background: #ff1478; border-color: #ff1478; }
 
+  /* 📦 TODOのルーム間移動: 移動先ピッカー */
+  .move-list { display: flex; flex-direction: column; gap: 7px; }
+  .move-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; cursor: pointer;
+    border: 1.5px solid #f0a6cf; background: #fff5fa; color: #4a3140;
+    border-radius: 14px; padding: 11px 13px; text-align: left;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .move-item:active { background: #ffe4f1; transform: scale(.99); }
+  .move-item:disabled { opacity: .5; }
+  .move-ic { font-size: 22px; flex-shrink: 0; }
+  .move-name {
+    flex: 1; min-width: 0; font-size: 14px; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .move-arw { color: #ff7ec0; font-weight: 900; font-size: 17px; flex-shrink: 0; }
+
   /* 🛒 よく買うもの（日用品クイック追加） */
   .staple-bar { display: flex; padding: 0 0 6px; }
   .staple-toggle {

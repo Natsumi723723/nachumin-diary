@@ -177,6 +177,35 @@ export default function App() {
     });
   };
 
+  /* TODOを別のルームへ移動（移動先へ追記するところまで担当）。
+     先に移動先へ書き込み、成功したら呼び出し元が元ルームから削除する。
+     ＝途中で失敗しても項目が消えない順序にしている。
+     場所タグはルームごとの設定なので、同じ名前のタグがあれば引き継ぎ、無ければ外す。 */
+  const moveTodoToRoom = async (todo, targetRoomId, srcPlaceName) => {
+    try {
+      const target = (rooms || []).find((r) => r.id === targetRoomId);
+      if (!target) return { ok: false };
+      const key = roomDataKey(targetRoomId);
+      const data = (await get(key)) || {};
+      const list = Array.isArray(data.todos) ? data.todos : [];
+      const nm = (srcPlaceName || "").trim();
+      const matched = nm ? (target.places || []).find((p) => (p.name || "").trim() === nm) : null;
+      const moved = { ...todo, placeId: matched ? matched.id : null };
+      const nextList = [...list, moved];
+      await set(key, { ...data, todos: nextList });
+      // 移動先ルームのメタ（バッジ・プレビュー）も更新
+      const open = nextList.filter((t) => !t.done && !t.deferred).length;
+      updateRoom(targetRoomId, {
+        preview: `${moved.done ? "☑" : "☐"} ${(moved.text || "").split("\n")[0]}`.slice(0, 40),
+        todoOpen: open,
+        lastAt: Date.now()
+      });
+      return { ok: true, placeDropped: !!nm && !matched, placeKept: !!matched };
+    } catch (e) {
+      return { ok: false };
+    }
+  };
+
   /* ---------- 今日の宣言 ---------- */
   const applyDeclaration = async (raw) => {
     const text = raw.trim();
@@ -596,7 +625,7 @@ export default function App() {
       const roomEl = room.type === "diary"
         ? <DiaryRoom key={room.id} {...common} syncSignal={diarySync} marks={marks} onEditMarks={() => setMarkSettingsOpen(true)} />
         : room.type === "todo"
-          ? <TodoRoom key={room.id} {...common} onTodoComplete={onTodoComplete} onTodoUncomplete={onTodoUncomplete} onRoomChange={(patch) => updateRoom(room.id, patch)} />
+          ? <TodoRoom key={room.id} {...common} onTodoComplete={onTodoComplete} onTodoUncomplete={onTodoUncomplete} onRoomChange={(patch) => updateRoom(room.id, patch)} todoRooms={rooms.filter((r) => r.type === "todo" && r.id !== room.id)} onMoveTodo={moveTodoToRoom} />
           : room.type === "darelog"
             ? <DarelogRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />
             : room.type === "expense"
