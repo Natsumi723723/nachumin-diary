@@ -337,7 +337,8 @@ export const css = `
     touch-action: pan-y;
     -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
   }
-  .ig-cell.dragging { opacity: .96; }
+  /* ドラッグ中のセル: z-indexを効かせるため positioned にする（他のアイコンより前面へ） */
+  .ig-cell.dragging { opacity: .96; position: relative; will-change: transform; }
   .ig-tile {
     width: 100%; border: none; background: transparent; cursor: pointer;
     display: flex; flex-direction: column; align-items: center; gap: 6px;

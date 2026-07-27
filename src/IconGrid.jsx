@@ -52,13 +52,20 @@ export default function IconGrid({ items, keyOf, onReorder, renderItem, onLongPr
   const updateDrag = () => {
     const c = cRef.current;
     if (!c || S.current.dragKey == null) return;
-    // 一番近いセルの中心を探して、そこへ差し込む
+    /* 一番近いセルを探して、そこへ差し込む。
+       ドラッグ中の要素は transform で指の下に移動しているため、getBoundingClientRect で
+       測ると「常に自分がいちばん近い」ことになり並べ替えが起きない。
+       transform の影響を受けない offsetLeft/offsetTop（本来のレイアウト位置）で測る。 */
+    const gr = c.getBoundingClientRect();
+    const px = S.current.pointerX - gr.left; // グリッド内座標
+    const py = S.current.pointerY - gr.top;
     const cells = [...c.querySelectorAll("[data-dk]")];
     let target = 0, best = Infinity;
     for (let i = 0; i < cells.length; i++) {
-      const r = cells[i].getBoundingClientRect();
-      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      const d = (S.current.pointerX - cx) ** 2 + (S.current.pointerY - cy) ** 2;
+      const el = cells[i];
+      const cx = el.offsetLeft + el.offsetWidth / 2;
+      const cy = el.offsetTop + el.offsetHeight / 2;
+      const d = (px - cx) ** 2 + (py - cy) ** 2;
       if (d < best) { best = d; target = i; }
     }
     const arr = S.current.order;
