@@ -784,7 +784,8 @@ export default function TodoRoom({
             x={menu.x} y={menu.y}
             onClose={() => setMenu(null)}
             onCopy={async () => {
-              const ok = await copyText(t ? `🩷${keyToDisp(t.doneDateKey || t.dateKey)}🩷\n${t.text}` : "");
+              // 日付の行は付けない（日付ヘッダーを付けるのは日記だけ）
+              const ok = await copyText(t ? t.text : "");
               showToast(ok ? "コピーしました🩷" : "コピーできませんでした。手動でコピーしてね");
               setMenu(null);
             }}

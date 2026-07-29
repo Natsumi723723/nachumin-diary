@@ -3,7 +3,7 @@ import {
   get, set, roomDataKey, doneLogKey, habitsKey, habitLogKey, habitSeedKey
 } from "./storage.js";
 import {
-  keyToDisp, keyToDate, WEEKDAYS, dowClass, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
+  keyToDisp, keyToDate, WEEKDAYS, dowClass, dateWithDow, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
   diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER, DECL_MARKER, safeFileName, copyText
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
@@ -372,7 +372,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     const out = [];
     let cur = "";
     for (const r of rows) {
-      if (r.dateKey !== cur) { cur = r.dateKey; if (out.length) out.push(""); out.push(`🩷${keyToDisp(cur)}🩷`); }
+      if (r.dateKey !== cur) { cur = r.dateKey; if (out.length) out.push(""); out.push(`🩷${dateWithDow(cur)}🩷`); }
       out.push(r.text);
     }
     const ok = await copyText(out.join("\n"));
@@ -563,7 +563,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
           x={menu.x} y={menu.y}
           onClose={() => setMenu(null)}
           onCopy={() => doCopyText(
-            `🩷${keyToDisp(menu.k)}🩷\n` +
+            `🩷${dateWithDow(menu.k)}🩷\n` +
             (menu.type === "diary" ? entries[menu.k]?.text || "" : doneTextOf(menu.k))
           )}
           onEdit={menu.type === "diary" ? () => { setMenu(null); startEdit(menu.k); } : undefined}
