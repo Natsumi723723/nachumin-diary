@@ -67,7 +67,7 @@ function metaFromData(room, data) {
     const last = ts[ts.length - 1];
     return {
       preview: typeof last?.text === "string" ? `${last.done ? "☑" : "☐"} ${last.text.split("\n")[0]}`.slice(0, 40) : "",
-      todoOpen: ts.filter((t) => !t.done).length,
+      todoOpen: ts.filter((t) => !t.done && !t.deferred).length, // 見送りは数えない
       lastAt: room.lastAt || (last ? Date.now() : 0)
     };
   }

@@ -53,7 +53,12 @@ export default function TodoRoom({
     (async () => {
       try {
         const v = await get(roomDataKey(room.id));
-        if (v && Array.isArray(v.todos)) setTodos(v.todos);
+        if (v && Array.isArray(v.todos)) {
+          setTodos(v.todos);
+          // 保存済みのバッジ数が古い場合はここで直す（見送りを含んでいた頃の値の是正）
+          const open = v.todos.filter((t) => !t.done && !t.deferred).length;
+          if (room.todoOpen !== open) onMeta({ todoOpen: open });
+        }
       } catch (e) {
         /* no data yet */
       } finally {
@@ -66,7 +71,7 @@ export default function TodoRoom({
     setTodos(next);
     try {
       await set(roomDataKey(room.id), { todos: next });
-      const open = next.filter((t) => !t.done).length;
+      const open = next.filter((t) => !t.done && !t.deferred).length; // 見送りは数えない
       const last = next[next.length - 1];
       onMeta({
         preview: last ? `${last.done ? "☑" : "☐"} ${last.text.split("\n")[0]}`.slice(0, 40) : "",

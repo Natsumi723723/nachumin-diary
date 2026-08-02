@@ -589,6 +589,25 @@ export const css = `
   }
   .shop-toggle.on .shop-box { background: #ff1478; border-color: #ff1478; }
 
+  /* 🙈 非表示ルーム */
+  .hidden-entry {
+    display: block; margin: 18px auto 4px; cursor: pointer;
+    border: 1.5px dashed #e9a8cc; background: rgba(255,255,255,.55);
+    color: #b04a86; border-radius: 999px; padding: 8px 16px;
+    font-size: 12px; font-weight: 800;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hidden-entry:active { transform: scale(.97); }
+  .move-item.as-row { cursor: default; }
+  .move-item.as-row:active { background: #fff5fa; transform: none; }
+  .unhide-btn {
+    flex-shrink: 0; cursor: pointer; border: none;
+    background: linear-gradient(90deg,#ff5fb0,#ff1478); color: #fff;
+    border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 800;
+    box-shadow: 0 2px 6px rgba(255,20,120,.35);
+  }
+  .unhide-btn:active { transform: scale(.95); }
+
   /* 📦 TODOのルーム間移動: 移動先ピッカー */
   .move-list { display: flex; flex-direction: column; gap: 7px; }
   .move-item {

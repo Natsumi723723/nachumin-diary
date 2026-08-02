@@ -42,6 +42,7 @@ export default function App() {
   const [declDraft, setDeclDraft] = useState("");
   const [diarySync, setDiarySync] = useState(0); // 開いている日記ルームへ再読込を通知
   const [diaryToday, setDiaryToday] = useState(null); // ホームの日記カード用 {written,preview}
+  const [hiddenModal, setHiddenModal] = useState(false); // 🙈 非表示ルームの一覧
   const homeScrollRef = useRef(null);
   const homeScrollPos = useRef(0);
   const [marks, setMarks] = useState(DEFAULT_MARKS);
@@ -393,6 +394,7 @@ export default function App() {
     updateRoom(modal.roomId, {
       name, emoji: modal.emoji.trim() || "💗",
       theme: modal.theme || DEFAULT_THEME,
+      hidden: !!modal.hidden,
       ...(modal.type === "todo" ? { shopping: !!modal.shopping } : {})
     });
     setModal(null);
@@ -400,7 +402,7 @@ export default function App() {
 
   // ルーム設定モーダルを開く（アイコン長押し・検索結果の⋯から共通で使う）
   const openRoomSettings = (r) => {
-    setModal({ mode: "edit", roomId: r.id, name: r.name, emoji: r.emoji, type: r.type, shopping: !!r.shopping, theme: r.theme || DEFAULT_THEME });
+    setModal({ mode: "edit", roomId: r.id, name: r.name, emoji: r.emoji, type: r.type, shopping: !!r.shopping, theme: r.theme || DEFAULT_THEME, hidden: !!r.hidden });
     setRoomDel(false);
   };
 
@@ -723,14 +725,16 @@ export default function App() {
           >
             {(() => {
               const diaryRoom = rooms.find((r) => r.id === DIARY_ROOM_ID);
-              const gridRooms = sorted.filter((r) => r.id !== DIARY_ROOM_ID);
+              const gridRooms = sorted.filter((r) => r.id !== DIARY_ROOM_ID && !r.hidden);
+              const hiddenRooms = sorted.filter((r) => r.id !== DIARY_ROOM_ID && r.hidden);
               const td = keyToDate(todayKey());
               const diarySub = !diaryToday ? "…"
                 : diaryToday.written ? diaryToday.preview
                 : `${td.getMonth() + 1}/${td.getDate()}・きょうの分はまだ`;
+              // 並べ替えは表示中のルームだけ差し替える（非表示ルームの位置はそのまま残す）
               const onReorderGrid = (newGrid) => {
                 const q = [...newGrid];
-                saveRooms(rooms.map((r) => (r.id === DIARY_ROOM_ID ? r : q.shift())));
+                saveRooms(rooms.map((r) => (r.id === DIARY_ROOM_ID || r.hidden ? r : q.shift())));
               };
               return (
                 <>
@@ -774,6 +778,33 @@ export default function App() {
                       );
                     }}
                   />
+                  {hiddenRooms.length > 0 && (
+                    <button className="hidden-entry" onClick={() => setHiddenModal(true)}>
+                      🙈 非表示のルーム {hiddenRooms.length}
+                    </button>
+                  )}
+                  {hiddenModal && (
+                    <div className="overlay" onClick={() => setHiddenModal(false)}>
+                      <div className="panel" onClick={(e) => e.stopPropagation()}>
+                        <h3>🙈 非表示のルーム</h3>
+                        <p className="panel-note">
+                          一覧に出していないルームです。中の記録は消えていません。「戻す」でまた表示できます。
+                        </p>
+                        <div className="move-list">
+                          {hiddenRooms.map((r) => (
+                            <div className="move-item as-row" key={r.id}>
+                              <span className="move-ic">{r.emoji}</span>
+                              <span className="move-name">{r.name}</span>
+                              <button className="unhide-btn" onClick={() => updateRoom(r.id, { hidden: false })}>戻す</button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="panel-btns">
+                          <button className="p-close" onClick={() => setHiddenModal(false)}>閉じる</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               );
             })()}
@@ -858,6 +889,18 @@ export default function App() {
                 onClick={() => setModal((o) => ({ ...o, type: "expense" }))}
               >💰 経費<small>支出を記録</small></button>
             </div>
+            {modal.mode === "edit" && modal.roomId !== DIARY_ROOM_ID && (
+              <>
+                <div className="f-label">一覧での表示</div>
+                <button
+                  className={"shop-toggle" + (modal.hidden ? " on" : "")}
+                  onClick={() => setModal((o) => ({ ...o, hidden: !o.hidden }))}
+                >
+                  <span className="shop-box">{modal.hidden ? "✓" : ""}</span>
+                  🙈 一覧に表示しない（記録は消えません）
+                </button>
+              </>
+            )}
             {modal.type === "todo" && (
               <>
                 <div className="f-label">用途</div>
