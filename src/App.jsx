@@ -780,7 +780,7 @@ export default function App() {
                   />
                   {hiddenRooms.length > 0 && (
                     <button className="hidden-entry" onClick={() => setHiddenModal(true)}>
-                      🙈 非表示のルーム {hiddenRooms.length}
+                      🙈 非表示のルーム
                     </button>
                   )}
                   {hiddenModal && (
