@@ -485,6 +485,12 @@ export const css = `
   .dl-datecol.wd-sat .dl-md, .dl-datecol.wd-sat .dl-wd { color: #2f7fc4; }
   .dl-datecol.wd-sun .dl-md, .dl-datecol.wd-sun .dl-wd { color: #ff1478; }
   .body { white-space: pre-wrap; font-size: 14.5px; line-height: 1.75; }
+  /* 本文中のURLリンク（長いURLでも吹き出しからはみ出さないよう折り返す） */
+  .body-link {
+    color: #d5006a; text-decoration: underline; text-underline-offset: 2px;
+    font-weight: 700; word-break: break-all;
+  }
+  .body-link:active { opacity: .6; }
   /* talk bubbles */
   .date-pill { text-align: center; margin: 14px 0 10px; }
   .date-pill span {
