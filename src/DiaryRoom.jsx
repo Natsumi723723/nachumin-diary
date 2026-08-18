@@ -3,7 +3,7 @@ import {
   get, set, roomDataKey, doneLogKey, habitsKey, habitLogKey, habitSeedKey
 } from "./storage.js";
 import {
-  keyToDisp, keyToDate, WEEKDAYS, dowClass, dateWithDow, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
+  keyToDisp, keyToDate, toKey, WEEKDAYS, dowClass, dateWithDow, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
   diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER, DECL_MARKER, safeFileName, copyText
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
@@ -481,9 +481,35 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
           const done = doneLog[k] || [];
           const isToday = k === today;
           const ach = habitAch[k] || [];
-          // その日(29時制)の曜日に該当する習慣だけ表示（毎日は常に、毎週は指定曜日のみ）
+          /* その日(29時制)の曜日に該当する習慣を表示。
+             毎日=常に / 毎週=指定曜日。
+             ただし週次は、指定曜日にDONEにしなかったら翌日以降も繰り越して出し続ける
+             （次の指定曜日が来れば新しい回として出るので、無限には溜まらない）*/
           const dow = keyToDate(k).getDay();
-          const dayHabits = habits.filter((h) => (h.freq === "weekly" ? (h.days || []).includes(dow) : true));
+          const carry = new Set(); // 繰り越しで出している習慣のid
+          const dayHabits = habits.filter((h) => {
+            if (h.freq !== "weekly") return true;
+            const wdays = h.days || [];
+            if (!wdays.length) return false;
+            // 指定曜日は、前の回をDONEにしていても新しい回として必ず出す
+            if (wdays.includes(dow)) return true;
+            // この日に達成した分は「できた」表示のまま残す（押した瞬間に消えないように）
+            if ((habitAch[k] || []).includes(h.id)) { carry.add(h.id); return true; }
+            // 直近の指定曜日（最大6日前）を探す
+            let base = null;
+            for (let i = 1; i <= 6; i++) {
+              const dd = keyToDate(k);
+              dd.setDate(dd.getDate() - i);
+              if (wdays.includes(dd.getDay())) { base = dd; break; }
+            }
+            if (!base) return false;
+            // 指定曜日〜前日までのどこかで達成済みなら、その回は済んでいるので出さない
+            for (const dd = new Date(base); toKey(dd) < k; dd.setDate(dd.getDate() + 1)) {
+              if ((habitAch[toKey(dd)] || []).includes(h.id)) return false;
+            }
+            carry.add(h.id); // まだ未達成 → 繰り越して表示
+            return true;
+          });
           const showHabits = dayHabits.length > 0 && (isToday || hasDiary || ach.length > 0);
           const showDone = done.length > 0 || showHabits;
           return (
@@ -541,13 +567,14 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                       <div className={"habits-row" + (done.length ? " has-sep" : "")}>
                         {dayHabits.map((h) => {
                           const on = ach.includes(h.id);
+                          const isCarry = carry.has(h.id);
                           return (
                             <button
                               key={h.id}
-                              className={"habit-chip" + (on ? " on" : "")}
+                              className={"habit-chip" + (on ? " on" : "") + (isCarry ? " carry" : "")}
                               onClick={() => toggleHabit(k, h.id)}
                             >
-                              {h.emoji ? h.emoji + " " : ""}{h.name}{on ? " 🩷" : ""}
+                              {isCarry ? "⏳ " : ""}{h.emoji ? h.emoji + " " : ""}{h.name}{on ? " 🩷" : ""}
                             </button>
                           );
                         })}

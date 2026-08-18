@@ -1307,6 +1307,9 @@ export const css = `
     cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
   .habit-chip.on { background: #e0629f; border-color: #e0629f; color: #fff; }
+  /* 繰り越し（指定曜日にDONEにしなかった週次習慣）: 破線で「持ち越し中」を示す */
+  .habit-chip.carry { border-style: dashed; border-color: #ef6bb0; color: #d5006a; background: #fff6fb; }
+  .habit-chip.carry.on { border-style: solid; background: #e0629f; border-color: #e0629f; color: #fff; }
   .dow-row { display: flex; gap: 5px; flex-basis: 100%; margin-top: 5px; }
   .dow-chip {
     flex: 1; border: 1.5px solid #f0a6cf; background: #fff; color: #b04a86;

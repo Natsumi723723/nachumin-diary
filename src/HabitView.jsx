@@ -34,13 +34,14 @@ export default function HabitView({ habits, habitAch, onToggle, onClose, onManag
 
   const isTarget = (h, dow) => (h.freq === "weekly" ? (h.days || []).includes(dow) : true);
 
-  // その月の達成回数 / 対象日のうち今日までに来た日数
+  /* その月の達成回数 / 対象日のうち今日までに来た日数。
+     週次は繰り越して別の曜日に達成することがあるので、達成数は曜日を問わず数える
+     （分母は従来どおり「対象曜日のうち来た日数」） */
   const stat = (h) => {
     let done = 0;
     let total = 0;
     for (const dd of days) {
-      if (!isTarget(h, dd.dow)) continue;
-      if (!dd.future) total += 1;
+      if (isTarget(h, dd.dow) && !dd.future) total += 1;
       if ((habitAch[dd.key] || []).includes(h.id)) done += 1;
     }
     return { done, total };
@@ -63,14 +64,15 @@ export default function HabitView({ habits, habitAch, onToggle, onClose, onManag
           {days.map((dd) => {
             const target = isTarget(h, dd.dow);
             const on = (habitAch[dd.key] || []).includes(h.id);
+            // 繰り越しで対象外の曜日に達成した分も、スタンプは見えるように（取り消しも可）
             return (
               <button
                 key={dd.key}
                 className={
-                  "hv-cell" + (on ? " on" : "") + (target ? "" : " off") +
+                  "hv-cell" + (on ? " on" : "") + (target || on ? "" : " off") +
                   (dd.isToday ? " today" : "") + (dd.future ? " future" : "")
                 }
-                disabled={!target || dd.future}
+                disabled={(!target && !on) || dd.future}
                 aria-label={`${m}月${dd.d}日 ${h.name}${on ? " 達成ずみ" : ""}`}
                 aria-pressed={on}
                 onClick={() => onToggle(dd.key, h.id)}
