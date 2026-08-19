@@ -13,6 +13,7 @@ import Pressable from "./Pressable.jsx";
 import ContextMenu from "./ContextMenu.jsx";
 import ConfirmDialog from "./ConfirmDialog.jsx";
 import HabitView from "./HabitView.jsx";
+import linkify from "./linkify.jsx";
 
 const DECL_TAG = "🎬"; // 今日のコマ用の擬似タグ（マーク一覧の一番右）
 const MON_FIRST = [1, 2, 3, 4, 5, 6, 0]; // 曜日チップは月曜始まり
@@ -308,35 +309,8 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     );
   };
 
-  /* 本文の描画: URLをリンクにしつつ、それ以外は検索ハイライトを通す。
-     リンクのタップで吹き出しの編集モードが開かないよう stopPropagation する。 */
-  const renderBody = (text) => {
-    if (!text) return text;
-    const out = [];
-    // 日本語（かな・漢字・全角記号・「。」等）が来たらURLは終わり。
-    // 「https://example.com。つづきの文章」のように後ろの本文まで飲み込まないため
-    const re = /https?:\/\/[^\s　-〿぀-ヿ一-鿿＀-￯]+/g;
-    let last = 0, key = 0, m;
-    while ((m = re.exec(text))) {
-      let url = m[0];
-      // URLの直後に付きがちな句読点・閉じカッコはリンクに含めない
-      const tail = (url.match(/[.,;:、。）)\]】」』"'！？!?]+$/) || [""])[0];
-      if (tail) url = url.slice(0, url.length - tail.length);
-      if (!url) continue;
-      if (m.index > last) out.push(<Fragment key={key++}>{highlight(text.slice(last, m.index))}</Fragment>);
-      out.push(
-        <a
-          key={key++} className="body-link" href={url}
-          target="_blank" rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-        >{url}</a>
-      );
-      last = m.index + url.length;
-    }
-    if (!out.length) return highlight(text);
-    if (last < text.length) out.push(<Fragment key={key++}>{highlight(text.slice(last))}</Fragment>);
-    return out;
-  };
+  // 本文の描画: URLをリンクにしつつ、それ以外は検索ハイライトを通す（TODOと共通）
+  const renderBody = (text) => linkify(text, highlight);
 
   /* 🔖 マーク抽出: 行頭にあるマークだけを拾う（文中のマークは無視）
      + 🎬 今日のコマ は専用タグとして一番右に並べる（文言は外して本文だけ） */

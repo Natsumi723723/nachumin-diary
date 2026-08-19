@@ -9,6 +9,7 @@ import DragList from "./DragList.jsx";
 import Pressable from "./Pressable.jsx";
 import ContextMenu from "./ContextMenu.jsx";
 import ConfirmDialog from "./ConfirmDialog.jsx";
+import linkify from "./linkify.jsx";
 import { MEMBER_COLORS, textOn } from "./theme.js";
 
 /* TODO型ルーム: 1メッセージ=1TODO。チェックで完了→日記へライフログ */
@@ -573,7 +574,7 @@ export default function TodoRoom({
                       ) : (
                         <>
                           {imp && <span className="todo-star">❣️</span>}
-                          <span className={"todo-text" + (t.done ? " done" : "")}>{highlight(t.text)}</span>
+                          <span className={"todo-text" + (t.done ? " done" : "")}>{linkify(t.text, highlight)}</span>
                           {pl && !imp && (
                             <span
                               className="todo-place"
@@ -634,7 +635,7 @@ export default function TodoRoom({
                             placeholder="TODOを書きなおしてね"
                           />
                         ) : (
-                          <span className="todo-text done">{highlight(t.text)}</span>
+                          <span className="todo-text done">{linkify(t.text, highlight)}</span>
                         )}
                       </Pressable>
                       <div className="todo-time">{t.doneTime || ""} 完了</div>
@@ -674,7 +675,7 @@ export default function TodoRoom({
                       placeholder="TODOを書きなおしてね"
                     />
                   ) : (
-                    <span className="todo-text deferred-text">{highlight(t.text)}</span>
+                    <span className="todo-text deferred-text">{linkify(t.text, highlight)}</span>
                   )}
                 </Pressable>
                 <div className="todo-time">見送り</div>

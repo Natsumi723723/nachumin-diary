@@ -717,7 +717,8 @@ export const css = `
     clip-path: polygon(100% 0, 0 30%, 80% 100%);
   }
   .todo-bubble.editing-now { outline: 2px solid #e0629f; }
-  .todo-text { white-space: pre-wrap; font-size: 14.5px; line-height: 1.6; }
+  /* 長いURLなど切れ目のない文字列でも吹き出しからはみ出さないよう折り返す */
+  .todo-text { white-space: pre-wrap; font-size: 14.5px; line-height: 1.6; overflow-wrap: anywhere; }
   .todo-text.done { text-decoration: line-through; color: #b79cab; }
   .todo-text.deferred-text { color: #9a8b95; }
   .todo-bubble.deferred { background: #f5eef2; opacity: .9; }
