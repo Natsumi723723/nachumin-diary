@@ -259,7 +259,7 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
           </tbody>
         </table>
         {members.length === 0 && (
-          <div className="empty">👥からメンバー（人格）を登録してね💗</div>
+          <div className="empty">👥からメンバーを登録してね💗</div>
         )}
       </div>
 
@@ -371,11 +371,11 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
           <div className="panel" onClick={(e) => e.stopPropagation()}>
             <h3>📥 テキストから復元</h3>
             <textarea
-              placeholder={"エクスポートした .txt を貼り付けてね\n\n🩷2026/07/17🩷 🌅朝:ヒカルくん / 🌙夜:柊くん(メモ)"}
+              placeholder={"エクスポートした .txt を貼り付けてね\n\n🩷2026/07/17🩷 🌅朝:ブルー / 🌙夜:グリーン(メモ)"}
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
             />
-            <p className="panel-note">※ 知らない人格名は自動登録。同じ日付・時間帯・人格は重複スキップ</p>
+            <p className="panel-note">※ 知らない名前は自動登録。同じ日付・時間帯・メンバーは重複スキップ</p>
             <div className="panel-btns">
               <button className="p-copy" disabled={!importText.trim()} onClick={doImport}>読み込む</button>
               <button className="p-close" onClick={() => { setImportOpen(false); setImportText(""); }}>閉じる</button>

@@ -36,7 +36,7 @@ export const PALETTE = [
   "#d9ffe3", "#e8dcff", "#f0f0f0", "#2b2430"
 ];
 
-// だれログ/トークの人格に使うビビッドな背景色（一目で区別できる濃い色）
+// だれログ/トークのメンバーに使うビビッドな背景色（一目で区別できる濃い色）
 export const MEMBER_COLORS = [
   "#9C27B0", // 濃い紫
   "#E91E63", // 濃いピンク
@@ -92,7 +92,7 @@ export const textOn = (bg) => {
   return L < 140 ? "#fff5fa" : "#4a3140";
 };
 
-// 人格ラベルの文字色（明示指定があればそれ、無ければ自動）
+// メンバーラベルの文字色（明示指定があればそれ、無ければ自動）
 export const memberText = (m) => (m && m.textColor ? m.textColor : textOn(m && m.color));
 
 export const css = `

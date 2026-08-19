@@ -347,12 +347,12 @@ export default function App() {
       return;
     }
     const defaultEmoji = { diary: "💗", todo: "✅", darelog: "🌗", expense: "💰", talk: "🩷" }[modal.type] || "🩷";
-    // だれログは初期人格を用意（記録のハードルをゼロに）
+    // だれログは初期メンバーを用意（記録のハードルをゼロに）
     const initMembers = modal.type === "darelog"
       ? [
-          { id: uid(), name: "ヒカルくん", color: "#d4f0ff", icon: { type: "emoji", value: "🌊" }, side: "left" },
-          { id: uid(), name: "柊くん", color: "#d9ffe3", icon: { type: "emoji", value: "🌿" }, side: "left" },
-          { id: uid(), name: "ひかりちゃん", color: "#ffd9ec", icon: { type: "emoji", value: "🌸" }, side: "right" }
+          { id: uid(), name: "ブルー", color: "#d4f0ff", icon: { type: "emoji", value: "🌊" }, side: "left" },
+          { id: uid(), name: "グリーン", color: "#d9ffe3", icon: { type: "emoji", value: "🌿" }, side: "left" },
+          { id: uid(), name: "ピンク", color: "#ffd9ec", icon: { type: "emoji", value: "🌸" }, side: "right" }
         ]
       : [];
     // 経費は初期カテゴリを用意

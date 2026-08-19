@@ -4,7 +4,7 @@ import { MEMBER_COLORS, TEXT_COLORS, memberText } from "./theme.js";
 import { MIcon } from "./TalkRoom.jsx";
 import ConfirmDialog from "./ConfirmDialog.jsx";
 
-/* メンバー（人格）の登録・編集モーダル。トーク型・だれログ型で共用 */
+/* メンバーの登録・編集モーダル。トーク型・だれログ型で共用 */
 export default function MemberEditor({ members, onChange, onClose, showToast }) {
   const [page, setPage] = useState("list"); // 'list' | 'form'
   const [member, setMember] = useState(null);
@@ -110,7 +110,7 @@ export default function MemberEditor({ members, onChange, onClose, showToast }) 
             <div className="f-label">名前</div>
             <input
               className="f-input" autoFocus={isNew}
-              placeholder="ヒカルくん" value={member.name}
+              placeholder="なまえ" value={member.name}
               onChange={(e) => setMember((o) => ({ ...o, name: e.target.value }))}
             />
             <div className="f-label">アイコン</div>
