@@ -963,6 +963,84 @@ export const css = `
   .sum-route { font-size: 12.5px; font-weight: 700; color: #0d7f8c; }
   .sum-n { font-size: 10.5px; color: #a4517f; margin-left: 6px; font-weight: 700; }
 
+  /* ===== 🌡️ 体調ビュー ===== */
+  .hl-screen {
+    position: fixed; inset: 0; z-index: 30;
+    display: flex; flex-direction: column;
+    background: ${bgUrl} #f6bedd; background-size: 240px 240px;
+  }
+  .hl-scroll { flex: 1; overflow-y: auto; padding: 12px 14px calc(24px + env(safe-area-inset-bottom)); }
+  /* 次回予測カード */
+  .hl-pred {
+    background: linear-gradient(120deg,#fff2fb,#ffe0f2 60%,#ffd0ef);
+    border: 2px solid rgba(255,255,255,.9); border-radius: 20px;
+    padding: 14px 16px; margin-bottom: 12px;
+    box-shadow: 0 8px 18px rgba(255,80,170,.26), inset 0 2px 0 #fff;
+  }
+  .hl-pred.soon { border-color: #ff1478; box-shadow: 0 8px 20px rgba(255,20,120,.4), inset 0 2px 0 #fff; }
+  .hl-pred-l { font-size: 11.5px; font-weight: 800; color: #b0567f; letter-spacing: .04em; }
+  .hl-pred-d {
+    font-size: 26px; font-weight: 900; color: #d5006a; line-height: 1.2;
+    display: flex; align-items: baseline; gap: 10px; margin: 2px 0 3px;
+  }
+  .hl-pred-in { font-size: 13px; font-weight: 800; color: #ff1478; }
+  .hl-pred-sub { font-size: 11.5px; font-weight: 700; color: #a4517f; }
+  /* 今日の記録チップ */
+  .hl-today { display: flex; flex-wrap: wrap; gap: 7px; }
+  .hl-chip {
+    border: 1.5px solid #f0a6cf; background: #fff; color: #b04a86;
+    border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 800;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .hl-chip:active { transform: scale(.95); }
+  .hl-chip.hl-period { border-color: #ff4d6d; color: #e11d48; }
+  .hl-chip.hl-period.on { background: #e11d48; border-color: #e11d48; color: #fff; }
+  .hl-chip.hl-add { border-style: dashed; color: #c2478f; }
+  .hl-seg { margin-bottom: 4px; }
+  /* 周期チャート */
+  .hl-chartwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  .hl-chart { width: max-content; min-width: 100%; }
+  .hl-row { display: flex; align-items: stretch; }
+  .hl-rowlabel {
+    position: sticky; left: 0; z-index: 3;
+    flex: 0 0 62px; width: 62px; box-sizing: border-box;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 0 5px; min-height: 26px;
+    background: #fff2f9; border-right: 1.5px solid #f3b9d9; border-bottom: 1px solid #fadcec;
+  }
+  .hl-rl-date { font-size: 10.5px; font-weight: 800; color: #b5005c; line-height: 1.2; }
+  .hl-rl-len { font-size: 9px; font-weight: 700; color: #a4517f; }
+  .hl-cells { display: flex; gap: 1px; padding: 2px 4px; --hcw: 15px; }
+  .hl-cell {
+    width: var(--hcw); height: 22px; flex-shrink: 0; border-radius: 4px;
+    border: 1px solid #f0c4de; background: rgba(255,255,255,.55);
+    display: flex; align-items: center; justify-content: center; gap: 1px;
+    flex-wrap: wrap; align-content: center; padding: 1px; box-sizing: border-box;
+  }
+  .hl-cell.blank { border-color: transparent; background: transparent; }
+  .hl-cell.period { background: linear-gradient(160deg,#ff8fa3,#e11d48); border-color: #e11d48; }
+  .hl-cell.today { border-color: #4a3140; border-width: 2px; }
+  .hl-cell.future { opacity: .4; }
+  .hl-dot { width: 5px; height: 5px; border-radius: 50%; display: inline-block; }
+  /* 日付ヘッダー */
+  .hl-head { position: sticky; top: 0; z-index: 4; }
+  .hl-head .hl-rowlabel { z-index: 5; background: #ffe4f3; font-size: 10px; font-weight: 800; color: #b5005c; }
+  .hl-head .hl-cells { background: rgba(255,228,243,.96); }
+  .hl-dcell {
+    width: var(--hcw); flex-shrink: 0; text-align: center;
+    font-size: 8.5px; font-weight: 800; color: #9a5b83; padding: 3px 0;
+  }
+  /* 凡例 */
+  .hl-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+  .hl-lg { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: #7d3a63; }
+  .hl-lg-box { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .hl-lg-box.period { background: linear-gradient(160deg,#ff8fa3,#e11d48); }
+  .hl-hist-len { font-size: 10.5px; color: #a4517f; margin-left: 4px; }
+  /* 日記の中の体調チップ */
+  .hl-daily .done-bubble { background: #fff2f7; }
+  .habit-chip.hl-p-chip { border-color: #ff4d6d; color: #e11d48; }
+  .habit-chip.hl-p-chip.on { background: #e11d48; border-color: #e11d48; color: #fff; }
+
   /* ===== 🎯 習慣ビュー（月間スタンプ表） ===== */
   .overlay.habit-over { z-index: 50; }
   .hv-open {

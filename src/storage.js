@@ -25,6 +25,13 @@ export const doneLogKey = (roomId) => `donelog-v1:${roomId}`;
 export const habitsKey = (roomId) => `habits-v1:${roomId}`;
 export const habitLogKey = (roomId) => `habitlog-v1:${roomId}`;
 export const habitSeedKey = (roomId) => `habitseed-v1:${roomId}`; // 週報を一度だけ用意した印
+/* 体調記録: 生理の日・体調項目の定義・日別の体調ログ。
+   生理は「その日が生理か」を日単位で持ち、連続した並びの先頭を周期の開始日とみなす
+   （＝日数も周期も同じデータから出せる） */
+export const periodKey = (roomId) => `period-v1:${roomId}`;      // { days: ["YYYY-MM-DD", ...] }
+export const symptomsKey = (roomId) => `symptoms-v1:${roomId}`;  // [{id,name,emoji,color}]
+export const symptomLogKey = (roomId) => `symptomlog-v1:${roomId}`; // { dateKey: [symptomId] }
+export const symptomSeedKey = (roomId) => `symptomseed-v1:${roomId}`; // 初期項目を一度だけ用意した印
 // まるごとバックアップの記録（最後に書き出した日・バナーを閉じた日）
 export const BACKUP_KEY = "backup-v1";
 

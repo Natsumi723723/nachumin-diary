@@ -1,6 +1,7 @@
 import {
   get, set, ROOMS_KEY, roomDataKey, DECL_KEY, doneLogKey, MARKS_KEY,
-  habitsKey, habitLogKey, habitSeedKey
+  habitsKey, habitLogKey, habitSeedKey,
+  periodKey, symptomsKey, symptomLogKey, symptomSeedKey
 } from "./storage.js";
 
 const SLOT_EMOJI = { morning: "🌅", noon: "☀️", night: "🌙" };
@@ -28,7 +29,8 @@ export function validateBackup(obj) {
   if (obj.data != null && (typeof obj.data !== "object" || Array.isArray(obj.data))) {
     return "ルームの中身の形式が壊れています 🥺";
   }
-  for (const k of ["doneLogs", "habits", "habitLogs", "habitSeeds"]) {
+  for (const k of ["doneLogs", "habits", "habitLogs", "habitSeeds",
+                   "periods", "symptoms", "symptomLogs", "symptomSeeds"]) {
     if (obj[k] != null && (typeof obj[k] !== "object" || Array.isArray(obj[k]))) {
       return `${k} の形式が壊れています 🥺`;
     }
@@ -112,6 +114,10 @@ export async function dumpAll() {
   const habits = {};
   const habitLogs = {};
   const habitSeeds = {};
+  const periods = {};
+  const symptoms = {};
+  const symptomLogs = {};
+  const symptomSeeds = {};
   for (const r of rooms) {
     const dl = await get(doneLogKey(r.id));
     if (dl && Object.keys(dl).length) doneLogs[r.id] = dl;
@@ -120,6 +126,14 @@ export async function dumpAll() {
     const hl = await get(habitLogKey(r.id));
     if (hl && Object.keys(hl).length) habitLogs[r.id] = hl;
     if (await get(habitSeedKey(r.id))) habitSeeds[r.id] = true;
+    // 体調記録（生理の日・体調項目・日別ログ）
+    const pd = await get(periodKey(r.id));
+    if (Array.isArray(pd?.days) && pd.days.length) periods[r.id] = pd.days;
+    const sy = await get(symptomsKey(r.id));
+    if (Array.isArray(sy) && sy.length) symptoms[r.id] = sy;
+    const sl = await get(symptomLogKey(r.id));
+    if (sl && Object.keys(sl).length) symptomLogs[r.id] = sl;
+    if (await get(symptomSeedKey(r.id))) symptomSeeds[r.id] = true;
   }
   const marks = (await get(MARKS_KEY)) || null;
   return {
@@ -133,6 +147,10 @@ export async function dumpAll() {
     habits,
     habitLogs,
     habitSeeds,
+    periods,
+    symptoms,
+    symptomLogs,
+    symptomSeeds,
     marks
   };
 }
@@ -267,6 +285,60 @@ export async function restoreAll(obj) {
   if (obj.habitSeeds) {
     for (const rid of Object.keys(obj.habitSeeds)) {
       if (obj.habitSeeds[rid]) await set(habitSeedKey(rid), true);
+    }
+  }
+  // 生理の日（日付の集合なので和集合でマージ）
+  if (obj.periods) {
+    for (const [rid, days] of Object.entries(obj.periods)) {
+      if (!Array.isArray(days)) continue;
+      const cur = (await get(periodKey(rid)))?.days || [];
+      await set(periodKey(rid), { days: [...new Set([...cur, ...days])].sort() });
+    }
+  }
+  /* 体調の項目。習慣と同じく、新しい端末では初期項目が自動生成されているため、
+     単純にスキップすると自作の項目（頭痛など）が失われ、ログも宙に浮く。
+     同じID→そのまま / 同じ名前→既存IDに寄せる / どちらも無い→追加 の対応表を作る */
+  const symIdMap = {};
+  if (obj.symptoms) {
+    for (const [rid, incoming] of Object.entries(obj.symptoms)) {
+      if (!Array.isArray(incoming)) continue;
+      const cur = await get(symptomsKey(rid));
+      if (cur === undefined) { await set(symptomsKey(rid), incoming); continue; }
+      const curArr = Array.isArray(cur) ? cur : [];
+      const ids = new Set(curArr.map((x) => x.id));
+      const names = new Map(curArr.filter((x) => (x.name || "").trim()).map((x) => [x.name.trim(), x.id]));
+      const next = curArr.slice();
+      const idMap = {};
+      for (const x of incoming) {
+        if (!x || !x.id) continue;
+        if (ids.has(x.id)) { idMap[x.id] = x.id; continue; }
+        const nm = (x.name || "").trim();
+        const same = nm ? names.get(nm) : null;
+        if (same) { idMap[x.id] = same; continue; } // 自動生成された同名の項目に寄せる
+        next.push(x); ids.add(x.id); if (nm) names.set(nm, x.id);
+        idMap[x.id] = x.id;                        // こちらに無い項目は追加
+      }
+      if (next.length !== curArr.length) await set(symptomsKey(rid), next);
+      symIdMap[rid] = idMap;
+    }
+  }
+  if (obj.symptomSeeds) {
+    for (const rid of Object.keys(obj.symptomSeeds)) {
+      if (obj.symptomSeeds[rid]) await set(symptomSeedKey(rid), true);
+    }
+  }
+  // 体調の日別ログ（日付ごとにマージ・重複除外）
+  if (obj.symptomLogs) {
+    for (const [rid, log] of Object.entries(obj.symptomLogs)) {
+      const key = symptomLogKey(rid);
+      const cur = (await get(key)) || {};
+      const merged = { ...cur };
+      const map = symIdMap[rid] || {};
+      for (const [dk, ids] of Object.entries(log)) {
+        const mapped = (ids || []).map((id) => map[id] || id); // 項目IDを付け替える
+        merged[dk] = [...new Set([...(merged[dk] || []), ...mapped])];
+      }
+      await set(key, merged);
     }
   }
   // 習慣の達成ログ（日付ごとにマージ・重複除外）。上で作った対応表でIDを付け替える

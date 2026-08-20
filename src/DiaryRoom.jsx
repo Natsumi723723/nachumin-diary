@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, Fragment } from "react";
 import {
-  get, set, roomDataKey, doneLogKey, habitsKey, habitLogKey, habitSeedKey
+  get, set, roomDataKey, doneLogKey, habitsKey, habitLogKey, habitSeedKey,
+  periodKey, symptomsKey, symptomLogKey, symptomSeedKey
 } from "./storage.js";
 import {
   keyToDisp, keyToDate, toKey, WEEKDAYS, dowClass, dateWithDow, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
@@ -13,6 +14,8 @@ import Pressable from "./Pressable.jsx";
 import ContextMenu from "./ContextMenu.jsx";
 import ConfirmDialog from "./ConfirmDialog.jsx";
 import HabitView from "./HabitView.jsx";
+import HealthView from "./HealthView.jsx";
+import { MEMBER_COLORS } from "./theme.js";
 import linkify from "./linkify.jsx";
 
 const DECL_TAG = "🎬"; // 今日のコマ用の擬似タグ（マーク一覧の一番右）
@@ -36,6 +39,12 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
   const [importText, setImportText] = useState("");
   const [habitModal, setHabitModal] = useState(false);
   const [habitView, setHabitView] = useState(false); // 🎯 月間スタンプ表
+  // 🌡️ 体調記録（生理の日・体調項目・日別ログ）
+  const [periodDays, setPeriodDays] = useState([]);
+  const [symptoms, setSymptoms] = useState([]);
+  const [symptomLog, setSymptomLog] = useState({});
+  const [healthView, setHealthView] = useState(false);
+  const [symptomModal, setSymptomModal] = useState(false);
   const [menu, setMenu] = useState(null); // 長押しメニュー {type,k,x,y}
   const [markView, setMarkView] = useState(null); // 🔖 マーク抽出ビュー: 選択中のマーク
   const [copied, setCopied] = useState(false);
@@ -105,6 +114,22 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
         if (hchanged) await set(habitsKey(room.id), hb);
         setHabits(Array.isArray(hb) ? hb : []);
         setHabitAch((await get(habitLogKey(room.id))) || {});
+        // 体調: 初回だけ項目の例を用意（消したら戻さない）
+        let sy = await get(symptomsKey(room.id));
+        if (!(await get(symptomSeedKey(room.id)))) {
+          await set(symptomSeedKey(room.id), true);
+          if (!Array.isArray(sy) || !sy.length) {
+            sy = [
+              { id: uid(), name: "眠気", emoji: "😴", color: "#8b6ff0" },
+              { id: uid(), name: "不正出血", emoji: "💧", color: "#e0629f" }
+            ];
+            await set(symptomsKey(room.id), sy);
+          }
+        }
+        setSymptoms(Array.isArray(sy) ? sy : []);
+        const pd = await get(periodKey(room.id));
+        setPeriodDays(Array.isArray(pd?.days) ? pd.days : []);
+        setSymptomLog((await get(symptomLogKey(room.id))) || {});
       } catch (e) {
         /* no data yet */
       } finally {
@@ -260,6 +285,59 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     const cleaned = habits.filter((h) => h.name.trim() || (h.emoji && h.emoji.trim()));
     if (cleaned.length !== habits.length) saveHabits(cleaned);
     setHabitModal(false);
+  };
+
+  /* ---------- 🌡️ 体調記録 ---------- */
+  const togglePeriod = (dateKey) => {
+    const has = periodDays.includes(dateKey);
+    const next = has ? periodDays.filter((d) => d !== dateKey) : [...periodDays, dateKey].sort();
+    setPeriodDays(next);
+    set(periodKey(room.id), { days: next }).catch(() => showToast("保存に失敗しました"));
+  };
+  const toggleSymptom = (dateKey, symId) => {
+    const cur = symptomLog[dateKey] || [];
+    const arr = cur.includes(symId) ? cur.filter((x) => x !== symId) : [...cur, symId];
+    const next = { ...symptomLog };
+    if (arr.length) next[dateKey] = arr; else delete next[dateKey];
+    setSymptomLog(next);
+    set(symptomLogKey(room.id), next).catch(() => showToast("保存に失敗しました"));
+  };
+  const saveSymptoms = (next) => {
+    setSymptoms(next);
+    set(symptomsKey(room.id), next).catch(() => showToast("保存に失敗しました"));
+  };
+  const addSymptom = () => saveSymptoms([...symptoms, {
+    id: uid(), name: "", emoji: "", color: MEMBER_COLORS[symptoms.length % MEMBER_COLORS.length]
+  }]);
+  const updateSymptom = (id, patch) => saveSymptoms(symptoms.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  const moveSymptom = (i, dir) => {
+    const j = i + dir; if (j < 0 || j >= symptoms.length) return;
+    const next = [...symptoms]; [next[i], next[j]] = [next[j], next[i]]; saveSymptoms(next);
+  };
+  const removeSymptom = (id) => {
+    const s = symptoms.find((x) => x.id === id);
+    const used = Object.values(symptomLog).filter((ids) => (ids || []).includes(id)).length;
+    setConfirm({
+      message: `体調の項目「${s?.name || ""}」を削除しますか？`
+        + (used ? `\nこれまでの記録 ${used}日分 も消えます。` : ""),
+      onConfirm: () => {
+        saveSymptoms(symptoms.filter((x) => x.id !== id));
+        // その項目のログも掃除する（残しても参照先が無く表示できないため）
+        const next = {};
+        for (const [dk, ids] of Object.entries(symptomLog)) {
+          const arr = (ids || []).filter((x) => x !== id);
+          if (arr.length) next[dk] = arr;
+        }
+        setSymptomLog(next);
+        set(symptomLogKey(room.id), next).catch(() => showToast("保存に失敗しました"));
+        setConfirm(null);
+      }
+    });
+  };
+  const closeSymptomModal = () => {
+    const cleaned = symptoms.filter((s) => s.name.trim());
+    if (cleaned.length !== symptoms.length) saveSymptoms(cleaned);
+    setSymptomModal(false);
   };
 
   /* ---------- export / import ---------- */
@@ -430,6 +508,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
         </div>
         <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="マークで集める" onClick={openMarkView}>🔖</button>
         <button className="icon-btn" aria-label="習慣" onClick={() => setHabitModal(true)}>🎯</button>
+        <button className="icon-btn" aria-label="体調" onClick={() => setHealthView(true)}>🌡️</button>
         <button className="icon-btn" aria-label="テキスト書き出し" onClick={() => setExportOpen(true)}>📤</button>
         <button className="icon-btn" aria-label="テキストから復元" onClick={() => setImportOpen(true)}>📥</button>
         <button className="icon-btn" aria-label="検索" onClick={() => { setSearchOpen(!searchOpen); setQuery(""); }}>{searchOpen ? "✕" : "🔍"}</button>
@@ -486,6 +565,11 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
           });
           const showHabits = dayHabits.length > 0 && (isToday || hasDiary || ach.length > 0);
           const showDone = done.length > 0 || showHabits;
+          // 体調: 今日は常に出す（その場で記録できるように）。過去日は記録がある日だけ
+          const daySyms = symptomLog[k] || [];
+          const dayPeriod = periodDays.includes(k);
+          const showHealth = (symptoms.length > 0 || dayPeriod)
+            && (isToday || dayPeriod || daySyms.length > 0);
           return (
             <Fragment key={k}>
               {hasDiary && (
@@ -555,6 +639,38 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                       </div>
                     )}
                   </Pressable>
+                </div>
+              )}
+              {showHealth && (
+                <div className="done-row hl-daily">
+                  <div className="done-bubble">
+                    <div className="done-head">
+                      <span>🌡️ 体調</span>
+                      <button
+                        className="hv-open"
+                        aria-label="体調ビューをひらく"
+                        onClick={(e) => { e.stopPropagation(); setHealthView(true); }}
+                      >🩸 体調ビュー</button>
+                    </div>
+                    <div className="habits-row">
+                      <button
+                        className={"habit-chip hl-p-chip" + (dayPeriod ? " on" : "")}
+                        onClick={() => togglePeriod(k)}
+                      >🩸 生理{dayPeriod ? " 🩷" : ""}</button>
+                      {symptoms.map((sy) => {
+                        const on = daySyms.includes(sy.id);
+                        return (
+                          <button
+                            key={sy.id}
+                            className={"habit-chip" + (on ? " on" : "")}
+                            style={on ? { background: sy.color, borderColor: sy.color, color: "#fff" }
+                                      : { borderColor: sy.color, color: sy.color }}
+                            onClick={() => toggleSymptom(k, sy.id)}
+                          >{sy.emoji ? sy.emoji + " " : ""}{sy.name}{on ? " 🩷" : ""}</button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
             </Fragment>
@@ -654,6 +770,18 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
       )}
 
       {/* 🎯 習慣ビュー（月間スタンプ表・全画面） */}
+      {healthView && (
+        <HealthView
+          periodDays={periodDays}
+          symptoms={symptoms}
+          symptomLog={symptomLog}
+          onTogglePeriod={togglePeriod}
+          onToggleSymptom={toggleSymptom}
+          onClose={() => setHealthView(false)}
+          onManage={() => setSymptomModal(true)}
+        />
+      )}
+
       {habitView && (
         <HabitView
           habits={habits}
@@ -662,6 +790,45 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
           onClose={() => setHabitView(false)}
           onManage={() => setHabitModal(true)}
         />
+      )}
+
+      {/* 🌡️ 体調の項目設定 */}
+      {symptomModal && (
+        <div className="overlay habit-over" onClick={closeSymptomModal}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>🌡️ 体調の項目</h3>
+            <p className="panel-note">記録したい体調を自由に追加できます（眠気・頭痛・むくみ など）。</p>
+            {symptoms.map((s2, i) => (
+              <div className="mem-row" key={s2.id} style={{ flexWrap: "wrap" }}>
+                <input
+                  className="f-input" style={{ width: 54, textAlign: "center", flex: "0 0 auto" }}
+                  maxLength={4} placeholder="😴"
+                  value={s2.emoji || ""}
+                  onChange={(e) => updateSymptom(s2.id, { emoji: e.target.value })}
+                />
+                <input
+                  className="f-input" style={{ flex: 1, minWidth: 0 }}
+                  placeholder="体調の名前" value={s2.name}
+                  onChange={(e) => updateSymptom(s2.id, { name: e.target.value })}
+                />
+                <button className="mem-btn" disabled={i === 0} onClick={() => moveSymptom(i, -1)} aria-label="上へ">↑</button>
+                <button className="mem-btn" disabled={i === symptoms.length - 1} onClick={() => moveSymptom(i, 1)} aria-label="下へ">↓</button>
+                <button className="mem-btn" onClick={() => removeSymptom(s2.id)} aria-label="削除">🗑</button>
+                <div className="swatches" style={{ flexBasis: "100%", marginTop: 4 }}>
+                  {MEMBER_COLORS.map((col) => (
+                    <button key={col} className={"swatch" + (s2.color === col ? " on" : "")}
+                      style={{ background: col }} onClick={() => updateSymptom(s2.id, { color: col })} aria-label={col} />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {symptoms.length === 0 && <p className="panel-note">まだ項目がありません。追加してね💗</p>}
+            <div className="panel-btns">
+              <button className="p-copy" onClick={addSymptom}>＋ 項目を追加</button>
+              <button className="p-close" onClick={closeSymptomModal}>閉じる</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 習慣モーダル */}
