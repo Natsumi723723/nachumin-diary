@@ -1034,6 +1034,13 @@ export const css = `
     100% { transform: scale(1); }
   }
   .ch-note-s { font-size: 10.5px; color: #a4517f; margin: -4px 0 8px; }
+  .ch-forecast {
+    font-size: 12px; font-weight: 800; color: #a4517f;
+    background: rgba(255,255,255,.6); border-radius: 10px;
+    padding: 7px 10px; margin-bottom: 9px; line-height: 1.5;
+  }
+  .ch-forecast b { color: #d5006a; font-size: 13.5px; }
+  .ch-fc-sub { font-weight: 700; color: #b0567f; }
   .ch-foot { display: flex; align-items: center; gap: 10px; }
   .ch-left { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 800; color: #a4517f; }
   .ch-pace { font-weight: 700; color: #b0567f; }

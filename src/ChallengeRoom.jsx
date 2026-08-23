@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { get, set, roomDataKey } from "./storage.js";
-import { keyToDisp, todayKey, nowTime, uid } from "./format.js";
+import { keyToDisp, todayKey, nowTime, uid, addDays, diffDays } from "./format.js";
 import ConfirmDialog from "./ConfirmDialog.jsx";
 import { ROOM_THEMES, DEFAULT_THEME } from "./theme.js";
 
@@ -135,6 +135,21 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
     });
   };
 
+  /* 完走予定日。記録のある期間からペースを出して、残り個数を割る。
+     データが少ないと数字が暴れるので、3件以上＆3日以上たまってから出す */
+  const forecastOf = (c) => {
+    const recs = c.records || [];
+    const n = recs.length;
+    if (n >= c.target || n < 3) return null;
+    const days = recs.map((r) => r.dateKey).sort();
+    const span = diffDays(days[0], days[days.length - 1]) + 1;
+    if (span < 3) return null;
+    const perDay = n / span;
+    if (perDay <= 0) return null;
+    const daysLeft = Math.ceil((c.target - n) / perDay);
+    return { date: addDays(todayKey(), daysLeft), daysLeft, perDay };
+  };
+
   // 直近7日の記録数（ペースの目安）
   const recentCount = (c) => {
     const from = todayKey();
@@ -204,6 +219,18 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
                 <p className="ch-note-s">※ マス表示は {MAX_CELLS} までです</p>
               )}
 
+              {(() => {
+                const fc = forecastOf(c);
+                if (!fc) return null;
+                return (
+                  <div className="ch-forecast">
+                    🔮 このペースなら <b>{keyToDisp(fc.date).slice(5)}</b> ごろ達成
+                    <span className="ch-fc-sub">
+                      （あと{fc.daysLeft > 999 ? "999+" : fc.daysLeft}日 ・ 1日 {fc.perDay >= 1 ? Math.round(fc.perDay * 10) / 10 : Math.round(fc.perDay * 100) / 100}個ペース）
+                    </span>
+                  </div>
+                );
+              })()}
               <div className="ch-foot">
                 <span className="ch-left">
                   {done ? "🎉 達成しました！" : `あと ${c.target - n}個`}
