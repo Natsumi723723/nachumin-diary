@@ -197,7 +197,7 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
                   <span
                     key={i}
                     className={"ch-cell" + (i < n ? " on" : "") + (i === n - 1 ? " latest" : "")}
-                  />
+                  >{i < n ? "" : i + 1}</span>
                 ))}
               </div>
               {c.target > MAX_CELLS && (

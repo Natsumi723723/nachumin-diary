@@ -1018,6 +1018,10 @@ export const css = `
   .ch-cell {
     aspect-ratio: 1 / 1; border-radius: 4px;
     background: rgba(255,255,255,.7); box-shadow: inset 0 0 0 1px rgba(224,98,159,.18);
+    /* まだのマスには番号を入れて「次が何個目か」が分かるように */
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(7px, 2.1vw, 10px); font-weight: 800; color: #d3a2c1;
+    line-height: 1; letter-spacing: -.02em;
   }
   .ch-cell.on {
     background: linear-gradient(160deg, color-mix(in srgb, var(--ch) 75%, #fff), var(--ch));
