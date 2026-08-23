@@ -21,6 +21,7 @@ const TalkRoom = lazy(() => import("./TalkRoom.jsx"));
 const TodoRoom = lazy(() => import("./TodoRoom.jsx"));
 const DarelogRoom = lazy(() => import("./DarelogRoom.jsx"));
 const ExpenseRoom = lazy(() => import("./ExpenseRoom.jsx"));
+const ChallengeRoom = lazy(() => import("./ChallengeRoom.jsx"));
 
 const EMOJI_PICKS = [
   "💗", "🩷", "💛", "🩵", "💜", "🤍", "🖤", "🌸", "🌷", "🎀",
@@ -346,7 +347,7 @@ export default function App() {
       showToast("ルーム名を入れてね");
       return;
     }
-    const defaultEmoji = { diary: "💗", todo: "✅", darelog: "🌗", expense: "💰", talk: "🩷" }[modal.type] || "🩷";
+    const defaultEmoji = { diary: "💗", todo: "✅", darelog: "🌗", expense: "💰", challenge: "🏁", talk: "🩷" }[modal.type] || "🩷";
     // だれログは初期メンバーを用意（記録のハードルをゼロに）
     const initMembers = modal.type === "darelog"
       ? [
@@ -632,6 +633,8 @@ export default function App() {
             ? <DarelogRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />
             : room.type === "expense"
               ? <ExpenseRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />
+            : room.type === "challenge"
+              ? <ChallengeRoom key={room.id} {...common} />
               : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
       content = (
         <SwipeBack key={room.id} onBack={() => setView({ screen: "home" })}>
@@ -888,6 +891,11 @@ export default function App() {
                 disabled={modal.mode === "edit"}
                 onClick={() => setModal((o) => ({ ...o, type: "expense" }))}
               >💰 経費<small>支出を記録</small></button>
+              <button
+                className={"type-chip" + (modal.type === "challenge" ? " on" : "")}
+                disabled={modal.mode === "edit"}
+                onClick={() => setModal((o) => ({ ...o, type: "challenge" }))}
+              >🏁 チャレンジ<small>100個の目標</small></button>
             </div>
             {modal.mode === "edit" && modal.roomId !== DIARY_ROOM_ID && (
               <>

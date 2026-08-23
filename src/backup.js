@@ -42,7 +42,8 @@ export function validateBackup(obj) {
 export function summarizeBackup(obj) {
   const counts = { rooms: (obj.rooms || []).length, items: 0 };
   const arrKeyOf = (t) => (t === "talk" ? "messages" : t === "todo" ? "todos"
-    : t === "darelog" ? "records" : t === "expense" ? "expenses" : null);
+    : t === "darelog" ? "records" : t === "expense" ? "expenses"
+    : t === "challenge" ? "challenges" : null);
   for (const r of obj.rooms || []) {
     const d = obj.data ? obj.data[r.id] : undefined;
     if (!d) continue;
@@ -80,6 +81,14 @@ function metaFromData(room, data) {
     return {
       preview: last ? `${SLOT_EMOJI[last.slot] || ""} ${nameOf(last.memberId)}`.trim() : "",
       lastAt: room.lastAt || (last ? Date.now() : 0)
+    };
+  }
+  if (room.type === "challenge") {
+    const cs = (data && data.challenges) || [];
+    const top = [...cs].sort((a, b) => (b.records?.length || 0) - (a.records?.length || 0))[0];
+    return {
+      preview: top ? `${top.emoji || "🏁"} ${top.name} ${top.records?.length || 0}/${top.target}` : "",
+      lastAt: room.lastAt || (cs.length ? Date.now() : 0)
     };
   }
   if (room.type === "expense") {
@@ -181,7 +190,8 @@ export async function restoreAll(obj) {
     const arrKey = r.type === "talk" ? "messages"
       : r.type === "todo" ? "todos"
       : r.type === "darelog" ? "records"
-      : r.type === "expense" ? "expenses" : null;
+      : r.type === "expense" ? "expenses"
+      : r.type === "challenge" ? "challenges" : null;
     const sigOf = (x) => arrKey === "messages" ? `${x.dateKey} ${x.memberId} ${x.text}`
       : arrKey === "todos" ? `${x.dateKey} ${x.text}`
       : arrKey === "records" ? `${x.dateKey} ${x.slot} ${x.memberId}`
