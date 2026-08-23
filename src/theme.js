@@ -1051,9 +1051,16 @@ export const css = `
     flex-shrink: 0; min-width: 26px; text-align: center;
     font-size: 12px; font-weight: 900; color: #d5006a;
   }
-  .ch-rec-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .ch-rec-main {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start;
+    border: none; background: transparent; cursor: pointer; text-align: left; padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ch-rec-main:active { opacity: .6; }
+  .overlay.ch-memo-over { z-index: 50; }
   .ch-rec-d { font-size: 10.5px; font-weight: 700; color: #a4517f; }
   .ch-rec-m { font-size: 13px; color: #4a3140; word-break: break-word; }
+  .ch-rec-m.nomemo { color: #c98cb0; font-weight: 700; }
   .ch-tg-l { font-size: 12.5px; font-weight: 800; color: #a4517f; flex-shrink: 0; }
   @media (prefers-reduced-motion: reduce) {
     .ch-card.celebrate, .ch-cell.latest { animation: none !important; }

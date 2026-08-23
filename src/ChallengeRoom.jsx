@@ -24,7 +24,9 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
   const [loaded, setLoaded] = useState(false);
   const [editor, setEditor] = useState(null);   // {mode:'new'|'edit', ...}
   const [detail, setDetail] = useState(null);   // 記録一覧を見るチャレンジのid
-  const [addFor, setAddFor] = useState(null);   // +1のメモ入力 {id, memo}
+  const [memoEdit, setMemoEdit] = useState(null); // メモをあとから書く {cid, rid, text}
+  const [undo, setUndo] = useState(null);          // 押し間違い用の取り消し {cid, rid, name}
+  const undoTimer = useRef(null);
   const [confirm, setConfirm] = useState(null);
   const [celebrate, setCelebrate] = useState(null); // お祝い演出中のチャレンジid
   const celebTimer = useRef(null);
@@ -53,11 +55,15 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
 
   const countOf = (c) => (c.records || []).length;
 
-  /* +1 する。節目に届いたらお祝いを出す */
-  const addOne = (c, memo = "") => {
-    const rec = { id: uid(), dateKey: todayKey(), time: nowTime(), memo: memo.trim() };
+  /* +1 する。タップ＝その場で加算（メモはあとから書ける）。
+     節目に届いたらお祝い、直後は取り消しバーを出す */
+  const addOne = (c) => {
+    const rec = { id: uid(), dateKey: todayKey(), time: nowTime(), memo: "" };
     const next = challenges.map((x) => (x.id === c.id ? { ...x, records: [...(x.records || []), rec] } : x));
     persist(next);
+    setUndo({ cid: c.id, rid: rec.id, name: c.name });
+    clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => setUndo(null), 6000);
     const n = countOf(c) + 1;
     const ms = milestoneOf(n, c.target);
     if (ms) {
@@ -75,6 +81,23 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
 
   const removeRecord = (cid, rid) => {
     persist(challenges.map((x) => (x.id === cid ? { ...x, records: (x.records || []).filter((r) => r.id !== rid) } : x)));
+    if (undo && undo.rid === rid) { clearTimeout(undoTimer.current); setUndo(null); }
+  };
+  // 押し間違いの取り消し（直前の+1を取り消す）
+  const undoAdd = () => {
+    if (!undo) return;
+    removeRecord(undo.cid, undo.rid);
+    setCelebrate(null);
+    clearTimeout(undoTimer.current);
+    setUndo(null);
+  };
+  // メモをあとから書く／書き直す
+  const saveMemo = () => {
+    const { cid, rid, text } = memoEdit;
+    persist(challenges.map((x) => (x.id === cid
+      ? { ...x, records: (x.records || []).map((r) => (r.id === rid ? { ...r, memo: text.trim() } : r)) }
+      : x)));
+    setMemoEdit(null);
   };
 
   /* チャレンジの追加・編集 */
@@ -154,13 +177,11 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
               key={c.id}
               style={{ "--ch": c.color || DEFAULT_THEME }}
             >
-              <div className="ch-head" role="button" tabIndex={0} onClick={() => setDetail(c.id)}>
+              <div className="ch-head">
                 <span className="ch-emoji">{c.emoji || "🏁"}</span>
                 <span className="ch-name">{c.name}</span>
-                <button
-                  className="ch-gear" aria-label="設定"
-                  onClick={(e) => { e.stopPropagation(); openEdit(c); }}
-                >⚙︎</button>
+                <button className="ch-gear" aria-label="履歴とメモ" onClick={() => setDetail(c.id)}>📋</button>
+                <button className="ch-gear" aria-label="設定" onClick={() => openEdit(c)}>⚙︎</button>
               </div>
 
               <div className="ch-numrow">
@@ -188,37 +209,20 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
                   {done ? "🎉 達成しました！" : `あと ${c.target - n}個`}
                   {week > 0 && !done ? <span className="ch-pace">・今週 {week}個</span> : null}
                 </span>
-                <button className="ch-plus" onClick={() => setAddFor({ id: c.id, memo: "" })}>＋1</button>
+                <button className="ch-plus" onClick={() => addOne(c)}>＋1</button>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* +1（メモは任意。書かずに「記録する」でOK） */}
-      {addFor && (() => {
-        const c = challenges.find((x) => x.id === addFor.id);
-        if (!c) return null;
-        return (
-          <div className="overlay" onClick={() => setAddFor(null)}>
-            <div className="panel" onClick={(e) => e.stopPropagation()}>
-              <h3>{c.emoji} {c.name} に +1</h3>
-              <p className="panel-note">これで {countOf(c) + 1} / {c.target} になります🩷</p>
-              <div className="f-label">メモ（任意）</div>
-              <input
-                className="f-input" autoFocus placeholder="タイトルなど（空でもOK）"
-                value={addFor.memo}
-                onChange={(e) => setAddFor((o) => ({ ...o, memo: e.target.value }))}
-                onKeyDown={(e) => { if (e.key === "Enter") { addOne(c, addFor.memo); setAddFor(null); } }}
-              />
-              <div className="panel-btns">
-                <button className="p-copy" onClick={() => { addOne(c, addFor.memo); setAddFor(null); }}>記録する</button>
-                <button className="p-close" onClick={() => setAddFor(null)}>閉じる</button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {/* 押し間違い用の取り消し（数秒だけ出す） */}
+      {undo && (
+        <div className="undo-bar">
+          <span className="undo-msg">🩷 ＋1したよ</span>
+          <button className="undo-btn" onClick={undoAdd}>↩︎ 取り消す</button>
+        </div>
+      )}
 
       {/* 記録の一覧 */}
       {detailC && (
@@ -227,14 +231,20 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
             <h3>{detailC.emoji} {detailC.name}</h3>
             <p className="panel-note">{countOf(detailC)} / {detailC.target} ・ 新しい順</p>
             {countOf(detailC) === 0 && <p className="panel-note">まだ記録がありません。＋1 から記録してね💗</p>}
+            <p className="panel-note">タップするとメモを書けます（あとからでOK）</p>
             <div className="ch-reclist">
               {[...(detailC.records || [])].reverse().map((r, i) => (
                 <div className="ch-rec" key={r.id}>
                   <span className="ch-rec-n">{countOf(detailC) - i}</span>
-                  <span className="ch-rec-main">
-                    <span className="ch-rec-d">{keyToDisp(r.dateKey).slice(5)}</span>
-                    {r.memo ? <span className="ch-rec-m">{r.memo}</span> : null}
-                  </span>
+                  <button
+                    className="ch-rec-main"
+                    onClick={() => setMemoEdit({ cid: detailC.id, rid: r.id, text: r.memo || "" })}
+                  >
+                    <span className="ch-rec-d">{keyToDisp(r.dateKey).slice(5)} {r.time || ""}</span>
+                    <span className={"ch-rec-m" + (r.memo ? "" : " nomemo")}>
+                      {r.memo || "＋ メモを書く"}
+                    </span>
+                  </button>
                   <button
                     className="mem-btn" aria-label="削除"
                     onClick={() => setConfirm({
@@ -295,6 +305,26 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
                 <button className="p-del" onClick={() => removeChallenge(challenges.find((x) => x.id === editor.id))}>削除</button>
               )}
               <button className="p-close" onClick={() => setEditor(null)}>閉じる</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* メモをあとから書く */}
+      {memoEdit && (
+        <div className="overlay ch-memo-over" onClick={() => setMemoEdit(null)}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>📝 メモ</h3>
+            <p className="panel-note">この1件に残しておきたいこと（タイトルなど）</p>
+            <input
+              className="f-input" autoFocus placeholder="タイトルなど"
+              value={memoEdit.text}
+              onChange={(e) => setMemoEdit((o) => ({ ...o, text: e.target.value }))}
+              onKeyDown={(e) => e.key === "Enter" && saveMemo()}
+            />
+            <div className="panel-btns">
+              <button className="p-copy" onClick={saveMemo}>保存</button>
+              <button className="p-close" onClick={() => setMemoEdit(null)}>閉じる</button>
             </div>
           </div>
         </div>
