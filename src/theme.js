@@ -1026,7 +1026,9 @@ export const css = `
   .ch-cell.on {
     background: linear-gradient(160deg, color-mix(in srgb, var(--ch) 75%, #fff), var(--ch));
     box-shadow: 0 1px 3px color-mix(in srgb, var(--ch) 55%, transparent);
+    border: none; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
+  .ch-cell.on:active { transform: scale(.88); }
   .ch-cell.latest { animation: ch-fill .5s cubic-bezier(.3,1.6,.5,1); }
   @keyframes ch-fill {
     0% { transform: scale(0); opacity: .2; }
@@ -1040,6 +1042,16 @@ export const css = `
     padding: 7px 10px; margin-bottom: 9px; line-height: 1.5;
   }
   .ch-forecast b { color: #d5006a; font-size: 13.5px; }
+  .ch-dl-row { margin-top: 5px; padding-top: 5px; border-top: 1px dashed #f0a6cf; }
+  .ch-ok {
+    display: inline-block; margin-left: 6px; background: #1e9e5b; color: #fff;
+    border-radius: 999px; padding: 2px 8px; font-size: 10.5px; font-weight: 800;
+  }
+  .ch-ng {
+    display: inline-block; margin-left: 6px; background: #ff1478; color: #fff;
+    border-radius: 999px; padding: 2px 8px; font-size: 10.5px; font-weight: 800;
+  }
+  .ch-dl-edit { display: flex; gap: 6px; align-items: center; }
   .ch-fc-sub { font-weight: 700; color: #b0567f; }
   .ch-foot { display: flex; align-items: center; gap: 10px; }
   .ch-left { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 800; color: #a4517f; }

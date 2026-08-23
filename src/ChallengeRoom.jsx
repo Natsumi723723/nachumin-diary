@@ -102,11 +102,11 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
 
   /* チャレンジの追加・編集 */
   const openNew = () => setEditor({
-    mode: "new", name: "", emoji: "🏁", target: "100", color: DEFAULT_THEME
+    mode: "new", name: "", emoji: "🏁", target: "100", color: DEFAULT_THEME, deadline: ""
   });
   const openEdit = (c) => setEditor({
     mode: "edit", id: c.id, name: c.name, emoji: c.emoji || "🏁",
-    target: String(c.target), color: c.color || DEFAULT_THEME
+    target: String(c.target), color: c.color || DEFAULT_THEME, deadline: c.deadline || ""
   });
   const saveEditor = () => {
     const name = editor.name.trim();
@@ -116,11 +116,13 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
     if (editor.mode === "new") {
       persist([...challenges, {
         id: uid(), name, emoji: editor.emoji.trim() || "🏁",
-        target, color: editor.color, createdAt: Date.now(), records: []
+        target, color: editor.color, deadline: editor.deadline || null,
+        createdAt: Date.now(), records: []
       }]);
     } else {
       persist(challenges.map((x) => (x.id === editor.id
-        ? { ...x, name, emoji: editor.emoji.trim() || "🏁", target, color: editor.color } : x)));
+        ? { ...x, name, emoji: editor.emoji.trim() || "🏁", target, color: editor.color,
+            deadline: editor.deadline || null } : x)));
     }
     setEditor(null);
   };
@@ -148,6 +150,21 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
     if (perDay <= 0) return null;
     const daysLeft = Math.ceil((c.target - n) / perDay);
     return { date: addDays(todayKey(), daysLeft), daysLeft, perDay };
+  };
+
+  /* 締切から「1日◯個やれば間に合う」を出す。予定日と比べて間に合うかも判定 */
+  const deadlineOf = (c, fc) => {
+    if (!c.deadline) return null;
+    const n = (c.records || []).length;
+    if (n >= c.target) return null;
+    const left = diffDays(todayKey(), c.deadline);
+    const remain = c.target - n;
+    if (left < 0) return { over: true, left };
+    const need = remain / Math.max(1, left + 1); // 今日も含めて数える
+    return {
+      over: false, left, need,
+      onTrack: fc ? fc.date <= c.deadline : null
+    };
   };
 
   // 直近7日の記録数（ペースの目安）
@@ -208,12 +225,21 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
               <div className="ch-bar"><span className="ch-bar-in" style={{ width: pct + "%" }} /></div>
 
               <div className="ch-grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-                {Array.from({ length: cells }, (_, i) => (
-                  <span
-                    key={i}
-                    className={"ch-cell" + (i < n ? " on" : "") + (i === n - 1 ? " latest" : "")}
-                  >{i < n ? "" : i + 1}</span>
-                ))}
+                {Array.from({ length: cells }, (_, i) => {
+                  if (i >= n) return <span key={i} className="ch-cell">{i + 1}</span>;
+                  const rec = (c.records || [])[i];
+                  return (
+                    <button
+                      key={i}
+                      className={"ch-cell on" + (i === n - 1 ? " latest" : "")}
+                      aria-label={`${i + 1}個目の記録`}
+                      onClick={() => rec && setMemoEdit({
+                        cid: c.id, rid: rec.id, text: rec.memo || "",
+                        no: i + 1, dateKey: rec.dateKey, time: rec.time || ""
+                      })}
+                    />
+                  );
+                })}
               </div>
               {c.target > MAX_CELLS && (
                 <p className="ch-note-s">※ マス表示は {MAX_CELLS} までです</p>
@@ -221,13 +247,32 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
 
               {(() => {
                 const fc = forecastOf(c);
-                if (!fc) return null;
+                const dl = deadlineOf(c, fc);
+                if (!fc && !dl) return null;
+                const r1 = (v) => (v >= 1 ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100);
                 return (
                   <div className="ch-forecast">
-                    🔮 このペースなら <b>{keyToDisp(fc.date).slice(5)}</b> ごろ達成
-                    <span className="ch-fc-sub">
-                      （あと{fc.daysLeft > 999 ? "999+" : fc.daysLeft}日 ・ 1日 {fc.perDay >= 1 ? Math.round(fc.perDay * 10) / 10 : Math.round(fc.perDay * 100) / 100}個ペース）
-                    </span>
+                    {fc && (
+                      <div>
+                        🔮 このペースなら <b>{keyToDisp(fc.date).slice(5)}</b> ごろ達成
+                        <span className="ch-fc-sub">
+                          （あと{fc.daysLeft > 999 ? "999+" : fc.daysLeft}日 ・ 1日 {r1(fc.perDay)}個ペース）
+                        </span>
+                      </div>
+                    )}
+                    {dl && (dl.over ? (
+                      <div className={fc ? "ch-dl-row" : ""}>
+                        ⏰ 締切 <b>{keyToDisp(c.deadline).slice(5)}</b> をすぎています
+                        <span className="ch-fc-sub">（{-dl.left}日オーバー）</span>
+                      </div>
+                    ) : (
+                      <div className={fc ? "ch-dl-row" : ""}>
+                        ⏰ 締切 <b>{keyToDisp(c.deadline).slice(5)}</b> まであと{dl.left}日
+                        <span className="ch-fc-sub">・1日 {r1(dl.need)}個で間に合う</span>
+                        {dl.onTrack === true && <span className="ch-ok">間に合ってる🩷</span>}
+                        {dl.onTrack === false && <span className="ch-ng">ペース上げよう</span>}
+                      </div>
+                    ))}
                   </div>
                 );
               })()}
@@ -265,7 +310,10 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
                   <span className="ch-rec-n">{countOf(detailC) - i}</span>
                   <button
                     className="ch-rec-main"
-                    onClick={() => setMemoEdit({ cid: detailC.id, rid: r.id, text: r.memo || "" })}
+                    onClick={() => setMemoEdit({
+                      cid: detailC.id, rid: r.id, text: r.memo || "",
+                      no: countOf(detailC) - i, dateKey: r.dateKey, time: r.time || ""
+                    })}
                   >
                     <span className="ch-rec-d">{keyToDisp(r.dateKey).slice(5)} {r.time || ""}</span>
                     <span className={"ch-rec-m" + (r.memo ? "" : " nomemo")}>
@@ -314,6 +362,19 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
               />
               <span className="ch-tg-l">個</span>
             </div>
+            <div className="f-label">締切（任意）</div>
+            <div className="ch-dl-edit">
+              <input
+                className="f-input" type="date" style={{ flex: 1, minWidth: 0 }}
+                value={editor.deadline || ""}
+                onChange={(e) => setEditor((o) => ({ ...o, deadline: e.target.value }))}
+              />
+              {editor.deadline && (
+                <button className="mem-btn" aria-label="締切をなくす"
+                  onClick={() => setEditor((o) => ({ ...o, deadline: "" }))}>✕</button>
+              )}
+            </div>
+            <p className="panel-note">決めると「1日◯個で間に合う」が出ます</p>
             <div className="f-label">色</div>
             <div className="theme-swatches">
               {ROOM_THEMES.map((col) => (
@@ -341,8 +402,11 @@ export default function ChallengeRoom({ room, onBack, onMeta, showToast, pinned 
       {memoEdit && (
         <div className="overlay ch-memo-over" onClick={() => setMemoEdit(null)}>
           <div className="panel" onClick={(e) => e.stopPropagation()}>
-            <h3>📝 メモ</h3>
-            <p className="panel-note">この1件に残しておきたいこと（タイトルなど）</p>
+            <h3>📝 {memoEdit.no ? `${memoEdit.no}個目` : "メモ"}</h3>
+            <p className="panel-note">
+              {memoEdit.dateKey ? `${keyToDisp(memoEdit.dateKey).slice(5)} ${memoEdit.time || ""}・` : ""}
+              残しておきたいこと（タイトルなど）
+            </p>
             <input
               className="f-input" autoFocus placeholder="タイトルなど"
               value={memoEdit.text}
