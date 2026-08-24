@@ -5,7 +5,7 @@ import { MIcon } from "./TalkRoom.jsx";
 import ConfirmDialog from "./ConfirmDialog.jsx";
 
 /* メンバーの登録・編集モーダル。トーク型・だれログ型で共用 */
-export default function MemberEditor({ members, onChange, onClose, showToast }) {
+export default function MemberEditor({ members, onChange, onClose, showToast, showMemberMemo = false }) {
   const [page, setPage] = useState("list"); // 'list' | 'form'
   const [member, setMember] = useState(null);
   const [isNew, setIsNew] = useState(false);
@@ -17,6 +17,7 @@ export default function MemberEditor({ members, onChange, onClose, showToast }) 
       color: MEMBER_COLORS[members.length % MEMBER_COLORS.length],
       textColor: null,
       icon: { type: "emoji", value: "💗" },
+      memberMemo: "",
       side: members.length % 2 === 0 ? "left" : "right"
     });
     setIsNew(true);
@@ -36,7 +37,11 @@ export default function MemberEditor({ members, onChange, onClose, showToast }) 
       showToast("名前を入れてね");
       return;
     }
-    const cleaned = { ...member, name: member.name.trim() };
+    const cleaned = {
+      ...member,
+      name: member.name.trim(),
+      ...(showMemberMemo ? { memberMemo: (member.memberMemo || "").trim() } : {})
+    };
     onChange(isNew ? [...members, cleaned] : members.map((x) => (x.id === cleaned.id ? cleaned : x)));
     setPage("list");
   };
@@ -92,7 +97,10 @@ export default function MemberEditor({ members, onChange, onClose, showToast }) 
             {members.map((m, i) => (
               <div className="mem-row" key={m.id}>
                 <MIcon icon={m.icon} size={30} color={m.color} />
-                <span className="mem-name">{m.name}</span>
+                <span className="mem-copy">
+                  <span className="mem-name">{m.name}</span>
+                  {showMemberMemo && m.memberMemo ? <span className="mem-note">{m.memberMemo}</span> : null}
+                </span>
                 <span className="mem-dot" style={{ background: m.color }} />
                 <button className="mem-btn" disabled={i === 0} onClick={() => move(i, -1)} aria-label="上へ">↑</button>
                 <button className="mem-btn" disabled={i === members.length - 1} onClick={() => move(i, 1)} aria-label="下へ">↓</button>
@@ -113,6 +121,17 @@ export default function MemberEditor({ members, onChange, onClose, showToast }) 
               placeholder="なまえ" value={member.name}
               onChange={(e) => setMember((o) => ({ ...o, name: e.target.value }))}
             />
+            {showMemberMemo && (
+              <>
+                <div className="f-label">この人のメモ（任意）</div>
+                <textarea
+                  style={{ minHeight: 88 }}
+                  placeholder="覚えておきたいことなど…"
+                  value={member.memberMemo || ""}
+                  onChange={(e) => setMember((o) => ({ ...o, memberMemo: e.target.value }))}
+                />
+              </>
+            )}
             <div className="f-label">アイコン</div>
             <div className="icon-preview">
               <MIcon icon={member.icon} size={44} color={member.color} />

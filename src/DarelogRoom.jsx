@@ -349,6 +349,7 @@ export default function DarelogRoom({ room, onBack, onMeta, onRoomChange, showTo
           onChange={(next) => onRoomChange({ members: next })}
           onClose={() => setMemOpen(false)}
           showToast={showToast}
+          showMemberMemo
         />
       )}
 
