@@ -1591,7 +1591,10 @@ export const css = `
     background: #fff; border: 1.5px solid #f0a6cf; border-radius: 14px;
     padding: 8px 10px;
   }
-  .mem-name { flex: 1; font-size: 13.5px; font-weight: 700; min-width: 0;
+  .mem-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .mem-name { font-size: 13.5px; font-weight: 700; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mem-note { font-size: 10.5px; line-height: 1.35; color: #a4517f; min-width: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mem-side { font-size: 10.5px; color: #b06992; flex-shrink: 0; }
   .mem-dot { width: 16px; height: 16px; border-radius: 50%;

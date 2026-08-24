@@ -298,6 +298,11 @@ export default function App() {
       } else if (r.type === "darelog") {
         const recs = data && Array.isArray(data.records) ? data.records : [];
         const nameOf = (id) => r.members?.find((m) => m.id === id)?.name || "";
+        for (const member of r.members || []) {
+          if ((member.memberMemo || "").toLowerCase().includes(q)) {
+            hits.push({ snippet: `${member.name}: ${member.memberMemo}`, date: "メンバーメモ" });
+          }
+        }
         for (const rec of recs) {
           const nm = nameOf(rec.memberId);
           if ((nm + (rec.memo || "") + keyToDisp(rec.dateKey)).toLowerCase().includes(q)) {
