@@ -4,7 +4,7 @@ import {
   periodKey, symptomsKey, symptomLogKey, symptomSeedKey
 } from "./storage.js";
 import {
-  keyToDisp, keyToDate, toKey, WEEKDAYS, dowClass, dateWithDow, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
+  keyToDisp, keyToDate, toKey, addDays, WEEKDAYS, dowClass, dateWithDow, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
   diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER, DECL_MARKER, safeFileName, copyText
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
@@ -288,11 +288,30 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
   };
 
   /* ---------- 🌡️ 体調記録 ---------- */
-  const togglePeriod = (dateKey) => {
-    const has = periodDays.includes(dateKey);
-    const next = has ? periodDays.filter((d) => d !== dateKey) : [...periodDays, dateKey].sort();
+  /* 生理のオン/オフ。1日目（前日が生理でない日）をオンにしたときだけ、
+     既定で7日ぶんまとめてチェックしておく（いつもの日数を先に入れておく感じ）。
+     いらない日は1日ずつ外せるし、オフにするのは常にその日だけ。 */
+  const PERIOD_DEFAULT_DAYS = 7;
+  const savePeriod = (next) => {
     setPeriodDays(next);
     set(periodKey(room.id), { days: next }).catch(() => showToast("保存に失敗しました"));
+  };
+  const togglePeriod = (dateKey) => {
+    if (periodDays.includes(dateKey)) {          // オフはその日だけ
+      savePeriod(periodDays.filter((d) => d !== dateKey));
+      return;
+    }
+    const isStart = !periodDays.includes(addDays(dateKey, -1)); // 前日が生理なら「続き」
+    if (!isStart) {
+      savePeriod([...periodDays, dateKey].sort());
+      return;
+    }
+    const add = [];
+    for (let i = 0; i < PERIOD_DEFAULT_DAYS; i++) add.push(addDays(dateKey, i));
+    const merged = [...new Set([...periodDays, ...add])].sort();
+    const added = merged.length - periodDays.length;
+    savePeriod(merged);
+    if (added > 1) showToast(`${PERIOD_DEFAULT_DAYS}日ぶんチェックしたよ🩷 いらない日は外してね`, 4000);
   };
   const toggleSymptom = (dateKey, symId) => {
     const cur = symptomLog[dateKey] || [];

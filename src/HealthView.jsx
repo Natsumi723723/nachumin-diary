@@ -21,9 +21,12 @@ export default function HealthView({
   /* 各周期を「日付の配列」にする。進行中の周期は今日まで（右揃え時は予測日まで） */
   const rows = useMemo(() => cycles.map((c) => {
     let len;
+    /* 進行中は「今日」と「最後の生理日」の遅い方まで。
+       さらに数日ぶん余白を出して、伸びたぶんを足せるようにしておく */
+    const baseLen = Math.max(diffDays(c.start, today) + 1, diffDays(c.start, c.end) + 1) + 3;
     if (c.cycle != null) len = c.cycle;                       // 確定した周期
-    else if (align === "before" && pred) len = Math.max(diffDays(c.start, pred.next), diffDays(c.start, today) + 1);
-    else len = diffDays(c.start, today) + 1;                  // 進行中
+    else if (align === "before" && pred) len = Math.max(diffDays(c.start, pred.next), baseLen);
+    else len = baseLen;                                        // 進行中
     len = Math.min(Math.max(len, 1), MAXCOL);
     const days = [];
     for (let i = 0; i < len; i++) days.push(addDays(c.start, i));
@@ -117,6 +120,7 @@ export default function HealthView({
           <button className={align === "before" ? "on" : ""} onClick={() => setAlign("before")}>次の生理まで</button>
         </div>
         <p className="panel-note">
+          マスをタップすると生理のオン/オフを切り替えられます。{" "}
           {align === "before"
             ? "右端が「次の生理の前日」。縦に見ると、生理の何日前に出やすいかが分かります。"
             : "左端が「生理1日目」。縦に見ると、周期のどのあたりで出やすいかが分かります。"}
@@ -148,15 +152,17 @@ export default function HealthView({
                       const syms = (symptomLog[d] || []).map(symOf).filter(Boolean);
                       const future = d > today;
                       return (
-                        <div
+                        <button
                           key={i}
                           className={"hl-cell" + (per ? " period" : "") + (d === today ? " today" : "") + (future ? " future" : "")}
                           title={`${keyToDisp(d)}${per ? " 生理" : ""}${syms.length ? " " + syms.map((s) => s.name).join("・") : ""}`}
+                          aria-label={`${keyToDisp(d)} の生理を切り替え`}
+                          onClick={() => onTogglePeriod(d)}
                         >
                           {syms.slice(0, 3).map((s) => (
                             <span key={s.id} className="hl-dot" style={{ background: s.color }} />
                           ))}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>

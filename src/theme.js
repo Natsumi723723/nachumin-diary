@@ -1144,7 +1144,9 @@ export const css = `
     display: flex; align-items: center; justify-content: center; gap: 1px;
     flex-wrap: wrap; align-content: center; padding: 1px; box-sizing: border-box;
   }
-  .hl-cell.blank { border-color: transparent; background: transparent; }
+  .hl-cell { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .hl-cell:active { transform: scale(.85); }
+  .hl-cell.blank { border-color: transparent; background: transparent; cursor: default; }
   .hl-cell.period { background: linear-gradient(160deg,#ff8fa3,#e11d48); border-color: #e11d48; }
   .hl-cell.today { border-color: #4a3140; border-width: 2px; }
   .hl-cell.future { opacity: .4; }
