@@ -482,9 +482,11 @@ export default function App() {
       try {
         const file = new File([json], BACKUP_FILENAME, { type: "application/json" });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: BACKUP_FILENAME });
+          /* title / text は渡さない。iOSの「ファイルに保存」は
+             それを別の .txt として一緒に書き出してしまうため */
+          await navigator.share({ files: [file] });
           await markBackedUp();
-          showToast("バックアップを保存したよ💗 同じファイルに置き換えできたかな？");
+          showToast("バックアップを保存したよ💗");
           return;
         }
       } catch (e) {
@@ -964,8 +966,10 @@ export default function App() {
               <button className="p-dl" onClick={copyBackup}>{copied ? "コピーしたよ💗" : "コピー"}</button>
             </div>
             <p className="panel-note">
-              ファイル名は毎回 <b>{BACKUP_FILENAME}</b> で固定。iPhoneの共有シートから
-              「ファイルに保存」を選ぶと、前のファイルを置き換えて上書きできます。
+              ファイル名は毎回 <b>{BACKUP_FILENAME}</b> で固定です。ただし
+              「ファイルに保存」は同じ名前があると <b>iOS が勝手に番号を付けて</b> 別ファイルにします。
+              毎回きっちり上書きしたいときは、共有シートで
+              「ファイルに保存」ではなく <b>ショートカット</b>（上書き保存する用に作ったもの）を選んでね。
             </p>
             <div className="f-label" style={{ marginTop: 6 }}>復元する（バックアップから読み込み）</div>
             <p className="panel-note">既存のデータは消さず、足りない分だけ追加します（安全マージ）</p>
