@@ -22,6 +22,7 @@ const TodoRoom = lazy(() => import("./TodoRoom.jsx"));
 const DarelogRoom = lazy(() => import("./DarelogRoom.jsx"));
 const ExpenseRoom = lazy(() => import("./ExpenseRoom.jsx"));
 const ChallengeRoom = lazy(() => import("./ChallengeRoom.jsx"));
+const FutureRoom = lazy(() => import("./FutureRoom.jsx"));
 
 const EMOJI_PICKS = [
   "💗", "🩷", "💛", "🩵", "💜", "🤍", "🖤", "🌸", "🌷", "🎀",
@@ -642,6 +643,8 @@ export default function App() {
               ? <ExpenseRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />
             : room.type === "challenge"
               ? <ChallengeRoom key={room.id} {...common} />
+            : room.type === "future"
+              ? <FutureRoom key={room.id} {...common} />
               : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
       content = (
         <SwipeBack key={room.id} onBack={() => setView({ screen: "home" })}>
@@ -903,6 +906,11 @@ export default function App() {
                 disabled={modal.mode === "edit"}
                 onClick={() => setModal((o) => ({ ...o, type: "challenge" }))}
               >🏁 チャレンジ<small>100個の目標</small></button>
+              <button
+                className={"type-chip" + (modal.type === "future" ? " on" : "")}
+                disabled={modal.mode === "edit"}
+                onClick={() => setModal((o) => ({ ...o, type: "future" }))}
+              >🔮 未来日記<small>1日1篇とどく</small></button>
             </div>
             {modal.mode === "edit" && modal.roomId !== DIARY_ROOM_ID && (
               <>

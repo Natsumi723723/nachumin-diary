@@ -43,7 +43,8 @@ export function summarizeBackup(obj) {
   const counts = { rooms: (obj.rooms || []).length, items: 0 };
   const arrKeyOf = (t) => (t === "talk" ? "messages" : t === "todo" ? "todos"
     : t === "darelog" ? "records" : t === "expense" ? "expenses"
-    : t === "challenge" ? "challenges" : null);
+    : t === "challenge" ? "challenges"
+    : t === "future" ? "opened" : null);
   for (const r of obj.rooms || []) {
     const d = obj.data ? obj.data[r.id] : undefined;
     if (!d) continue;
@@ -97,6 +98,14 @@ function metaFromData(room, data) {
     const cn = (id) => (room.categories || []).find((c) => c.id === id)?.name || "";
     return {
       preview: last ? `${cn(last.categoryId)} ¥${(last.amount || 0).toLocaleString("ja-JP")}` : "",
+      lastAt: room.lastAt || (last ? Date.now() : 0)
+    };
+  }
+  if (room.type === "future") {
+    const op = (data && data.opened) || [];
+    const last = op[op.length - 1];
+    return {
+      preview: typeof last?.text === "string" ? last.text.split("\n")[0].slice(0, 40) : "",
       lastAt: room.lastAt || (last ? Date.now() : 0)
     };
   }
@@ -191,7 +200,8 @@ export async function restoreAll(obj) {
       : r.type === "todo" ? "todos"
       : r.type === "darelog" ? "records"
       : r.type === "expense" ? "expenses"
-      : r.type === "challenge" ? "challenges" : null;
+      : r.type === "challenge" ? "challenges"
+      : r.type === "future" ? "opened" : null;
     const sigOf = (x) => arrKey === "messages" ? `${x.dateKey} ${x.memberId} ${x.text}`
       : arrKey === "todos" ? `${x.dateKey} ${x.text}`
       : arrKey === "records" ? `${x.dateKey} ${x.slot} ${x.memberId}`
@@ -220,7 +230,12 @@ export async function restoreAll(obj) {
         }
       }
       if (arrKey === "messages") arr = byDate(arr);
-      const finalData = { [arrKey]: arr };
+      /* 配列以外のキー（未来日記の配信順など）は落とさない。
+         既存を優先し、こちらに無いものだけバックアップから補う */
+      const finalData = { ...curData, [arrKey]: arr };
+      for (const k of Object.keys(incoming || {})) {
+        if (k !== arrKey && finalData[k] === undefined) finalData[k] = incoming[k];
+      }
       await set(roomDataKey(r.id), finalData);
       // メンバー統合（トーク・だれログ）
       let mergedRoom = { ...cur };

@@ -963,6 +963,69 @@ export const css = `
   .sum-route { font-size: 12.5px; font-weight: 700; color: #0d7f8c; }
   .sum-n { font-size: 10.5px; color: #a4517f; margin-left: 6px; font-weight: 700; }
 
+  /* ===== 🔮 未来日記 ===== */
+  .fut-scroll { flex: 1; overflow-y: auto; padding: 14px 14px calc(28px + env(safe-area-inset-bottom)); }
+  .fut-intro {
+    white-space: pre-wrap; text-align: center; color: #a4517f;
+    font-size: 13.5px; line-height: 1.9; font-weight: 700;
+    padding: 26px 10px 10px;
+  }
+  .fut-card {
+    position: relative;
+    background: linear-gradient(155deg,#fff 0%,#fff4fb 40%,#ffe9f7 100%);
+    border: 2px solid #fff; border-radius: 22px;
+    padding: 13px 16px 10px; margin-bottom: 14px;
+    box-shadow: 0 8px 22px rgba(255,20,147,.20), inset 0 2px 0 #fff;
+  }
+  .fut-card.fave { box-shadow: 0 8px 24px rgba(255,20,147,.38), inset 0 2px 0 #fff; border-color: #ffd6ec; }
+  .fut-card.opening { animation: fut-in .9s cubic-bezier(.25,1.4,.5,1); }
+  @keyframes fut-in {
+    0% { opacity: 0; transform: translateY(14px) scale(.96); }
+    60% { opacity: 1; transform: translateY(0) scale(1.02); }
+    100% { transform: scale(1); }
+  }
+  .fut-top { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .fut-date { font-size: 12.5px; font-weight: 800; color: #d6317f; letter-spacing: .02em; }
+  .fut-date.sun { color: #ff3d8b; }
+  .fut-date.sat { color: #2f7fd6; }
+  .fut-ahead {
+    font-size: 10.5px; font-weight: 800; color: #fff;
+    background: linear-gradient(120deg,#ff1493,#c33bff);
+    border-radius: 999px; padding: 3px 9px; letter-spacing: .02em;
+  }
+  .fut-heart {
+    margin-left: auto; background: none; border: none; cursor: pointer;
+    font-size: 17px; line-height: 1; padding: 2px 2px; color: #e59ec4;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .fut-heart.on { color: #ff1493; }
+  .fut-text {
+    white-space: pre-wrap; overflow-wrap: anywhere;
+    font-size: 14px; line-height: 1.95; color: #4a3140;
+  }
+  .fut-got { margin-top: 8px; font-size: 10px; color: #c58fb0; text-align: right; }
+  .fut-foot { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 6px 0 4px; }
+  .fut-open {
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    width: 100%; max-width: 340px; padding: 17px 18px;
+    background: linear-gradient(120deg,#ff1493 0%,#ff45b0 45%,#c33bff 100%);
+    color: #fff; border: none; border-radius: 22px; cursor: pointer;
+    font-size: 15.5px; font-weight: 800; letter-spacing: .03em;
+    box-shadow: 0 10px 26px rgba(255,20,147,.45), inset 0 2px 0 rgba(255,255,255,.5);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .fut-open:active { transform: scale(.975); }
+  .fut-open-ic { font-size: 21px; }
+  .fut-msg {
+    white-space: pre-wrap; text-align: center; color: #a4517f;
+    font-size: 12.5px; line-height: 1.85; font-weight: 700; padding: 8px 0;
+  }
+  .fut-reset {
+    background: none; border: none; cursor: pointer;
+    font-size: 11px; color: #c58fb0; text-decoration: underline; padding: 4px 8px;
+  }
+  .fut-draft { font-size: 10.5px; color: #c58fb0; }
+
   /* ===== 🏁 チャレンジ ===== */
   .ch-scroll { flex: 1; overflow-y: auto; padding: 12px 14px calc(24px + env(safe-area-inset-bottom)); }
   .ch-card {
