@@ -1024,7 +1024,17 @@ export const css = `
     background: none; border: none; cursor: pointer;
     font-size: 11px; color: #c58fb0; text-decoration: underline; padding: 4px 8px;
   }
-  .fut-draft { font-size: 10.5px; color: #c58fb0; }
+  .fut-draft { font-size: 10.5px; color: #c58fb0; text-align: center; }
+  .fut-fmt {
+    background: #fff2f9; border: 1.5px dashed #ffbfe0; border-radius: 12px;
+    padding: 9px 11px; margin: 0; font-size: 11px; line-height: 1.7;
+    color: #a4517f; white-space: pre-wrap; overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .fut-err {
+    background: #fff0f4; border: 1.5px solid #ffb3c8; border-radius: 12px;
+    padding: 8px 11px; font-size: 11.5px; line-height: 1.7; color: #c22a5c;
+  }
 
   /* ===== 🏁 チャレンジ ===== */
   .ch-scroll { flex: 1; overflow-y: auto; padding: 12px 14px calc(24px + env(safe-area-inset-bottom)); }

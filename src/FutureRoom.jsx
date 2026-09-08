@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef } from "react";
-import { get, set, roomDataKey } from "./storage.js";
+import { get, set, roomDataKey, futureScriptKey } from "./storage.js";
 import { todayKey, nowTime, uid, keyToDisp, addMonths, aheadLabel, dowClass, WEEKDAYS, keyToDate } from "./format.js";
-import { FUTURE_ENTRIES, IS_DRAFT } from "./futureDiary.js";
+import { SAMPLE_ENTRIES, parseScript } from "./futureDiary.js";
 import ConfirmDialog from "./ConfirmDialog.jsx";
 
 /* 🔮 未来日記ルーム: 全部叶っている前提の未来の日記が、1日1篇ずつ届く。
-   原稿は futureDiary.js に同梱（サーバー無しで動くため）。
+
+   ■ 原稿の置き場所
+   アプリに同梱すると公開リポジトリに載ってしまうので、原稿は端末の
+   IndexedDB にだけ持つ（futureScriptKey）。取り込むまではサンプルが動く。
 
    ■ 配信のしかた
-   - 初回に一度だけ順番をシャッフルして room データに固定する
+   - 初回に一度だけ順番をシャッフルして固定する
      （毎回シャッフルすると、原稿を足したときに既読の並びが崩れるため）
    - 「日付で決め打ち」ではなく「未読の先頭」を配る。
      開かない日があっても取りこぼさず、1日1篇のペースは守られる
@@ -16,36 +19,42 @@ import ConfirmDialog from "./ConfirmDialog.jsx";
      受け取り済みの日記は変わらない（＝その日に届いた手紙として残る） */
 
 export default function FutureRoom({ room, onBack, onMeta, showToast, pinned }) {
+  const [script, setScript] = useState(null);   // 取り込んだ原稿（null = 未取り込み）
   const [order, setOrder] = useState([]);
   const [opened, setOpened] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [confirm, setConfirm] = useState(null);
-  const [justOpened, setJustOpened] = useState(null); // 開封演出中のid
-  const scrollRef = useRef(null);
+  const [justOpened, setJustOpened] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [importErr, setImportErr] = useState([]);
   const bottomRef = useRef(null);
 
   const today = todayKey();
-  const byId = (id) => FUTURE_ENTRIES.find((e) => e.id === id);
+  const entries = script && script.length ? script : SAMPLE_ENTRIES;
+  const isSample = !(script && script.length);
+  const byId = (id) => entries.find((e) => e.id === id);
 
   useEffect(() => {
     (async () => {
       try {
+        const sc = await get(futureScriptKey(room.id));
+        const list = Array.isArray(sc) ? sc : null;
+        setScript(list);
         const v = await get(roomDataKey(room.id));
-        const op = Array.isArray(v?.opened) ? v.opened : [];
-        setOpened(op);
-        setOrder(buildOrder(Array.isArray(v?.order) ? v.order : null));
+        setOpened(Array.isArray(v?.opened) ? v.opened : []);
+        setOrder(buildOrder(Array.isArray(v?.order) ? v.order : null,
+          (list && list.length ? list : SAMPLE_ENTRIES).map((e) => e.id)));
       } catch (e) { /* 初回 */ } finally { setLoaded(true); }
     })();
   }, [room.id]);
 
   /* 配信順を作る。保存済みの順番は必ず尊重し、
      原稿に増えたぶんだけを後ろに足す（既存の順番は動かさない） */
-  const buildOrder = (saved) => {
-    const all = FUTURE_ENTRIES.map((e) => e.id);
-    if (!saved) return shuffle(all);
+  const buildOrder = (saved, allIds) => {
+    if (!saved) return shuffle(allIds);
     const known = new Set(saved);
-    const added = all.filter((id) => !known.has(id));
-    return [...saved, ...shuffle(added)];
+    return [...saved, ...shuffle(allIds.filter((id) => !known.has(id)))];
   };
 
   const persist = async (nextOrder, nextOpened) => {
@@ -91,12 +100,32 @@ export default function FutureRoom({ room, onBack, onMeta, showToast, pinned }) 
     persist(order, opened.map((o) => (o.id === id ? { ...o, fave: !o.fave } : o)));
   };
 
+  // 貼り付けた原稿を取り込む。受け取り済みの日記はそのまま残す
+  const doImport = async () => {
+    const { entries: parsed, errors } = parseScript(draft);
+    if (!parsed.length) { setImportErr(errors); return; }
+    setImportErr([]);
+    try {
+      await set(futureScriptKey(room.id), parsed);
+    } catch (e) {
+      showToast("原稿の保存に失敗しました");
+      return;
+    }
+    setScript(parsed);
+    // サンプルから乗り換えるときは配信順も作り直す
+    const nextOrder = buildOrder(isSample ? null : order, parsed.map((e) => e.id));
+    await persist(nextOrder, opened);
+    setImportOpen(false);
+    setDraft("");
+    showToast(`${parsed.length}篇を取り込んだよ🔮`);
+  };
+
   // 原稿を入れ替えたときに、また最初から届くようにする
   const askReset = () => {
     setConfirm({
       message: `受け取った${opened.length}篇をぜんぶ未読に戻しますか？\n原稿を入れ替えたときに使ってね。\n（日記ルームの記録は消えません）`,
       onConfirm: () => {
-        persist(shuffle(FUTURE_ENTRIES.map((e) => e.id)), []);
+        persist(shuffle(entries.map((e) => e.id)), []);
         setConfirm(null);
         showToast("未来日記をリセットしたよ🔮");
       }
@@ -120,11 +149,16 @@ export default function FutureRoom({ room, onBack, onMeta, showToast, pinned }) 
             {loaded ? `${opened.length}篇うけとった / のこり${remaining.length}篇` : "Nachumin Lifelog"}
           </div>
         </div>
+        <button
+          className="icon-btn" style={{ marginLeft: "auto" }}
+          aria-label="原稿を取り込む"
+          onClick={() => { setImportErr([]); setImportOpen(true); }}
+        >📥</button>
       </div>
 
       {pinned}
 
-      <div className="fut-scroll" ref={scrollRef}>
+      <div className="fut-scroll">
         {loaded && opened.length === 0 && (
           <div className="fut-intro">
             {"未来のなちゅみんから、\n1日1篇ずつ日記が届きます🔮\n\n下のボタンで今日のぶんをひらいてね"}
@@ -155,7 +189,7 @@ export default function FutureRoom({ room, onBack, onMeta, showToast, pinned }) 
           <div className="fut-foot">
             {remaining.length === 0 ? (
               <div className="fut-msg">
-                {"未来日記はここまで🔮\n原稿を足すと、また続きが届きます"}
+                {"未来日記はここまで🔮\n右上の📥から原稿を足すと、また続きが届きます"}
               </div>
             ) : todayDone ? (
               <div className="fut-msg">
@@ -170,13 +204,47 @@ export default function FutureRoom({ room, onBack, onMeta, showToast, pinned }) 
             {opened.length > 0 && (
               <button className="fut-reset" onClick={askReset}>配信をリセット</button>
             )}
-            {IS_DRAFT && (
-              <div className="fut-draft">※ いまの原稿は仮です</div>
+            {isSample && (
+              <div className="fut-draft">※ いまはサンプル。右上の📥から原稿を入れてね</div>
             )}
           </div>
         )}
         <div ref={bottomRef} />
       </div>
+
+      {importOpen && (
+        <div className="overlay" onClick={() => setImportOpen(false)}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>📥 原稿を取り込む</h3>
+            <p className="panel-note">
+              原稿はこの端末の中だけに保存されます（アプリには入っていません）。
+              まるごとバックアップにも含まれます。
+            </p>
+            <div className="f-label">この形で貼り付けてね</div>
+            <pre className="fut-fmt">{"=== 1年後 ===\n本文。何行でもOK。\n\n=== 3年後 ===\n本文。"}</pre>
+            <textarea
+              autoFocus
+              placeholder="ここに原稿をペースト"
+              value={draft}
+              onChange={(e) => { setDraft(e.target.value); setImportErr([]); }}
+              style={{ minHeight: 180 }}
+            />
+            {importErr.length > 0 && (
+              <div className="fut-err">
+                {importErr.map((m, i) => <div key={i}>⚠️ {m}</div>)}
+              </div>
+            )}
+            <p className="panel-note">
+              取り込むと原稿は入れ替わりますが、<b>受け取り済みの日記はそのまま残ります</b>。
+              同じ原稿をもう一度読みたいときは「配信をリセット」を使ってね。
+            </p>
+            <div className="panel-btns">
+              <button className="p-copy" disabled={!draft.trim()} onClick={doImport}>取り込む</button>
+              <button className="p-close" onClick={() => setImportOpen(false)}>閉じる</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirm && (
         <ConfirmDialog message={confirm.message} onConfirm={confirm.onConfirm} onCancel={() => setConfirm(null)} />

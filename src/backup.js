@@ -1,7 +1,7 @@
 import {
   get, set, ROOMS_KEY, roomDataKey, DECL_KEY, doneLogKey, MARKS_KEY,
   habitsKey, habitLogKey, habitSeedKey,
-  periodKey, symptomsKey, symptomLogKey, symptomSeedKey
+  periodKey, symptomsKey, symptomLogKey, symptomSeedKey, futureScriptKey
 } from "./storage.js";
 
 const SLOT_EMOJI = { morning: "🌅", noon: "☀️", night: "🌙" };
@@ -30,7 +30,7 @@ export function validateBackup(obj) {
     return "ルームの中身の形式が壊れています 🥺";
   }
   for (const k of ["doneLogs", "habits", "habitLogs", "habitSeeds",
-                   "periods", "symptoms", "symptomLogs", "symptomSeeds"]) {
+                   "periods", "symptoms", "symptomLogs", "symptomSeeds", "futureScripts"]) {
     if (obj[k] != null && (typeof obj[k] !== "object" || Array.isArray(obj[k]))) {
       return `${k} の形式が壊れています 🥺`;
     }
@@ -136,6 +136,7 @@ export async function dumpAll() {
   const symptoms = {};
   const symptomLogs = {};
   const symptomSeeds = {};
+  const futureScripts = {};
   for (const r of rooms) {
     const dl = await get(doneLogKey(r.id));
     if (dl && Object.keys(dl).length) doneLogs[r.id] = dl;
@@ -152,6 +153,9 @@ export async function dumpAll() {
     const sl = await get(symptomLogKey(r.id));
     if (sl && Object.keys(sl).length) symptomLogs[r.id] = sl;
     if (await get(symptomSeedKey(r.id))) symptomSeeds[r.id] = true;
+    // 未来日記の原稿（アプリに同梱していないので、ここに入れないと失われる）
+    const fs = await get(futureScriptKey(r.id));
+    if (Array.isArray(fs) && fs.length) futureScripts[r.id] = fs;
   }
   const marks = (await get(MARKS_KEY)) || null;
   return {
@@ -169,6 +173,7 @@ export async function dumpAll() {
     symptoms,
     symptomLogs,
     symptomSeeds,
+    futureScripts,
     marks
   };
 }
@@ -350,6 +355,20 @@ export async function restoreAll(obj) {
   if (obj.symptomSeeds) {
     for (const rid of Object.keys(obj.symptomSeeds)) {
       if (obj.symptomSeeds[rid]) await set(symptomSeedKey(rid), true);
+    }
+  }
+  /* 未来日記の原稿。今ある原稿は正として触らず、
+     こちらに無い篇だけ足す（idは本文から作っているので重複しない） */
+  if (obj.futureScripts) {
+    for (const [rid, list] of Object.entries(obj.futureScripts)) {
+      if (!Array.isArray(list) || !list.length) continue;
+      const cur = (await get(futureScriptKey(rid))) || [];
+      const have = new Set(cur.map((e) => e.id));
+      const add = list.filter((e) => e && e.id && !have.has(e.id));
+      if (add.length) {
+        await set(futureScriptKey(rid), [...cur, ...add]);
+        addedItems += add.length;
+      }
     }
   }
   // 体調の日別ログ（日付ごとにマージ・重複除外）

@@ -32,6 +32,9 @@ export const periodKey = (roomId) => `period-v1:${roomId}`;      // { days: ["YY
 export const symptomsKey = (roomId) => `symptoms-v1:${roomId}`;  // [{id,name,emoji,color}]
 export const symptomLogKey = (roomId) => `symptomlog-v1:${roomId}`; // { dateKey: [symptomId] }
 export const symptomSeedKey = (roomId) => `symptomseed-v1:${roomId}`; // 初期項目を一度だけ用意した印
+/* 未来日記の原稿。アプリに同梱せず端末にだけ持つ
+   （公開リポジトリに個人的な内容を置かないため）。[{id, ahead, text}] */
+export const futureScriptKey = (roomId) => `futurescript-v1:${roomId}`;
 // まるごとバックアップの記録（最後に書き出した日・バナーを閉じた日）
 export const BACKUP_KEY = "backup-v1";
 
