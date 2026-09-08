@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { get, set, roomDataKey, futureScriptKey } from "./storage.js";
-import { todayKey, nowTime, uid, keyToDisp, addMonths, aheadLabel, dowClass, WEEKDAYS, keyToDate } from "./format.js";
+import { todayKey, nowTime, uid, keyToDisp, addDays, addMonths, aheadLabel, dowClass, WEEKDAYS, keyToDate } from "./format.js";
 import { SAMPLE_ENTRIES, parseScript } from "./futureDiary.js";
 import ConfirmDialog from "./ConfirmDialog.jsx";
 
@@ -28,6 +28,8 @@ export default function FutureRoom({ room, onBack, onMeta, showToast, pinned }) 
   const [importOpen, setImportOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [importErr, setImportErr] = useState([]);
+  const [backfillOpen, setBackfillOpen] = useState(false);
+  const [backfillN, setBackfillN] = useState(7);
   const bottomRef = useRef(null);
 
   const today = todayKey();
@@ -94,6 +96,37 @@ export default function FutureRoom({ room, onBack, onMeta, showToast, pinned }) 
     persist(order, [...opened, rec]);
     setJustOpened(rec.id);
     setTimeout(() => setJustOpened(null), 1400);
+  };
+
+  /* さかのぼって受け取る。1日1篇のルールは崩さず、昨日から順に過去の日へ割り当てる。
+     すでに受け取っている日は飛ばすので、二重に配られない。 */
+  const doBackfill = () => {
+    const n = Math.max(1, Math.min(60, Number(backfillN) || 0));
+    const have = new Set(opened.map((o) => o.dateKey));
+    const days = [];
+    for (let i = 1; days.length < n && i <= 120; i++) {
+      const d = addDays(today, -i);
+      if (!have.has(d)) days.push(d);
+    }
+    days.reverse(); // 古い日から順に並べる
+    /* 原稿が日数より少ないときは、いちばん古い日ではなく
+       今日に近い日から埋める（昨日・一昨日…と続いて見えるように） */
+    const use = days.slice(-Math.min(days.length, remaining.length));
+    const add = [];
+    for (let i = 0; i < use.length; i++) {
+      const e = byId(remaining[i]);
+      if (!e) break;
+      add.push({
+        id: uid(), entryId: e.id, ahead: e.ahead,
+        futureKey: addMonths(use[i], e.ahead), // その日に受け取ったものとして未来日を出す
+        text: e.text, dateKey: use[i], time: "", fave: false, back: true
+      });
+    }
+    if (!add.length) { showToast("配れる原稿がもうありません"); return; }
+    const merged = [...opened, ...add].sort((a, b) => (a.dateKey < b.dateKey ? -1 : a.dateKey > b.dateKey ? 1 : 0));
+    persist(order, merged);
+    setBackfillOpen(false);
+    showToast(`${add.length}篇をさかのぼって受け取ったよ🔮`);
   };
 
   const toggleFave = (id) => {
@@ -180,7 +213,7 @@ export default function FutureRoom({ room, onBack, onMeta, showToast, pinned }) 
                 >{o.fave ? "🩷" : "♡"}</button>
               </div>
               <div className="fut-text">{o.text}</div>
-              <div className="fut-got">うけとった日 {keyToDisp(o.dateKey)} {o.time}</div>
+              <div className="fut-got">うけとった日 {keyToDisp(o.dateKey)}{o.time ? " " + o.time : ""}</div>
             </div>
           );
         })}
@@ -201,9 +234,14 @@ export default function FutureRoom({ room, onBack, onMeta, showToast, pinned }) 
                 今日の未来日記をひらく
               </button>
             )}
-            {opened.length > 0 && (
-              <button className="fut-reset" onClick={askReset}>配信をリセット</button>
-            )}
+            <div className="fut-subs">
+              {remaining.length > 0 && (
+                <button className="fut-reset" onClick={() => setBackfillOpen(true)}>⏪ さかのぼって受け取る</button>
+              )}
+              {opened.length > 0 && (
+                <button className="fut-reset" onClick={askReset}>配信をリセット</button>
+              )}
+            </div>
             {isSample && (
               <div className="fut-draft">※ いまはサンプル。右上の📥から原稿を入れてね</div>
             )}
@@ -241,6 +279,32 @@ export default function FutureRoom({ room, onBack, onMeta, showToast, pinned }) 
             <div className="panel-btns">
               <button className="p-copy" disabled={!draft.trim()} onClick={doImport}>取り込む</button>
               <button className="p-close" onClick={() => setImportOpen(false)}>閉じる</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {backfillOpen && (
+        <div className="overlay" onClick={() => setBackfillOpen(false)}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>⏪ さかのぼって受け取る</h3>
+            <p className="panel-note">
+              昨日から順に、過去の日へ1日1篇ずつ配ります。すでに受け取っている日は飛ばします。
+            </p>
+            <div className="f-label">何日ぶん</div>
+            <input
+              className="f-input" type="number" inputMode="numeric"
+              min={1} max={60} value={backfillN}
+              onChange={(e) => setBackfillN(e.target.value)}
+              style={{ width: 110 }}
+            />
+            <p className="panel-note">
+              いまの原稿で配れるのは<b>{remaining.length}篇</b>まで。
+              足りないときは、今日に近い日から埋めます。
+            </p>
+            <div className="panel-btns">
+              <button className="p-copy" onClick={doBackfill}>受け取る</button>
+              <button className="p-close" onClick={() => setBackfillOpen(false)}>やめる</button>
             </div>
           </div>
         </div>

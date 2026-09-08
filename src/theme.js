@@ -1020,6 +1020,7 @@ export const css = `
     white-space: pre-wrap; text-align: center; color: #a4517f;
     font-size: 12.5px; line-height: 1.85; font-weight: 700; padding: 8px 0;
   }
+  .fut-subs { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; justify-content: center; }
   .fut-reset {
     background: none; border: none; cursor: pointer;
     font-size: 11px; color: #c58fb0; text-decoration: underline; padding: 4px 8px;

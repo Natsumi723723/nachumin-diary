@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import {
   get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID, DECL_KEY,
+  FUTURE_SEED_KEY, FUTURE_ROOM_ID,
   MARKS_KEY, DEFAULT_MARKS, doneLogKey, BACKUP_KEY
 } from "./storage.js";
 import {
@@ -66,11 +67,38 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(""), ms);
   };
 
+  /* 未来日記ルームを一度だけ用意する。
+     一度でも作ったら印を残すので、あとで消しても勝手に復活しない。 */
+  const seedFutureRoom = async (list) => {
+    try {
+      if (await get(FUTURE_SEED_KEY)) return list;
+      if (list.some((r) => r.type === "future")) {
+        await set(FUTURE_SEED_KEY, true);
+        return list;
+      }
+      const next = [...list, {
+        id: FUTURE_ROOM_ID,
+        type: "future",
+        name: "未来日記",
+        emoji: "🔮",
+        theme: ROOM_THEMES[3] || undefined,
+        createdAt: Date.now(),
+        lastAt: 0,
+        preview: ""
+      }];
+      await set(ROOMS_KEY, next);
+      await set(FUTURE_SEED_KEY, true);
+      return next;
+    } catch (e) {
+      return list; // 用意できなくても起動は止めない
+    }
+  };
+
   /* 起動時: ルーム読込（旧データがあれば「日記」ルームへ自動移行）+ 今日の宣言 */
   useEffect(() => {
     (async () => {
       try {
-        const loaded = await loadRooms();
+        const loaded = await seedFutureRoom(await loadRooms());
         // 起動時は日記ルームを直接開く（無ければ一覧）
         if (loaded.some((r) => r.id === DIARY_ROOM_ID)) {
           setView({ screen: "room", roomId: DIARY_ROOM_ID });

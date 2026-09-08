@@ -35,6 +35,9 @@ export const symptomSeedKey = (roomId) => `symptomseed-v1:${roomId}`; // 初期�
 /* 未来日記の原稿。アプリに同梱せず端末にだけ持つ
    （公開リポジトリに個人的な内容を置かないため）。[{id, ahead, text}] */
 export const futureScriptKey = (roomId) => `futurescript-v1:${roomId}`;
+// 未来日記ルームを一度だけ自動で用意した印（消したら復活させないため）
+export const FUTURE_SEED_KEY = "futureseed-v1";
+export const FUTURE_ROOM_ID = "future-main";
 // まるごとバックアップの記録（最後に書き出した日・バナーを閉じた日）
 export const BACKUP_KEY = "backup-v1";
 
