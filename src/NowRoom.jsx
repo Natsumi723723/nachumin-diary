@@ -179,7 +179,7 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned }) {
                 {list.length > 0 && <span className="now-day-n">{list.length}</span>}
               </div>
               {list.length === 0 && k === today && (
-                <div className="now-empty">いまなにしてる？ 下からつぶやいてね🕐</div>
+                <div className="now-empty">下からつぶやいてね🕐 時刻は自動でつくよ</div>
               )}
               <div className="now-tl">
                 {list.map((p) => (
@@ -205,7 +205,7 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned }) {
           <div className="in-row">
             <textarea
               ref={taRef} className="ta" rows={1}
-              placeholder="いまなにしてる？（時刻は自動でつくよ）"
+              placeholder="いまなにしてる？"
               enterKeyHint="send"
               value={draft} onChange={autoGrow} onKeyDown={onKeyDown}
             />
