@@ -965,6 +965,18 @@ export const css = `
 
   /* ===== 🕐 なう（ひとりツイッター） ===== */
   .now-scroll { padding-top: 6px; }
+  .now-to-diary {
+    margin-left: auto; flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 9px 14px 9px 12px; border: none; border-radius: 999px; cursor: pointer;
+    font-size: 14px; font-weight: 900; color: #fff; letter-spacing: .02em;
+    background: linear-gradient(120deg, #ff1493 0%, #ff45b0 50%, #c33bff 100%);
+    box-shadow: 0 4px 14px rgba(255,20,147,.45), inset 0 1px 0 rgba(255,255,255,.5);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .now-to-diary:active { transform: scale(.95); }
+  .now-to-diary-ic { font-size: 15px; }
+  .now-to-diary-arw { font-size: 17px; line-height: 1; margin-left: 2px; }
   .now-more {
     display: block; margin: 4px auto 12px; background: #fff; cursor: pointer;
     border: 1.5px solid #ffc2e0; color: #d6317f; border-radius: 999px;

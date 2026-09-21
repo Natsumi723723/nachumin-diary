@@ -694,7 +694,8 @@ export default function App() {
         ? <DiaryRoom key={room.id} {...common} syncSignal={diarySync} marks={marks} onEditMarks={() => setMarkSettingsOpen(true)}
             nowRoomIds={rooms.filter((r) => r.type === "now").map((r) => r.id)} />
         : room.type === "now"
-          ? <NowRoom key={room.id} {...common} />
+          ? <NowRoom key={room.id} {...common}
+              onOpenDiary={rooms.some((r) => r.id === DIARY_ROOM_ID) ? () => setView({ screen: "room", roomId: DIARY_ROOM_ID }) : undefined} />
         : room.type === "todo"
           ? <TodoRoom key={room.id} {...common} onTodoComplete={onTodoComplete} onTodoUncomplete={onTodoUncomplete} onRoomChange={(patch) => updateRoom(room.id, patch)} todoRooms={rooms.filter((r) => r.type === "todo" && r.id !== room.id)} onMoveTodo={moveTodoToRoom} />
           : room.type === "darelog"

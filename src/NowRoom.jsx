@@ -30,7 +30,7 @@ const fromInputTime = (v) => {
   return m ? `${Number(m[1])}:${m[2]}` : "";
 };
 
-export default function NowRoom({ room, onBack, onMeta, showToast, pinned }) {
+export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpenDiary }) {
   const [posts, setPosts] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [draft, setDraft] = useState("");
@@ -159,6 +159,12 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned }) {
           <div className="hd-title">{room.name}</div>
           <div className="hd-sub">{loaded ? `今日 ${todayCount}件` : "Nachumin Lifelog"}</div>
         </div>
+        {/* 日記へ1タップ（今日のなうがどう並んだかをすぐ見られるように） */}
+        {onOpenDiary && (
+          <button className="now-to-diary" onClick={onOpenDiary} aria-label="日記をひらく">
+            <span className="now-to-diary-ic">💗</span>日記<span className="now-to-diary-arw">›</span>
+          </button>
+        )}
       </div>
 
       {pinned}
