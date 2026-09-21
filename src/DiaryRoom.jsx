@@ -5,7 +5,7 @@ import {
 } from "./storage.js";
 import {
   keyToDisp, keyToDate, toKey, addDays, WEEKDAYS, dowClass, dateWithDow, todayKey, yesterdayKey, nowTime, escapeRegExp, uid,
-  diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER, DECL_MARKER, safeFileName, copyText
+  diaryToText, parseDiaryText, extractDoneSection, DONE_HEADER, DECL_MARKER, safeFileName, copyText, timeSortKey
 } from "./format.js";
 import InlineEdit from "./InlineEdit.jsx";
 import MarkBar, { insertAtCursor } from "./MarkBar.jsx";
@@ -23,9 +23,10 @@ const MON_FIRST = [1, 2, 3, 4, 5, 6, 0]; // 曜日チップは月曜始まり
 
 /* 日記型ルーム: 1日=1吹き出し。下部入力欄で送信=追記、吹き出しタップで全文編集。
    「できたこと」吹き出しに完了TODO＋習慣チップを表示。 */
-export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToast, pinned, syncSignal, marks, onEditMarks }) {
+export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToast, pinned, syncSignal, marks, onEditMarks, nowRoomIds = [] }) {
   const [entries, setEntries] = useState({});
   const [doneLog, setDoneLog] = useState({});   // { dateKey: [{text,time}] }
+  const [nowByDay, setNowByDay] = useState({});  // なうルームの投稿 { dateKey: [{time,text,at}] }
   const [habits, setHabits] = useState([]);      // [{id,name,emoji}]
   const [habitAch, setHabitAch] = useState({});  // { dateKey: [habitId] }
   const [loaded, setLoaded] = useState(false);
@@ -137,6 +138,29 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
       }
     })();
   }, [room.id]);
+
+  /* なうルームの投稿を読んで、日ごとにまとめる。
+     なうルーム側が正のデータ。日記はそれを表示するだけなので、
+     なうを直したり消したりしても日記とズレない */
+  const nowKey = nowRoomIds.join(",");
+  useEffect(() => {
+    if (!nowRoomIds.length) { setNowByDay({}); return; }
+    (async () => {
+      const byDay = {};
+      for (const rid of nowRoomIds) {
+        try {
+          const v = await get(roomDataKey(rid));
+          for (const p of (v && Array.isArray(v.posts) ? v.posts : [])) {
+            (byDay[p.dateKey] = byDay[p.dateKey] || []).push(p);
+          }
+        } catch (e) { /* 読めないルームは飛ばす */ }
+      }
+      for (const k of Object.keys(byDay)) {
+        byDay[k].sort((a, b) => timeSortKey(a.time) - timeSortKey(b.time) || (a.at || 0) - (b.at || 0));
+      }
+      setNowByDay(byDay);
+    })();
+  }, [nowKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!syncSignal) return;
@@ -480,6 +504,8 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
     showToast(ok ? "コピーしました🩷" : "コピーできませんでした。手動でコピーしてね");
   };
 
+  const nowTextOf = (k) =>
+    ["🕐 なう", ...(nowByDay[k] || []).map((p) => `${p.time} ${p.text}`)].join("\n");
   const doneTextOf = (k) => {
     const lines = ["🩷 できたこと"];
     for (const it of (doneLog[k] || [])) lines.push(`☑ ${it.text}${it.time ? ` (${it.time})` : ""}`);
@@ -496,14 +522,15 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
 
   const q = query.toLowerCase();
   const today = todayKey();
-  const allDates = new Set([...Object.keys(entries), ...Object.keys(doneLog), ...Object.keys(habitAch)]);
+  const allDates = new Set([...Object.keys(entries), ...Object.keys(doneLog), ...Object.keys(habitAch), ...Object.keys(nowByDay)]);
   if (habits.length) allDates.add(today);
   let displayKeys = [...allDates].sort();
   if (query) {
     displayKeys = displayKeys.filter((k) => {
       const inDiary = entries[k] && (entries[k].text + keyToDisp(k)).toLowerCase().includes(q);
       const inDone = (doneLog[k] || []).some((it) => it.text.toLowerCase().includes(q));
-      return inDiary || inDone;
+      const inNow = (nowByDay[k] || []).some((p) => p.text.toLowerCase().includes(q));
+      return inDiary || inDone || inNow;
     });
   }
 
@@ -551,6 +578,7 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
           const isEditing = editing === k;
           const hasDiary = !!entries[k];
           const done = doneLog[k] || [];
+          const dayNow = nowByDay[k] || [];
           const isToday = k === today;
           const ach = habitAch[k] || [];
           /* その日(29時制)の曜日に該当する習慣を表示。
@@ -618,8 +646,29 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                   </Pressable>
                 </div>
               )}
+              {dayNow.length > 0 && (
+                <div className="done-row now-daily" style={hasDiary ? undefined : { marginTop: 0 }}>
+                  <Pressable
+                    className="done-bubble"
+                    onLongPress={(p) => setMenu({ type: "now", k, x: p.x, y: p.y })}
+                  >
+                    <div className="done-head">
+                      <span>🕐 なう</span>
+                      <span className="now-d-n">{dayNow.length}件</span>
+                    </div>
+                    <div className="now-d-list">
+                      {dayNow.map((p) => (
+                        <div className="now-d-line" key={p.id || p.at}>
+                          <span className="now-d-time">{p.time}</span>
+                          <span className="now-d-text">{renderBody(p.text)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </Pressable>
+                </div>
+              )}
               {showDone && (
-                <div className="done-row" style={hasDiary ? undefined : { marginTop: 0 }}>
+                <div className="done-row" style={hasDiary || dayNow.length ? undefined : { marginTop: 0 }}>
                   <Pressable
                     className="done-bubble"
                     onLongPress={(p) => setMenu({ type: "done", k, x: p.x, y: p.y })}
@@ -730,7 +779,8 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
           onClose={() => setMenu(null)}
           onCopy={() => doCopyText(
             `🩷${dateWithDow(menu.k)}🩷\n` +
-            (menu.type === "diary" ? entries[menu.k]?.text || "" : doneTextOf(menu.k))
+            (menu.type === "diary" ? entries[menu.k]?.text || ""
+              : menu.type === "now" ? nowTextOf(menu.k) : doneTextOf(menu.k))
           )}
           onEdit={menu.type === "diary" ? () => { setMenu(null); startEdit(menu.k); } : undefined}
           onDelete={menu.type === "diary" ? () => { setMenu(null); askDeleteEntry(menu.k); } : undefined}
