@@ -1,4 +1,4 @@
-import{r as d,t as re,g as H,a9 as W,f as z,j as t,C as ce,A as de,k as J,d as oe,aa as ue,H as he,I as fe,ab as T,m as V,e as me,s as Y}from"./index-3GoDcHBO.js";const _=[{id:"s1",ahead:12,text:`朝いちばんに鍵をあけるのが、まだちょっと好き。
+import{r as d,t as re,g as H,a9 as W,f as z,j as t,C as ce,A as de,k as J,d as oe,aa as ue,H as he,I as fe,ab as T,m as V,e as me,s as Y}from"./index-OYkUGS9Q.js";const _=[{id:"s1",ahead:12,text:`朝いちばんに鍵をあけるのが、まだちょっと好き。
 誰もいないうちに電気をつけて、棚を一段ずつ見ていく時間。
 ここに並んでいる色、ぜんぶ自分で決めたんだよなと思う。`},{id:"s2",ahead:36,text:`打ち合わせの帰り、駅まで歩きながらぜんぶ決まった。
 話しはじめて5分で「それやろう」になるの、何年たっても変わらない。
