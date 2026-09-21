@@ -44,7 +44,8 @@ export function summarizeBackup(obj) {
   const arrKeyOf = (t) => (t === "talk" ? "messages" : t === "todo" ? "todos"
     : t === "darelog" ? "records" : t === "expense" ? "expenses"
     : t === "challenge" ? "challenges"
-    : t === "future" ? "opened" : null);
+    : t === "future" ? "opened"
+    : t === "now" ? "posts" : null);
   for (const r of obj.rooms || []) {
     const d = obj.data ? obj.data[r.id] : undefined;
     if (!d) continue;
@@ -98,6 +99,14 @@ function metaFromData(room, data) {
     const cn = (id) => (room.categories || []).find((c) => c.id === id)?.name || "";
     return {
       preview: last ? `${cn(last.categoryId)} ¥${(last.amount || 0).toLocaleString("ja-JP")}` : "",
+      lastAt: room.lastAt || (last ? Date.now() : 0)
+    };
+  }
+  if (room.type === "now") {
+    const ps = (data && data.posts) || [];
+    const last = [...ps].sort((a, b) => (a.at || 0) - (b.at || 0)).pop();
+    return {
+      preview: last && typeof last.text === "string" ? `${last.time} ${last.text.split("\n")[0]}`.slice(0, 40) : "",
       lastAt: room.lastAt || (last ? Date.now() : 0)
     };
   }
@@ -206,7 +215,8 @@ export async function restoreAll(obj) {
       : r.type === "darelog" ? "records"
       : r.type === "expense" ? "expenses"
       : r.type === "challenge" ? "challenges"
-      : r.type === "future" ? "opened" : null;
+      : r.type === "future" ? "opened"
+      : r.type === "now" ? "posts" : null;
     const sigOf = (x) => arrKey === "messages" ? `${x.dateKey} ${x.memberId} ${x.text}`
       : arrKey === "todos" ? `${x.dateKey} ${x.text}`
       : arrKey === "records" ? `${x.dateKey} ${x.slot} ${x.memberId}`

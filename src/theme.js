@@ -963,6 +963,88 @@ export const css = `
   .sum-route { font-size: 12.5px; font-weight: 700; color: #0d7f8c; }
   .sum-n { font-size: 10.5px; color: #a4517f; margin-left: 6px; font-weight: 700; }
 
+  /* ===== 🕐 なう（ひとりツイッター） ===== */
+  .now-scroll { padding-top: 6px; }
+  .now-more {
+    display: block; margin: 4px auto 12px; background: #fff; cursor: pointer;
+    border: 1.5px solid #ffc2e0; color: #d6317f; border-radius: 999px;
+    padding: 7px 16px; font-size: 12px; font-weight: 800;
+  }
+  /* 日付見出しはスクロールしても上に貼りつく（いまどの日を見ているか分かるように） */
+  .now-day {
+    position: sticky; top: 0; z-index: 2;
+    display: flex; align-items: center; gap: 8px;
+    margin: 6px -12px 8px; padding: 7px 16px;
+    background: linear-gradient(90deg, rgba(255,240,249,.96), rgba(255,228,244,.96));
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    border-bottom: 1.5px solid #ffd1e8;
+  }
+  .now-day-l { font-size: 12.5px; font-weight: 800; color: #a4517f; letter-spacing: .02em; }
+  .now-day-l.sun { color: #ff3d8b; }
+  .now-day-l.sat { color: #2f7fd6; }
+  .now-day.today .now-day-l {
+    color: #fff; padding: 3px 11px; border-radius: 999px;
+    background: linear-gradient(120deg,#ff1493,#ff45b0 55%,#c33bff);
+    box-shadow: 0 3px 10px rgba(255,20,147,.35);
+  }
+  .now-day-n {
+    margin-left: auto; font-size: 11px; font-weight: 800; color: #d6317f;
+    background: #fff; border: 1.5px solid #ffc2e0; border-radius: 999px; padding: 1px 9px;
+  }
+  .now-empty { text-align: center; color: #a4517f; font-size: 12.5px; font-weight: 700; padding: 18px 0 8px; }
+  /* 縦のタイムライン: 時刻 ｜ 光る点と線 ｜ ひとこと */
+  .now-tl { position: relative; padding: 2px 0 8px; }
+  .now-tl::before {
+    content: ""; position: absolute; left: 55px; top: 6px; bottom: 10px; width: 3px; border-radius: 3px;
+    background: linear-gradient(180deg, #ff9fd0, #ff1493 50%, #c33bff);
+    opacity: .55;
+  }
+  .now-post {
+    position: relative; display: grid; grid-template-columns: 46px 20px 1fr; align-items: start;
+    column-gap: 0; margin: 0 0 8px; cursor: default;
+    -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .now-time {
+    text-align: right; padding-top: 9px; font-size: 13px; font-weight: 900;
+    color: #ff1493; font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+  }
+  .now-dot {
+    justify-self: center; margin-top: 12px; width: 11px; height: 11px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff 0 18%, #ff45b0 45%, #ff1493 100%);
+    box-shadow: 0 0 0 3px #fff, 0 0 10px rgba(255,20,147,.75);
+  }
+  .now-text {
+    background: #fff; border: 1.5px solid #ffd6ec; border-radius: 16px;
+    padding: 8px 12px; font-size: 14.5px; line-height: 1.6; color: #4a3140;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+    box-shadow: 0 4px 12px rgba(255,20,147,.12);
+  }
+  .now-text a { color: #d6317f; font-weight: 700; }
+  .now-post.pop .now-text { animation: now-pop .8s cubic-bezier(.3,1.5,.5,1); }
+  .now-post.pop .now-dot { animation: now-glow .9s ease-out; }
+  @keyframes now-pop {
+    0% { transform: translateY(8px) scale(.94); opacity: 0; }
+    60% { transform: translateY(0) scale(1.02); opacity: 1; }
+    100% { transform: scale(1); }
+  }
+  @keyframes now-glow {
+    0% { box-shadow: 0 0 0 3px #fff, 0 0 0 rgba(255,20,147,0); }
+    40% { box-shadow: 0 0 0 3px #fff, 0 0 22px 6px rgba(255,20,147,.9); }
+    100% { box-shadow: 0 0 0 3px #fff, 0 0 10px rgba(255,20,147,.75); }
+  }
+  /* 日記ルームに出る「🕐 なう」 */
+  .now-daily .done-bubble { background: #fff4fa; border-color: #ffc9e4; }
+  .now-daily .done-bubble::after { background: #fff4fa; border-color: #ffc9e4; }
+  .now-d-n { font-size: 11px; font-weight: 800; color: #d6317f; }
+  .now-d-list { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+  .now-d-line { display: flex; gap: 8px; font-size: 12.5px; line-height: 1.65; color: #5b4570; }
+  .now-d-time {
+    flex-shrink: 0; min-width: 36px; text-align: right;
+    font-weight: 800; color: #ff1493; font-variant-numeric: tabular-nums;
+  }
+  .now-d-text { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+
   /* ===== 🔮 未来日記 ===== */
   .fut-scroll { flex: 1; overflow-y: auto; padding: 14px 14px calc(28px + env(safe-area-inset-bottom)); }
   .fut-intro {

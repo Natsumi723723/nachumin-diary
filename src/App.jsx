@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import {
   get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID, DECL_KEY,
-  FUTURE_SEED_KEY, FUTURE_ROOM_ID,
+  FUTURE_SEED_KEY, FUTURE_ROOM_ID, NOW_SEED_KEY, NOW_ROOM_ID,
   MARKS_KEY, DEFAULT_MARKS, doneLogKey, BACKUP_KEY
 } from "./storage.js";
 import {
@@ -12,7 +12,9 @@ import {
   dumpAll, restoreAll, validateBackup, summarizeBackup, BACKUP_FILENAME
 } from "./backup.js";
 import { css, ROOM_THEMES, DEFAULT_THEME, roomTileStyle } from "./theme.js";
-import DiaryRoom from "./DiaryRoom.jsx";
+import NowRoom from "./NowRoom.jsx"; // 起動時に開くので本体に同梱する
+// 日記は起動時に開かなくなったので遅延読み込み（起動を軽くする）
+const DiaryRoom = lazy(() => import("./DiaryRoom.jsx"));
 import IconGrid from "./IconGrid.jsx";
 import SwipeBack from "./SwipeBack.jsx";
 import ConfirmDialog from "./ConfirmDialog.jsx";
@@ -94,15 +96,42 @@ export default function App() {
     }
   };
 
+  /* なうルームを一度だけ用意する。一覧のいちばん前に置く。
+     一度でも作ったら印を残すので、あとで消しても勝手に復活しない。 */
+  const seedNowRoom = async (list) => {
+    try {
+      if (await get(NOW_SEED_KEY)) return list;
+      if (list.some((r) => r.type === "now")) {
+        await set(NOW_SEED_KEY, true);
+        return list;
+      }
+      const next = [{
+        id: NOW_ROOM_ID,
+        type: "now",
+        name: "なう",
+        emoji: "🕐",
+        createdAt: Date.now(),
+        lastAt: 0,
+        preview: ""
+      }, ...list];
+      await set(ROOMS_KEY, next);
+      await set(NOW_SEED_KEY, true);
+      return next;
+    } catch (e) {
+      return list; // 用意できなくても起動は止めない
+    }
+  };
+
   /* 起動時: ルーム読込（旧データがあれば「日記」ルームへ自動移行）+ 今日の宣言 */
   useEffect(() => {
     (async () => {
       try {
-        const loaded = await seedFutureRoom(await loadRooms());
-        // 起動時は日記ルームを直接開く（無ければ一覧）
-        if (loaded.some((r) => r.id === DIARY_ROOM_ID)) {
-          setView({ screen: "room", roomId: DIARY_ROOM_ID });
-        }
+        const loaded = await seedNowRoom(await seedFutureRoom(await loadRooms()));
+        /* 起動時は「なう」を直接開く（すぐつぶやけるように）。
+           なうを消していたら日記、それも無ければ一覧 */
+        const startRoom = loaded.find((r) => r.type === "now" && !r.hidden)
+          || loaded.find((r) => r.id === DIARY_ROOM_ID);
+        if (startRoom) setView({ screen: "room", roomId: startRoom.id });
         setRooms(loaded);
         // 残りの設定は独立キーなので並列で読む（起動の初回描画はもう出ている）
         const [d, mk, bk] = await Promise.all([
@@ -662,7 +691,10 @@ export default function App() {
         pinned
       };
       const roomEl = room.type === "diary"
-        ? <DiaryRoom key={room.id} {...common} syncSignal={diarySync} marks={marks} onEditMarks={() => setMarkSettingsOpen(true)} />
+        ? <DiaryRoom key={room.id} {...common} syncSignal={diarySync} marks={marks} onEditMarks={() => setMarkSettingsOpen(true)}
+            nowRoomIds={rooms.filter((r) => r.type === "now").map((r) => r.id)} />
+        : room.type === "now"
+          ? <NowRoom key={room.id} {...common} />
         : room.type === "todo"
           ? <TodoRoom key={room.id} {...common} onTodoComplete={onTodoComplete} onTodoUncomplete={onTodoUncomplete} onRoomChange={(patch) => updateRoom(room.id, patch)} todoRooms={rooms.filter((r) => r.type === "todo" && r.id !== room.id)} onMoveTodo={moveTodoToRoom} />
           : room.type === "darelog"
@@ -676,7 +708,7 @@ export default function App() {
               : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
       content = (
         <SwipeBack key={room.id} onBack={() => setView({ screen: "home" })}>
-          {/* 日記以外は遅延読み込み。チャンク取得中はヘッダー＋ピンだけ先に出す */}
+          {/* なう以外は遅延読み込み。チャンク取得中はヘッダー＋ピンだけ先に出す */}
           <Suspense fallback={<><div className="hd hd-loading" /><div className="chat" /></>}>
             {roomEl}
           </Suspense>
@@ -939,6 +971,11 @@ export default function App() {
                 disabled={modal.mode === "edit"}
                 onClick={() => setModal((o) => ({ ...o, type: "future" }))}
               >🔮 未来日記<small>1日1篇とどく</small></button>
+              <button
+                className={"type-chip" + (modal.type === "now" ? " on" : "")}
+                disabled={modal.mode === "edit"}
+                onClick={() => setModal((o) => ({ ...o, type: "now" }))}
+              >🕐 なう<small>いまを一言</small></button>
             </div>
             {modal.mode === "edit" && modal.roomId !== DIARY_ROOM_ID && (
               <>

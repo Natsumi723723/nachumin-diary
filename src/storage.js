@@ -35,6 +35,11 @@ export const symptomSeedKey = (roomId) => `symptomseed-v1:${roomId}`; // 初期�
 /* 未来日記の原稿。アプリに同梱せず端末にだけ持つ
    （公開リポジトリに個人的な内容を置かないため）。[{id, ahead, text}] */
 export const futureScriptKey = (roomId) => `futurescript-v1:${roomId}`;
+/* なうルーム: 「何時何分に何してた」をつぶやくルーム。起動時に開く。
+   投稿は { posts: [{id, dateKey, time, text, at}] } としてルーム本文に持つ。
+   日記ルームはこれを読んで各日に表示する（日記本文には書き込まない） */
+export const NOW_SEED_KEY = "nowseed-v1";
+export const NOW_ROOM_ID = "now-main";
 // 未来日記ルームを一度だけ自動で用意した印（消したら復活させないため）
 export const FUTURE_SEED_KEY = "futureseed-v1";
 export const FUTURE_ROOM_ID = "future-main";
