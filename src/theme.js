@@ -995,22 +995,28 @@ export const css = `
   /* 縦のタイムライン: 時刻 ｜ 光る点と線 ｜ ひとこと */
   .now-tl { position: relative; padding: 2px 0 8px; }
   .now-tl::before {
-    content: ""; position: absolute; left: 55px; top: 6px; bottom: 10px; width: 3px; border-radius: 3px;
+    content: ""; position: absolute; left: 78px; top: 8px; bottom: 10px; width: 3px; border-radius: 3px;
     background: linear-gradient(180deg, #ff9fd0, #ff1493 50%, #c33bff);
     opacity: .55;
   }
   .now-post {
-    position: relative; display: grid; grid-template-columns: 46px 20px 1fr; align-items: start;
+    position: relative; display: grid; grid-template-columns: 68px 22px 1fr; align-items: start;
     column-gap: 0; margin: 0 0 8px; cursor: default;
     -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
     -webkit-tap-highlight-color: transparent;
   }
+  /* 時刻は大きく太く、不透明のピンク→パープルの札に白抜き（背景の柄に埋もれないように） */
   .now-time {
-    text-align: right; padding-top: 9px; font-size: 13px; font-weight: 900;
-    color: #ff1493; font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+    justify-self: end; margin-top: 5px;
+    padding: 3px 8px 2px; border-radius: 10px;
+    font-size: 17px; line-height: 1.2; font-weight: 900; color: #fff;
+    font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+    background: linear-gradient(135deg, #ff1493 0%, #ff2fa0 45%, #b42cf0 100%);
+    box-shadow: 0 3px 10px rgba(255,20,147,.40), inset 0 1px 0 rgba(255,255,255,.45);
+    text-shadow: 0 1px 1px rgba(120,0,80,.25);
   }
   .now-dot {
-    justify-self: center; margin-top: 12px; width: 11px; height: 11px; border-radius: 50%;
+    justify-self: center; margin-top: 13px; width: 12px; height: 12px; border-radius: 50%;
     background: radial-gradient(circle at 35% 35%, #fff 0 18%, #ff45b0 45%, #ff1493 100%);
     box-shadow: 0 0 0 3px #fff, 0 0 10px rgba(255,20,147,.75);
   }
@@ -1038,10 +1044,10 @@ export const css = `
   .now-daily .done-bubble::after { background: #fff4fa; border-color: #ffc9e4; }
   .now-d-n { font-size: 11px; font-weight: 800; color: #d6317f; }
   .now-d-list { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
-  .now-d-line { display: flex; gap: 8px; font-size: 12.5px; line-height: 1.65; color: #5b4570; }
+  .now-d-line { display: flex; align-items: baseline; gap: 9px; font-size: 12.5px; line-height: 1.65; color: #5b4570; }
   .now-d-time {
-    flex-shrink: 0; min-width: 36px; text-align: right;
-    font-weight: 800; color: #ff1493; font-variant-numeric: tabular-nums;
+    flex-shrink: 0; min-width: 44px; text-align: right;
+    font-size: 15px; font-weight: 900; color: #c8108a; font-variant-numeric: tabular-nums; letter-spacing: -.01em;
   }
   .now-d-text { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
 
