@@ -593,7 +593,7 @@ export const css = `
     border: 1.5px solid #f0a6cf; background: #fff; color: #fff;
     display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900;
   }
-  .shop-toggle.on .shop-box { background: #ff1478; border-color: #ff1478; }
+  .shop-toggle.on .shop-box, .ex-pick.on .shop-box { background: #ff1478; border-color: #ff1478; }
 
   /* 🙈 非表示ルーム */
   .hidden-entry {
@@ -962,6 +962,22 @@ export const css = `
   .tr-sel { flex: 1; min-width: 0; padding: 7px 8px; }
   .sum-route { font-size: 12.5px; font-weight: 700; color: #0d7f8c; }
   .sum-n { font-size: 10.5px; color: #a4517f; margin-left: 6px; font-weight: 700; }
+
+  /* 書き出しパネルの「含めるもの」 */
+  .ex-picks { display: flex; gap: 7px; flex-wrap: wrap; }
+  .ex-pick {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+    background: #fff; border: 1.5px solid #ffc2e0; border-radius: 999px;
+    padding: 7px 13px 7px 9px; font-size: 12.5px; font-weight: 800; color: #a4517f;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ex-pick.on { border-color: #ff1478; color: #ff1478; background: #fff2f8; }
+  .ex-pick .shop-box { width: 17px; height: 17px; border-radius: 5px; font-size: 11px; }
+  .ex-pick-n {
+    font-size: 11px; font-weight: 800; color: #fff; background: #e9b8d4;
+    border-radius: 999px; padding: 1px 7px; margin-left: 2px;
+  }
+  .ex-pick.on .ex-pick-n { background: #ff1478; }
 
   /* ===== 🕐 なう（ひとりツイッター） ===== */
   .now-scroll { padding-top: 6px; }

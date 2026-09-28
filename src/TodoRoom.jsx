@@ -29,6 +29,9 @@ export default function TodoRoom({
   const [undo, setUndo] = useState(null); // 直前の完了を戻すバー {id,text,doneTime,doneDateKey}
   const undoTimer = useRef(null);
   const [exportOpen, setExportOpen] = useState(false);
+  // 書き出しに含めるもの。使い終わったリストを別のルームへ使い回すとき用
+  const [exInc, setExInc] = useState({ open: true, done: false, deferred: false });
+  const [exPlain, setExPlain] = useState(true); // チェックを外した状態で出す
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [copied, setCopied] = useState(false);
@@ -348,14 +351,22 @@ export default function TodoRoom({
   };
 
   /* export / import */
-  // 未完了のみ・画面の並び順。重要は行頭に★。場所ごとにまとめて出力
+  /* 画面の並び順・場所ごとにまとめて出力。行頭の★は重要。
+     「含めるもの」を選べるのは、使い終わったリスト（全部☑）を
+     別のルームへ使い回したいことがあるため。
+     既定では ☐ で出す＝貼り付け先では新品の未完了として入る。 */
+  const exportPick = () => todos.filter((t) => {
+    if (t.deferred) return exInc.deferred;
+    if (t.done) return exInc.done;
+    return exInc.open;
+  });
   const exportText = () => {
-    const open = todos.filter((t) => !t.done && !t.deferred);
-    const line = (t) => `${t.important ? "★ " : ""}☐ ${t.text}`;
+    const picked = exportPick();
+    const line = (t) => `${t.important ? "★ " : ""}${!exPlain && t.done ? "☑" : "☐"} ${t.text}`;
     const out = [];
     // 定義順の場所ごと → 最後に場所なし
-    const groups = [...places.map((p) => ({ head: `📍${p.name}`, items: open.filter((t) => t.placeId === p.id) })),
-      { head: "（場所なし）", items: open.filter((t) => !placeOf(t.placeId)) }];
+    const groups = [...places.map((p) => ({ head: `📍${p.name}`, items: picked.filter((t) => t.placeId === p.id) })),
+      { head: "（場所なし）", items: picked.filter((t) => !placeOf(t.placeId)) }];
     for (const g of groups) {
       if (!g.items.length) continue;
       if (out.length) out.push("");
@@ -957,9 +968,32 @@ export default function TodoRoom({
         <div className="overlay" onClick={() => setExportOpen(false)}>
           <div className="panel" onClick={(e) => e.stopPropagation()}>
             <h3>📤 TODOをテキストで書き出し</h3>
+            <div className="f-label">含めるもの</div>
+            <div className="ex-picks">
+              {[
+                { k: "open", label: "未完了", n: todos.filter((t) => !t.done && !t.deferred).length },
+                { k: "done", label: "完了済み", n: todos.filter((t) => t.done && !t.deferred).length },
+                { k: "deferred", label: "見送り", n: todos.filter((t) => t.deferred).length }
+              ].map((o) => (
+                <button
+                  key={o.k}
+                  className={"ex-pick" + (exInc[o.k] ? " on" : "")}
+                  onClick={() => setExInc((v) => ({ ...v, [o.k]: !v[o.k] }))}
+                >
+                  <span className="shop-box">{exInc[o.k] ? "✓" : ""}</span>
+                  {o.label}<span className="ex-pick-n">{o.n}</span>
+                </button>
+              ))}
+            </div>
+            <button className={"shop-toggle" + (exPlain ? " on" : "")} onClick={() => setExPlain((v) => !v)}>
+              <span className="shop-box">{exPlain ? "✓" : ""}</span>
+              チェックを外して出す（別のリストに使い回すとき）
+            </button>
             <textarea ref={exRef} readOnly value={exportText()} />
             <div className="panel-btns">
-              <button className="p-copy" onClick={doCopy}>{copied ? "コピーしたよ💗" : "ぜんぶコピー"}</button>
+              <button className="p-copy" disabled={!exportPick().length} onClick={doCopy}>
+                {copied ? "コピーしたよ💗" : `コピー（${exportPick().length}件）`}
+              </button>
               <button className="p-dl" onClick={doDownload}>.txtでDL</button>
               <button className="p-close" onClick={() => setExportOpen(false)}>閉じる</button>
             </div>
