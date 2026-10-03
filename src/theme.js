@@ -963,6 +963,107 @@ export const css = `
   .sum-route { font-size: 12.5px; font-weight: 700; color: #0d7f8c; }
   .sum-n { font-size: 10.5px; color: #a4517f; margin-left: 6px; font-weight: 700; }
 
+  /* ===== 📔 絵日記 ===== */
+  .ab-add { position: relative; overflow: hidden; }
+  .ab-add input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .ab-scroll { flex: 1; overflow-y: auto; padding: 10px 12px calc(24px + env(safe-area-inset-bottom)); }
+  .ab-datebar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .ab-datebar-l { font-size: 11.5px; font-weight: 800; color: #a4517f; }
+  .ab-datechip { position: relative; }
+  .ab-today {
+    background: none; border: none; cursor: pointer;
+    font-size: 11px; color: #c58fb0; text-decoration: underline; padding: 2px 4px;
+  }
+  .ab-busy {
+    text-align: center; font-size: 12.5px; font-weight: 800; color: #d6317f;
+    background: #fff; border: 1.5px solid #ffc2e0; border-radius: 999px;
+    padding: 7px 14px; margin: 0 auto 10px; width: fit-content;
+  }
+  .ab-month { margin-bottom: 16px; }
+  .ab-month-head {
+    position: sticky; top: 0; z-index: 2;
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 -12px 8px; padding: 7px 16px;
+    background: linear-gradient(90deg, rgba(255,240,249,.96), rgba(255,228,244,.96));
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    border-bottom: 1.5px solid #ffd1e8;
+  }
+  .ab-month-l {
+    font-size: 14px; font-weight: 900; color: #fff; padding: 3px 12px; border-radius: 999px;
+    background: linear-gradient(120deg,#ff1493,#ff45b0 55%,#c33bff);
+    box-shadow: 0 3px 10px rgba(255,20,147,.35);
+  }
+  .ab-month-n {
+    margin-left: auto; font-size: 11px; font-weight: 800; color: #d6317f;
+    background: #fff; border: 1.5px solid #ffc2e0; border-radius: 999px; padding: 1px 9px;
+  }
+  .ab-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .ab-cell { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .ab-cell-in {
+    position: relative; display: block; width: 100%; aspect-ratio: 1 / 1;
+    border-radius: 14px; overflow: hidden; background: #ffeaf6;
+    border: 2px solid #fff; box-shadow: 0 4px 12px rgba(255,20,147,.18);
+  }
+  .ab-cell-in img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ab-ph { display: block; width: 100%; height: 100%; background: linear-gradient(135deg,#ffeaf6,#ffd9ee); }
+  .ab-missing {
+    display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
+    font-size: 10.5px; font-weight: 800; color: #c58fb0; text-align: center; line-height: 1.5;
+  }
+  .ab-cell-d {
+    position: absolute; left: 5px; bottom: 5px;
+    font-size: 11px; font-weight: 900; color: #fff;
+    background: rgba(255,20,147,.85); border-radius: 8px; padding: 1px 7px;
+    text-shadow: 0 1px 2px rgba(120,0,80,.4);
+  }
+  .ab-cell-d.sat { background: rgba(47,127,214,.85); }
+  .ab-more {
+    display: block; margin: 4px auto 12px; background: #fff; cursor: pointer;
+    border: 1.5px solid #ffc2e0; color: #d6317f; border-radius: 999px;
+    padding: 8px 18px; font-size: 12.5px; font-weight: 800;
+  }
+  .ab-note {
+    text-align: center; margin-top: 4px; line-height: 1.75;
+    background: rgba(255,255,255,.75); border-radius: 12px; padding: 8px 12px;
+  }
+  .bk-warn { background: #fff0f6; border: 1.5px solid #ffb3d4; border-radius: 12px; padding: 8px 11px; }
+  /* 全画面ビュー */
+  .ab-viewer {
+    /* 確認ダイアログ(60)より下、長押しメニュー(40)より上。
+       上に出すと全画面ビューから削除したとき確認が裏に隠れて押せなくなる */
+    position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column;
+    background: rgba(32,8,24,.96);
+  }
+  .ab-v-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+  }
+  .ab-v-x, .ab-v-del {
+    background: rgba(255,255,255,.14); border: none; cursor: pointer; color: #fff;
+    width: 36px; height: 36px; border-radius: 50%; font-size: 16px; flex-shrink: 0;
+  }
+  .ab-v-date { font-size: 13.5px; font-weight: 900; color: #ff8ec9; }
+  .ab-v-date.sun { color: #ff6fae; }
+  .ab-v-date.sat { color: #7fc0ff; }
+  .ab-v-n { font-size: 11.5px; color: rgba(255,255,255,.6); font-weight: 700; }
+  .ab-v-cal {
+    margin-left: auto; position: relative; overflow: hidden; cursor: pointer;
+    background: rgba(255,255,255,.14); color: #fff;
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 15px;
+  }
+  .ab-v-cal input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .ab-v-main { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; padding: 0 8px 16px; min-height: 0; }
+  .ab-v-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; }
+  .ab-v-load, .ab-v-missing { color: rgba(255,255,255,.7); font-size: 13px; white-space: pre-wrap; text-align: center; line-height: 1.8; }
+  .ab-v-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,.16); border: none; cursor: pointer; color: #fff;
+    width: 40px; height: 56px; border-radius: 12px; font-size: 26px; line-height: 1;
+  }
+  .ab-v-nav.prev { left: 6px; }
+  .ab-v-nav.next { right: 6px; }
+
   /* 書き出しパネルの「含めるもの」 */
   .ex-picks { display: flex; gap: 7px; flex-wrap: wrap; }
   .ex-pick {

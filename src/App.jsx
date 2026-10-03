@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import {
   get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID, DECL_KEY,
-  FUTURE_SEED_KEY, FUTURE_ROOM_ID, NOW_SEED_KEY, NOW_ROOM_ID,
+  FUTURE_SEED_KEY, FUTURE_ROOM_ID, NOW_SEED_KEY, NOW_ROOM_ID, ALBUM_SEED_KEY, ALBUM_ROOM_ID,
   MARKS_KEY, DEFAULT_MARKS, doneLogKey, BACKUP_KEY
 } from "./storage.js";
 import {
@@ -26,6 +26,7 @@ const DarelogRoom = lazy(() => import("./DarelogRoom.jsx"));
 const ExpenseRoom = lazy(() => import("./ExpenseRoom.jsx"));
 const ChallengeRoom = lazy(() => import("./ChallengeRoom.jsx"));
 const FutureRoom = lazy(() => import("./FutureRoom.jsx"));
+const AlbumRoom = lazy(() => import("./AlbumRoom.jsx"));
 
 const EMOJI_PICKS = [
   "💗", "🩷", "💛", "🩵", "💜", "🤍", "🖤", "🌸", "🌷", "🎀",
@@ -96,6 +97,26 @@ export default function App() {
     }
   };
 
+  /* 絵日記ルームを一度だけ用意する。消したら復活させない */
+  const seedAlbumRoom = async (list) => {
+    try {
+      if (await get(ALBUM_SEED_KEY)) return list;
+      if (list.some((r) => r.type === "album")) {
+        await set(ALBUM_SEED_KEY, true);
+        return list;
+      }
+      const next = [...list, {
+        id: ALBUM_ROOM_ID, type: "album", name: "絵日記", emoji: "📔",
+        createdAt: Date.now(), lastAt: 0, preview: ""
+      }];
+      await set(ROOMS_KEY, next);
+      await set(ALBUM_SEED_KEY, true);
+      return next;
+    } catch (e) {
+      return list;
+    }
+  };
+
   /* なうルームを一度だけ用意する。一覧のいちばん前に置く。
      一度でも作ったら印を残すので、あとで消しても勝手に復活しない。 */
   const seedNowRoom = async (list) => {
@@ -126,7 +147,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const loaded = await seedNowRoom(await seedFutureRoom(await loadRooms()));
+        const loaded = await seedNowRoom(await seedAlbumRoom(await seedFutureRoom(await loadRooms())));
         /* 起動時は「なう」を直接開く（すぐつぶやけるように）。
            なうを消していたら日記、それも無ければ一覧 */
         const startRoom = loaded.find((r) => r.type === "now" && !r.hidden)
@@ -706,6 +727,8 @@ export default function App() {
               ? <ChallengeRoom key={room.id} {...common} />
             : room.type === "future"
               ? <FutureRoom key={room.id} {...common} />
+            : room.type === "album"
+              ? <AlbumRoom key={room.id} {...common} />
               : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
       content = (
         <SwipeBack key={room.id} onBack={() => setView({ screen: "home" })}>
@@ -977,6 +1000,11 @@ export default function App() {
                 disabled={modal.mode === "edit"}
                 onClick={() => setModal((o) => ({ ...o, type: "now" }))}
               >🕐 なう<small>いまを一言</small></button>
+              <button
+                className={"type-chip" + (modal.type === "album" ? " on" : "")}
+                disabled={modal.mode === "edit"}
+                onClick={() => setModal((o) => ({ ...o, type: "album" }))}
+              >📔 絵日記<small>書いた日記の画像</small></button>
             </div>
             {modal.mode === "edit" && modal.roomId !== DIARY_ROOM_ID && (
               <>
@@ -1026,6 +1054,12 @@ export default function App() {
               全ルーム・全データ（日記 / TODO / だれログ / 経費 / 習慣 / 各種設定）を
               まるごと1ファイルに保存します。端末が変わっても元どおり復元できます。
             </p>
+            {rooms.some((r) => r.type === "album") && (
+              <p className="panel-note bk-warn">
+                📔 絵日記の<b>画像だけは入りません</b>（数百MBになってしまうため）。
+                元の画像は写真アプリに残しておいてね。日付の記録は入ります。
+              </p>
+            )}
             <div className={"bk-last" + (backupStale ? " stale" : "")}>
               <span className="bk-last-l">最後にバックアップした日</span>
               <span className="bk-last-v">

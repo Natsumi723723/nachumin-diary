@@ -45,7 +45,8 @@ export function summarizeBackup(obj) {
     : t === "darelog" ? "records" : t === "expense" ? "expenses"
     : t === "challenge" ? "challenges"
     : t === "future" ? "opened"
-    : t === "now" ? "posts" : null);
+    : t === "now" ? "posts"
+    : t === "album" ? "pages" : null);
   for (const r of obj.rooms || []) {
     const d = obj.data ? obj.data[r.id] : undefined;
     if (!d) continue;
@@ -101,6 +102,12 @@ function metaFromData(room, data) {
       preview: last ? `${cn(last.categoryId)} ¥${(last.amount || 0).toLocaleString("ja-JP")}` : "",
       lastAt: room.lastAt || (last ? Date.now() : 0)
     };
+  }
+  /* 絵日記は「何枚あるか」だけ。画像(Blob)はバックアップに入れない
+     （入れると数百MBになって保存そのものが成り立たない。原本は写真アプリ側） */
+  if (room.type === "album") {
+    const ps = (data && data.pages) || [];
+    return { preview: ps.length ? `${ps.length}枚` : "", lastAt: room.lastAt || 0 };
   }
   if (room.type === "now") {
     const ps = (data && data.posts) || [];
@@ -216,7 +223,8 @@ export async function restoreAll(obj) {
       : r.type === "expense" ? "expenses"
       : r.type === "challenge" ? "challenges"
       : r.type === "future" ? "opened"
-      : r.type === "now" ? "posts" : null;
+      : r.type === "now" ? "posts"
+      : r.type === "album" ? "pages" : null;
     const sigOf = (x) => arrKey === "messages" ? `${x.dateKey} ${x.memberId} ${x.text}`
       : arrKey === "todos" ? `${x.dateKey} ${x.text}`
       : arrKey === "records" ? `${x.dateKey} ${x.slot} ${x.memberId}`

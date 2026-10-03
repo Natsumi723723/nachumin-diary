@@ -35,6 +35,17 @@ export const symptomSeedKey = (roomId) => `symptomseed-v1:${roomId}`; // 初期�
 /* 未来日記の原稿。アプリに同梱せず端末にだけ持つ
    （公開リポジトリに個人的な内容を置かないため）。[{id, ahead, text}] */
 export const futureScriptKey = (roomId) => `futurescript-v1:${roomId}`;
+/* 📔 絵日記ルーム: 書いた日記画像を貼って見返す。
+   本文データ(room-data-v1)には「どの日に何枚あるか」だけを持ち、
+   画像そのものは別キーにBlobで置く。
+   ・一覧でマス用だけ読めるように、閲覧用とマス用を分ける
+   ・まるごとバックアップ(JSON)には画像を入れない（入れると数百MBになって保存が壊れる）。
+     原本は写真アプリに残っている前提 */
+export const albumFullKey = (roomId, pageId) => `albumfull-v1:${roomId}:${pageId}`;
+export const albumThumbKey = (roomId, pageId) => `albumthumb-v1:${roomId}:${pageId}`;
+export const ALBUM_SEED_KEY = "albumseed-v1";
+export const ALBUM_ROOM_ID = "album-main";
+
 /* なうルーム: 「何時何分に何してた」をつぶやくルーム。起動時に開く。
    投稿は { posts: [{id, dateKey, time, text, at}] } としてルーム本文に持つ。
    日記ルームはこれを読んで各日に表示する（日記本文には書き込まない） */
@@ -64,6 +75,19 @@ export async function get(key) {
 export async function set(key, value) {
   const db = await dbPromise;
   return db.put(STORE, value, key);
+}
+
+export async function del(key) {
+  const db = await dbPromise;
+  return db.delete(STORE, key);
+}
+
+// 使用量と上限のめやす（対応していない環境では null）
+export async function storageEstimate() {
+  try {
+    if (navigator.storage && navigator.storage.estimate) return await navigator.storage.estimate();
+  } catch (e) { /* 非対応 */ }
+  return null;
 }
 
 // ブラウザにストレージの永続化を要求（勝手に消されるのを防ぐ）
