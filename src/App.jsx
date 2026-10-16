@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import {
   get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID, DECL_KEY,
   FUTURE_SEED_KEY, FUTURE_ROOM_ID, NOW_SEED_KEY, NOW_ROOM_ID, ALBUM_SEED_KEY, ALBUM_ROOM_ID,
+  START_ROOM_KEY,
   MARKS_KEY, DEFAULT_MARKS, doneLogKey, BACKUP_KEY
 } from "./storage.js";
 import {
@@ -46,6 +47,7 @@ export default function App() {
   const [decl, setDecl] = useState(""); // 今日の宣言（空=未設定）
   const [declModal, setDeclModal] = useState(null); // null | 'view' | 'edit'
   const [declDraft, setDeclDraft] = useState("");
+  const [startRoomId, setStartRoomId] = useState(null); // 起動時に出すルーム
   const [diarySync, setDiarySync] = useState(0); // 開いている日記ルームへ再読込を通知
   const [diaryToday, setDiaryToday] = useState(null); // ホームの日記カード用 {written,preview}
   const [hiddenModal, setHiddenModal] = useState(false); // 🙈 非表示ルームの一覧
@@ -148,9 +150,11 @@ export default function App() {
     (async () => {
       try {
         const loaded = await seedNowRoom(await seedAlbumRoom(await seedFutureRoom(await loadRooms())));
-        /* 起動時は「なう」を直接開く（すぐつぶやけるように）。
-           なうを消していたら日記、それも無ければ一覧 */
-        const startRoom = loaded.find((r) => r.type === "now" && !r.hidden)
+        /* 起動時に出すルーム。設定していればそれを、無ければ「なう」→日記→一覧 */
+        const startId = await get(START_ROOM_KEY);
+        if (startId) setStartRoomId(startId);
+        const startRoom = (startId && loaded.find((r) => r.id === startId))
+          || loaded.find((r) => r.type === "now" && !r.hidden)
           || loaded.find((r) => r.id === DIARY_ROOM_ID);
         if (startRoom) setView({ screen: "room", roomId: startRoom.id });
         setRooms(loaded);
@@ -454,7 +458,7 @@ export default function App() {
       emoji: modal.emoji.trim() || defaultEmoji,
       theme: modal.theme || DEFAULT_THEME,
       members: initMembers, createdAt: Date.now(), lastAt: 0, preview: "",
-      ...(modal.type === "todo" ? { shopping: !!modal.shopping } : {}),
+      ...(modal.type === "todo" ? { shopping: !!modal.shopping, numbering: !!modal.numbering, noDiary: !!modal.noDiary } : {}),
       ...(initCategories
         ? { categories: initCategories, subscriptions: [], subsPosted: {}, transitSeeded: true,
             stations: [], fares: [], defaultFromId: null, roundTripDefault: false,
@@ -480,14 +484,20 @@ export default function App() {
       name, emoji: modal.emoji.trim() || "💗",
       theme: modal.theme || DEFAULT_THEME,
       hidden: !!modal.hidden,
-      ...(modal.type === "todo" ? { shopping: !!modal.shopping } : {})
+      ...(modal.type === "todo" ? { shopping: !!modal.shopping, numbering: !!modal.numbering, noDiary: !!modal.noDiary } : {})
     });
+    /* 起動ルームは1つだけ。ONにしたら差し替え、OFFにしたら解除 */
+    const nextStart = modal.start ? modal.roomId : (startRoomId === modal.roomId ? null : startRoomId);
+    if (nextStart !== startRoomId) {
+      setStartRoomId(nextStart);
+      set(START_ROOM_KEY, nextStart).catch(() => showToast("起動ルームの保存に失敗しました"));
+    }
     setModal(null);
   };
 
   // ルーム設定モーダルを開く（アイコン長押し・検索結果の⋯から共通で使う）
   const openRoomSettings = (r) => {
-    setModal({ mode: "edit", roomId: r.id, name: r.name, emoji: r.emoji, type: r.type, shopping: !!r.shopping, theme: r.theme || DEFAULT_THEME, hidden: !!r.hidden });
+    setModal({ mode: "edit", roomId: r.id, name: r.name, emoji: r.emoji, type: r.type, shopping: !!r.shopping, numbering: !!r.numbering, noDiary: !!r.noDiary, theme: r.theme || DEFAULT_THEME, hidden: !!r.hidden, start: startRoomId === r.id });
     setRoomDel(false);
   };
 
@@ -1006,6 +1016,18 @@ export default function App() {
                 onClick={() => setModal((o) => ({ ...o, type: "album" }))}
               >📔 絵日記<small>書いた日記の画像</small></button>
             </div>
+            {modal.mode === "edit" && (
+              <>
+                <div className="f-label">アプリを開いたとき</div>
+                <button
+                  className={"shop-toggle" + (modal.start ? " on" : "")}
+                  onClick={() => setModal((o) => ({ ...o, start: !o.start }))}
+                >
+                  <span className="shop-box">{modal.start ? "✓" : ""}</span>
+                  🚀 開いたらこのルームを出す
+                </button>
+              </>
+            )}
             {modal.mode === "edit" && modal.roomId !== DIARY_ROOM_ID && (
               <>
                 <div className="f-label">一覧での表示</div>
@@ -1027,6 +1049,21 @@ export default function App() {
                 >
                   <span className="shop-box">{modal.shopping ? "✓" : ""}</span>
                   🛒 買い物リストとして使う（よく買うものクイック追加）
+                </button>
+                {/* ネタ帳として使うとき用。100個ためて選ぶような使い方を想定 */}
+                <button
+                  className={"shop-toggle" + (modal.numbering ? " on" : "")}
+                  onClick={() => setModal((o) => ({ ...o, numbering: !o.numbering }))}
+                >
+                  <span className="shop-box">{modal.numbering ? "✓" : ""}</span>
+                  🔢 日ごとに番号をつける（1,2,3…／日付が変わると1から）
+                </button>
+                <button
+                  className={"shop-toggle" + (modal.noDiary ? " on" : "")}
+                  onClick={() => setModal((o) => ({ ...o, noDiary: !o.noDiary }))}
+                >
+                  <span className="shop-box">{modal.noDiary ? "✓" : ""}</span>
+                  📓 完了しても日記の「できたこと」に入れない
                 </button>
               </>
             )}

@@ -963,6 +963,28 @@ export const css = `
   .sum-route { font-size: 12.5px; font-weight: 700; color: #0d7f8c; }
   .sum-n { font-size: 10.5px; color: #a4517f; margin-left: 6px; font-weight: 700; }
 
+  /* 入力欄の「次は何番」 */
+  .in-no {
+    flex-shrink: 0; align-self: center;
+    min-width: 30px; text-align: center;
+    font-size: 14px; font-weight: 900; color: #fff;
+    background: linear-gradient(135deg,#ff1493,#c33bff);
+    border-radius: 10px; padding: 6px 8px;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 3px 10px rgba(255,20,147,.35);
+  }
+
+  /* ネタ帳用の日ごと通し番号 */
+  .todo-no {
+    flex-shrink: 0; align-self: flex-start; margin-right: 7px; margin-top: 1px;
+    min-width: 22px; text-align: center;
+    font-size: 11.5px; font-weight: 900; color: #fff;
+    background: linear-gradient(135deg,#ff1493,#c33bff);
+    border-radius: 7px; padding: 2px 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .todo-bubble.important .todo-no { background: #fff; color: #ff1478; }
+
   /* ===== 📔 絵日記 ===== */
   .ab-add { position: relative; overflow: hidden; }
   .ab-add input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }

@@ -54,6 +54,8 @@ export const NOW_ROOM_ID = "now-main";
 // 未来日記ルームを一度だけ自動で用意した印（消したら復活させないため）
 export const FUTURE_SEED_KEY = "futureseed-v1";
 export const FUTURE_ROOM_ID = "future-main";
+// アプリを開いたときに出すルーム（未設定なら なう → 日記 → 一覧 の順）
+export const START_ROOM_KEY = "startroom-v1";
 // まるごとバックアップの記録（最後に書き出した日・バナーを閉じた日）
 export const BACKUP_KEY = "backup-v1";
 

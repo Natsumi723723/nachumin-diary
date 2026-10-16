@@ -150,8 +150,9 @@ export default function TodoRoom({
     const memo = (s.memo || "").trim();
     const text = memo ? `${name}\n${memo}` : name;
     const placeId = placeOf(s.placeId) ? s.placeId : (placeFilter || selPlace || null);
+    const dk = todayKey();
     persist([...todos, {
-      id: uid(), dateKey: todayKey(), time: nowTime(),
+      id: uid(), dateKey: dk, time: nowTime(), dayNo: nextDayNo(dk),
       text, done: false, doneTime: null, doneDateKey: null, important: false, placeId
     }]);
     setTab("todo");
@@ -160,13 +161,19 @@ export default function TodoRoom({
     flashTimer.current = setTimeout(() => setFlash(null), 650);
   };
 
+  /* その日の次の番号。すでにある最大値+1 を保存する。
+     削除しても振り直さないので、紙のノートに書いた番号とズレない */
+  const nextDayNo = (dateKey) =>
+    todos.reduce((m, t) => (t.dateKey === dateKey && Number(t.dayNo) > m ? Number(t.dayNo) : m), 0) + 1;
+
   const send = () => {
     const text = draft.trim();
     if (!text) return;
     // フィルタ中の場所があればそれを優先で付ける（その場所を見ながら追加するケース）
     const placeId = placeFilter || selPlace || null;
+    const dk = todayKey();
     persist([...todos, {
-      id: uid(), dateKey: todayKey(), time: nowTime(),
+      id: uid(), dateKey: dk, time: nowTime(), dayNo: nextDayNo(dk),
       text, done: false, doneTime: null, doneDateKey: null,
       important: nextImportant, placeId
     }]);
@@ -215,7 +222,7 @@ export default function TodoRoom({
     const doneDateKey = todayKey();
     persist(todos.map((t) => (t.id === todo.id ? { ...t, done: true, doneTime, doneDateKey } : t)));
     // 完了→日記へ反映（完了した日の日記に）
-    onTodoComplete({ text: todo.text, time: doneTime, dateKey: doneDateKey });
+    if (!room.noDiary) onTodoComplete({ text: todo.text, time: doneTime, dateKey: doneDateKey });
     // 完了アクション（ポップ→スッと退場）を見せてから消す。もたつかない短さに
     setJustDone((s) => new Set(s).add(todo.id));
     setTimeout(() => {
@@ -234,7 +241,7 @@ export default function TodoRoom({
   const uncomplete = (todo) => {
     persist(todos.map((t) => (t.id === todo.id ? { ...t, done: false, doneTime: null, doneDateKey: null } : t)));
     // 未完了へ戻す→日記側の行も削除
-    if (todo.doneDateKey) onTodoUncomplete({ text: todo.text, time: todo.doneTime, dateKey: todo.doneDateKey });
+    if (todo.doneDateKey && !room.noDiary) onTodoUncomplete({ text: todo.text, time: todo.doneTime, dateKey: todo.doneDateKey });
     setJustDone((s) => {
       const n = new Set(s);
       n.delete(todo.id);
@@ -481,7 +488,11 @@ export default function TodoRoom({
         <span style={{ fontSize: 20 }}>{room.emoji}</span>
         <div style={{ minWidth: 0 }}>
           <div className="hd-title" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{room.name}</div>
-          <div className="hd-sub">Nachumin Lifelog</div>
+          <div className="hd-sub">
+            {room.numbering
+              ? `今日 ${todos.filter((t) => t.dateKey === todayKey()).length}個`
+              : "Nachumin Lifelog"}
+          </div>
         </div>
         <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="場所タグ" onClick={() => setPlaceModal(true)}>📍</button>
         <button className="icon-btn" aria-label="クリップボードから追加" onClick={fromClipboard}>📋</button>
@@ -584,6 +595,7 @@ export default function TodoRoom({
                         />
                       ) : (
                         <>
+                          {room.numbering && t.dayNo ? <span className="todo-no">{t.dayNo}</span> : null}
                           {imp && <span className="todo-star">❣️</span>}
                           <span className={"todo-text" + (t.done ? " done" : "")}>{linkify(t.text, highlight)}</span>
                           {pl && !imp && (
@@ -646,7 +658,10 @@ export default function TodoRoom({
                             placeholder="TODOを書きなおしてね"
                           />
                         ) : (
-                          <span className="todo-text done">{linkify(t.text, highlight)}</span>
+                          <>
+                            {room.numbering && t.dayNo ? <span className="todo-no">{t.dayNo}</span> : null}
+                            <span className="todo-text done">{linkify(t.text, highlight)}</span>
+                          </>
                         )}
                       </Pressable>
                       <div className="todo-time">{t.doneTime || ""} 完了</div>
@@ -745,6 +760,8 @@ export default function TodoRoom({
             </div>
           )}
           <div className="in-row">
+            {/* いま何番目を入れようとしているか（ネタ帳で100個ためるとき用） */}
+            {room.numbering && <span className="in-no">{nextDayNo(todayKey())}</span>}
             <textarea
               ref={taRef} className={"ta" + (nextImportant ? " ta-important" : "")} rows={1}
               placeholder={nextImportant ? "❣️重要なやることを追加…" : "やることを追加…"}
