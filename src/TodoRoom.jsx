@@ -476,6 +476,20 @@ export default function TodoRoom({
 
   const openCount = todos.filter((t) => !t.done && !t.deferred).length;
 
+  /* ぜんぶ: やること＋完了を、追加した日ごとに番号順で並べる。
+     その日に何を出して、どれを書いたかを一望するためのタブ（見送りは含めない） */
+  const allGroups = {};
+  for (const t of todos) {
+    if (t.deferred || !matchQ(t)) continue;
+    (allGroups[t.dateKey] ||= []).push(t);
+  }
+  const allDates = Object.keys(allGroups).sort();
+  for (const dk of allDates) {
+    allGroups[dk].sort((a, b) => (Number(a.dayNo) || 0) - (Number(b.dayNo) || 0)
+      || (a.time || "").localeCompare(b.time || ""));
+  }
+  const allCount = todos.filter((t) => !t.deferred).length;
+
   // 見送りが空になったら「見送り」タブから抜ける
   useEffect(() => {
     if (tab === "defer" && !todos.some((t) => t.deferred)) setTab("todo");
@@ -513,6 +527,7 @@ export default function TodoRoom({
         <button className={"tab" + (tab === "todo" ? " on" : "")} onClick={() => { setTab("todo"); }}>
           やること{openCount ? ` ${openCount}` : ""}
         </button>
+        <button className={"tab" + (tab === "all" ? " on" : "")} onClick={() => setTab("all")}>ぜんぶ {allCount}</button>
         <button className={"tab" + (tab === "done" ? " on" : "")} onClick={() => setTab("done")}>完了</button>
         {deferredCount > 0 && (
           <button className={"tab" + (tab === "defer" ? " on" : "")} onClick={() => setTab("defer")}>見送り {deferredCount}</button>
@@ -620,6 +635,45 @@ export default function TodoRoom({
                 );
               }}
             />
+          </>
+        ) : tab === "all" ? (
+          <>
+            {loaded && allDates.length === 0 && (
+              <div className="empty">
+                {query ? "みつかりませんでした 🥺" : "まだ何もないよ💗"}
+              </div>
+            )}
+            {allDates.map((dk) => {
+              const d = keyToDate(dk);
+              return (
+                <Fragment key={dk}>
+                  <div className="date-pill">
+                    <span className={dowClass(dk) ? "wd-" + dowClass(dk) : undefined}>🩷{keyToDisp(dk)}🩷 {WEEKDAYS[d.getDay()]}</span>
+                    <span className="date-pill-n">{allGroups[dk].length}</span>
+                  </div>
+                  {allGroups[dk].map((t) => (
+                    <div className="todo-row" key={t.id}>
+                      <button
+                        className={"todo-check" + (t.done ? " on" : "")}
+                        aria-label={t.done ? "未完了にする" : "完了にする"}
+                        onClick={() => toggle(t)}
+                      />
+                      <Pressable
+                        className={"todo-bubble" + (t.important && !t.done ? " important" : "")}
+                        onClick={() => startEdit(t)}
+                        onLongPress={(p) => setMenu({ id: t.id, x: p.x, y: p.y })}
+                        role="button" tabIndex={0}
+                      >
+                        {room.numbering && t.dayNo ? <span className="todo-no">{t.dayNo}</span> : null}
+                        {t.important && !t.done && <span className="todo-star">❣️</span>}
+                        <span className={"todo-text" + (t.done ? " done" : "")}>{linkify(t.text, highlight)}</span>
+                      </Pressable>
+                      <div className="todo-time">{t.done ? "✓" : t.time}</div>
+                    </div>
+                  ))}
+                </Fragment>
+              );
+            })}
           </>
         ) : tab === "done" ? (
           <>

@@ -542,11 +542,18 @@ export const css = `
   .tabs {
     display: flex; gap: 6px; padding: 8px 12px; flex-shrink: 0;
     background: rgba(255,240,249,.85); border-bottom: 1px solid #f3b9d9;
+    /* タブが増えても詰まらないように横スクロール（スクロールバーは出さない） */
+    overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
   }
+  .tabs::-webkit-scrollbar { display: none; }
   .tab {
     border: 1.5px solid #f0a6cf; background: #fff; color: #b04a86;
-    border-radius: 999px; padding: 5px 16px; font-size: 12.5px;
-    font-weight: 700; cursor: pointer;
+    border-radius: 999px; padding: 5px 14px; font-size: 12.5px;
+    font-weight: 700; cursor: pointer; flex-shrink: 0; white-space: nowrap;
+  }
+  .date-pill-n {
+    margin-left: 7px; font-size: 10.5px; font-weight: 800; color: #fff;
+    background: #e0629f; border-radius: 999px; padding: 1px 7px;
   }
   .tab.on { background: #e0629f; border-color: #e0629f; color: #fff; }
   .tab-imp { border-color: #ff2e88; color: #d5006a; }
