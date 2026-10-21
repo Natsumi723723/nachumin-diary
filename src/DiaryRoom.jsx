@@ -653,7 +653,11 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                     onLongPress={(p) => setMenu({ type: "now", k, x: p.x, y: p.y })}
                   >
                     <div className="done-head">
+                      {/* 日記本文が無い日でも、いつのなうか分かるように日付を出す */}
                       <span>🕐 なう</span>
+                      <span className={"now-d-date " + (dowClass(k) ? "wd-" + dowClass(k) : "")}>
+                        {keyToDisp(k).slice(5)} {WEEKDAYS[keyToDate(k).getDay()]}
+                      </span>
                       <span className="now-d-n">{dayNow.length}件</span>
                     </div>
                     <div className="now-d-list">

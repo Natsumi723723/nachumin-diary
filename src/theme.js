@@ -1236,7 +1236,14 @@ export const css = `
   /* 日記ルームに出る「🕐 なう」 */
   .now-daily .done-bubble { background: #fff4fa; border-color: #ffc9e4; }
   .now-daily .done-bubble::after { background: #fff4fa; border-color: #ffc9e4; }
-  .now-d-n { font-size: 11px; font-weight: 800; color: #d6317f; }
+  .now-d-date {
+    font-size: 11.5px; font-weight: 900; color: #fff; letter-spacing: .02em;
+    background: linear-gradient(120deg,#ff1493,#c33bff);
+    border-radius: 999px; padding: 2px 9px;
+  }
+  .now-d-date.wd-sun { background: linear-gradient(120deg,#ff3d8b,#ff7ab5); }
+  .now-d-date.wd-sat { background: linear-gradient(120deg,#2f7fd6,#5fa8ef); }
+  .now-d-n { font-size: 11px; font-weight: 800; color: #d6317f; margin-left: auto; }
   .now-d-list { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
   .now-d-line { display: flex; align-items: baseline; gap: 9px; font-size: 12.5px; line-height: 1.65; color: #5b4570; }
   .now-d-time {
