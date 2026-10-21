@@ -1236,6 +1236,17 @@ export const css = `
   /* 日記ルームに出る「🕐 なう」 */
   .now-daily .done-bubble { background: #fff4fa; border-color: #ffc9e4; }
   .now-daily .done-bubble::after { background: #fff4fa; border-color: #ffc9e4; }
+  /* 日記の「＋ できたこと / ＋ 体調」: 記録が無い日はこれだけ出す */
+  .dx-row { gap: 6px; margin: -6px 0 14px; }
+  .dx-pill {
+    background: rgba(255,255,255,.7); cursor: pointer;
+    border: 1.5px dashed #e3b9d8; color: #a4517f;
+    border-radius: 999px; padding: 5px 12px;
+    font-size: 11.5px; font-weight: 800;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dx-pill:active { background: #fff; border-color: #ff8ec9; }
+
   .now-d-date {
     font-size: 11.5px; font-weight: 900; color: #fff; letter-spacing: .02em;
     background: linear-gradient(120deg,#ff1493,#c33bff);

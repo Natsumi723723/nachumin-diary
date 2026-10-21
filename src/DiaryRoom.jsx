@@ -26,6 +26,9 @@ const MON_FIRST = [1, 2, 3, 4, 5, 6, 0]; // 曜日チップは月曜始まり
 export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToast, pinned, syncSignal, marks, onEditMarks, nowRoomIds = [] }) {
   const [entries, setEntries] = useState({});
   const [doneLog, setDoneLog] = useState({});   // { dateKey: [{text,time}] }
+  /* 今日の「できたこと」「体調」は、記録が無いうちは小さな＋だけ出す。
+     毎日かならず空の入力欄が出るのがうるさいため。押せば開く */
+  const [openExtra, setOpenExtra] = useState({}); // { [dateKey]: { done:true, health:true } }
   const [nowByDay, setNowByDay] = useState({});  // なうルームの投稿 { dateKey: [{time,text,at}] }
   const [habits, setHabits] = useState([]);      // [{id,name,emoji}]
   const [habitAch, setHabitAch] = useState({});  // { dateKey: [habitId] }
@@ -115,18 +118,9 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
         if (hchanged) await set(habitsKey(room.id), hb);
         setHabits(Array.isArray(hb) ? hb : []);
         setHabitAch((await get(habitLogKey(room.id))) || {});
-        // 体調: 初回だけ項目の例を用意（消したら戻さない）
-        let sy = await get(symptomsKey(room.id));
-        if (!(await get(symptomSeedKey(room.id)))) {
-          await set(symptomSeedKey(room.id), true);
-          if (!Array.isArray(sy) || !sy.length) {
-            sy = [
-              { id: uid(), name: "眠気", emoji: "😴", color: "#8b6ff0" },
-              { id: uid(), name: "不正出血", emoji: "💧", color: "#e0629f" }
-            ];
-            await set(symptomsKey(room.id), sy);
-          }
-        }
+        /* 体調: 新しく始めるときは項目を用意しない（日記ルームで体調管理をしない前提）。
+           すでに入れている項目と記録はそのまま残す。使いたくなったら⚙︎から足せる */
+        const sy = await get(symptomsKey(room.id));
         setSymptoms(Array.isArray(sy) ? sy : []);
         const pd = await get(periodKey(room.id));
         setPeriodDays(Array.isArray(pd?.days) ? pd.days : []);
@@ -610,13 +604,21 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
             carry.add(h.id); // まだ未達成 → 繰り越して表示
             return true;
           });
-          const showHabits = dayHabits.length > 0 && (isToday || hasDiary || ach.length > 0);
-          const showDone = done.length > 0 || showHabits;
-          // 体調: 今日は常に出す（その場で記録できるように）。過去日は記録がある日だけ
           const daySyms = symptomLog[k] || [];
           const dayPeriod = periodDays.includes(k);
-          const showHealth = (symptoms.length > 0 || dayPeriod)
-            && (isToday || dayPeriod || daySyms.length > 0);
+          const opened = openExtra[k] || {};
+          /* その日に中身があるか。あれば今までどおり吹き出しで出す。
+             無い日は出さず、今日だけ小さな＋を置く（過去日は🎯/🌡️のビューから触れる） */
+          const hasDoneRec = done.length > 0 || ach.length > 0;
+          const hasHealthRec = dayPeriod || daySyms.length > 0;
+          const canDone = dayHabits.length > 0 || done.length > 0;
+          const canHealth = symptoms.length > 0;
+          const showHabits = dayHabits.length > 0 && (hasDoneRec || opened.done);
+          const showDone = hasDoneRec || (canDone && opened.done);
+          const showHealth = hasHealthRec || (canHealth && opened.health);
+          // ＋だけ出す（今日・まだ中身が無い・開いていない）
+          const pillDone = isToday && canDone && !showDone;
+          const pillHealth = isToday && canHealth && !showHealth;
           return (
             <Fragment key={k}>
               {hasDiary && (
@@ -711,6 +713,24 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                       </div>
                     )}
                   </Pressable>
+                </div>
+              )}
+              {(pillDone || pillHealth) && (
+                <div className="done-row dx-row">
+                  {pillDone && (
+                    <button
+                      className="dx-pill"
+                      aria-label="できたことを開く"
+                      onClick={() => setOpenExtra((o) => ({ ...o, [k]: { ...(o[k] || {}), done: true } }))}
+                    >＋ 🩷 できたこと</button>
+                  )}
+                  {pillHealth && (
+                    <button
+                      className="dx-pill"
+                      aria-label="体調を開く"
+                      onClick={() => setOpenExtra((o) => ({ ...o, [k]: { ...(o[k] || {}), health: true } }))}
+                    >＋ 🌡️ 体調</button>
+                  )}
                 </div>
               )}
               {showHealth && (
