@@ -1546,6 +1546,7 @@ export const css = `
 
   /* ===== 🎯 習慣ビュー（月間スタンプ表） ===== */
   .overlay.habit-over { z-index: 50; }
+  .done-head .hv-open { margin-left: auto; }
   .hv-open {
     margin-left: auto; flex-shrink: 0; cursor: pointer;
     border: none; border-radius: 999px; padding: 3px 9px;

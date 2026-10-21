@@ -681,6 +681,10 @@ export default function DiaryRoom({ room, onBack, onMeta, initialQuery, showToas
                   >
                     <div className="done-head">
                       <span>🩷 できたこと</span>
+                      {/* 日記本文を書いていない日でも、いつの分か分かるように */}
+                      <span className={"now-d-date " + (dowClass(k) ? "wd-" + dowClass(k) : "")}>
+                        {keyToDisp(k).slice(5)} {WEEKDAYS[keyToDate(k).getDay()]}
+                      </span>
                       {showHabits && (
                         <button
                           className="hv-open"
