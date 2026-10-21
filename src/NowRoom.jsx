@@ -15,7 +15,8 @@ import linkify from "./linkify.jsx";
    - 投稿は日記ルームの各日に「🕐 なう」として自動で並ぶ（日記本文には書き込まない）
    - 起動を軽くするため、最初は今日と昨日だけ描画する。過去は「前の日を見る」で足す */
 
-const PAGE_DAYS = 7; // 「前の日を見る」1回で足す日数
+const PAGE_DAYS = 7;       // 「前の日を見る」1回で足す日数
+const GALLERY_STEP = 150;  // ギャラリーで一度に出すカード数
 
 // その日の投稿を時刻順（29時制）に並べる。同時刻は投稿順
 const byTime = (a, b) => timeSortKey(a.time) - timeSortKey(b.time) || (a.at || 0) - (b.at || 0);
@@ -40,6 +41,9 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
   const [confirm, setConfirm] = useState(null);
   const [justPosted, setJustPosted] = useState(null);
   const [barH, setBarH] = useState(76);
+  const [view, setView] = useState(room.nowView === "gallery" ? "gallery" : "time");
+  const [cols, setCols] = useState(Number(room.nowCols) === 3 ? 3 : 2);
+  const [galLimit, setGalLimit] = useState(GALLERY_STEP);
   const scrollRef = useRef(null);
   const barRef = useRef(null);
   const taRef = useRef(null);
@@ -68,7 +72,7 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
     const el = scrollRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
   };
-  useEffect(() => { if (loaded) scrollToEnd(false); }, [loaded]);
+  useEffect(() => { if (loaded && view === "time") scrollToEnd(false); }, [loaded, view]);
 
   const persist = async (next) => {
     setPosts(next);
@@ -93,7 +97,7 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
     if (taRef.current) taRef.current.style.height = "auto";
     setJustPosted(p.id);
     setTimeout(() => setJustPosted(null), 900);
-    requestAnimationFrame(() => scrollToEnd(true));
+    if (view === "time") requestAnimationFrame(() => scrollToEnd(true));
   };
 
   const onKeyDown = (e) => {
@@ -148,6 +152,16 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
     return k === today ? `今日 ${d}` : k === yesterdayKey() ? `昨日 ${d}` : d;
   };
 
+  const setViewMode = (v) => { setView(v); onMeta({ nowView: v }); };
+  const setColCount = (n) => { setCols(n); onMeta({ nowCols: n }); };
+
+  /* ギャラリー: 日付も時刻も出さず、書いた文字だけをカードで敷き詰める。
+     CSSの段組みで上から詰まるので、文字数がばらついても隙間ができにくい。
+     省略（…）はしない＝全文を出す */
+  const galleryAll = [...posts].sort((a, b) =>
+    (a.dateKey < b.dateKey ? 1 : a.dateKey > b.dateKey ? -1 : (b.at || 0) - (a.at || 0)));
+  const gallery = galleryAll.slice(0, galLimit);
+
   const menuPost = menu && posts.find((p) => p.id === menu.id);
 
   return (
@@ -159,9 +173,16 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
           <div className="hd-title">{room.name}</div>
           <div className="hd-sub">{loaded ? `今日 ${todayCount}件` : "Nachumin Lifelog"}</div>
         </div>
+        {/* 時系列 ⇄ ギャラリー */}
+        <button
+          className={"now-view" + (view === "gallery" ? " on" : "")}
+          aria-label={view === "gallery" ? "時系列で見る" : "ギャラリーで見る"}
+          onClick={() => setViewMode(view === "gallery" ? "time" : "gallery")}
+          style={{ marginLeft: "auto" }}
+        >{view === "gallery" ? "🕐" : "▦"}</button>
         {/* 日記へ1タップ（今日のなうがどう並んだかをすぐ見られるように） */}
         {onOpenDiary && (
-          <button className="now-to-diary" onClick={onOpenDiary} aria-label="日記をひらく">
+          <button className="now-to-diary" onClick={onOpenDiary} aria-label="日記をひらく" style={{ marginLeft: 0 }}>
             <span className="now-to-diary-ic">💗</span>日記<span className="now-to-diary-arw">›</span>
           </button>
         )}
@@ -169,6 +190,42 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
 
       {pinned}
 
+      {view === "gallery" ? (
+        <div className="now-gal-scroll" style={{ paddingBottom: barH + 12 }}>
+          <div className="now-gal-bar">
+            <span className="now-gal-n">{galleryAll.length}件</span>
+            <div className="now-gal-cols">
+              {[2, 3].map((n) => (
+                <button
+                  key={n}
+                  className={"now-gal-col" + (cols === n ? " on" : "")}
+                  aria-label={`${n}列にする`}
+                  onClick={() => setColCount(n)}
+                >{n}列</button>
+              ))}
+            </div>
+          </div>
+          {loaded && galleryAll.length === 0 && (
+            <div className="now-empty">下からつぶやいてね🕐</div>
+          )}
+          <div className={"now-gal cols-" + cols}>
+            {gallery.map((p) => (
+              <Pressable
+                key={p.id}
+                className={"now-card" + (justPosted === p.id ? " pop" : "")}
+                onLongPress={(pt) => setMenu({ id: p.id, x: pt.x, y: pt.y })}
+              >
+                {linkify(p.text)}
+              </Pressable>
+            ))}
+          </div>
+          {galleryAll.length > gallery.length && (
+            <button className="now-more" onClick={() => setGalLimit((n) => n + GALLERY_STEP)}>
+              ↓ もっと見る（あと{galleryAll.length - gallery.length}件）
+            </button>
+          )}
+        </div>
+      ) : (
       <div className="chat now-scroll" ref={scrollRef} style={{ paddingBottom: barH + 12 }}>
         {hiddenDays > 0 && (
           <button className="now-more" onClick={() => setShowFrom((f) => addDays(f, -PAGE_DAYS))}>
@@ -204,6 +261,7 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
           );
         })}
       </div>
+      )}
 
       {/* 入力欄。開いたらすぐ書けるように、ほかの操作は置かない */}
       {!editing && (

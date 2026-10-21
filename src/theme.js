@@ -1197,6 +1197,42 @@ export const css = `
     40% { box-shadow: 0 0 0 3px #fff, 0 0 22px 6px rgba(255,20,147,.9); }
     100% { box-shadow: 0 0 0 3px #fff, 0 0 10px rgba(255,20,147,.75); }
   }
+  /* ギャラリー: 書いた文字だけを敷き詰める。日付・時刻は出さない */
+  .now-view {
+    flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
+    border: 1.5px solid #ffc2e0; background: #fff; color: #d6317f;
+    font-size: 16px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .now-view.on { background: linear-gradient(120deg,#ff1493,#c33bff); border-color: transparent; color: #fff; }
+  .now-gal-scroll { flex: 1; overflow-y: auto; padding: 8px 10px 0; }
+  .now-gal-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .now-gal-n { font-size: 11.5px; font-weight: 800; color: #a4517f; }
+  .now-gal-cols { margin-left: auto; display: flex; gap: 5px; }
+  .now-gal-col {
+    border: 1.5px solid #f0a6cf; background: #fff; color: #b04a86;
+    border-radius: 999px; padding: 4px 11px; font-size: 11.5px; font-weight: 800; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .now-gal-col.on { background: #ff1478; border-color: #ff1478; color: #fff; }
+  /* 段組みにすると、高さがばらばらでも上から詰まる */
+  .now-gal { column-gap: 7px; }
+  .now-gal.cols-2 { column-count: 2; }
+  .now-gal.cols-3 { column-count: 3; }
+  .now-card {
+    break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid;
+    display: block; margin: 0 0 7px;
+    background: #fff; border: 1.5px solid #ffd6ec; border-radius: 14px;
+    padding: 9px 11px; box-shadow: 0 3px 10px rgba(255,20,147,.14);
+    font-size: 13px; line-height: 1.6; color: #4a3140;
+    /* 省略しない: 書いた文字は全部出す */
+    white-space: pre-wrap; overflow-wrap: anywhere;
+    -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .now-gal.cols-3 .now-card { font-size: 11.5px; line-height: 1.55; padding: 7px 9px; border-radius: 12px; }
+  .now-card a { color: #d6317f; font-weight: 700; }
+  .now-card.pop { animation: now-pop .8s cubic-bezier(.3,1.5,.5,1); }
+
   /* 日記ルームに出る「🕐 なう」 */
   .now-daily .done-bubble { background: #fff4fa; border-color: #ffc9e4; }
   .now-daily .done-bubble::after { background: #fff4fa; border-color: #ffc9e4; }
