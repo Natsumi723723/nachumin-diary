@@ -2013,6 +2013,116 @@ export const css = `
     padding: 8px 16px; border-radius: 999px; z-index: 30;
     max-width: 88vw;
   }
+  /* ---------- 📝 スマートノート ---------- */
+  .sn-scroll { flex: 1; overflow-y: auto; padding: 10px 12px calc(28px + env(safe-area-inset-bottom)); }
+  .sn-s1 { --sc: #7b61ff; } .sn-s2 { --sc: #b03cff; } .sn-s3 { --sc: #ff45b0; }
+  .sn-s4 { --sc: #ff00aa; } .sn-s5 { --sc: #ff1493; } .sn-s0 { --sc: #e3b8d2; }
+  .sn-card {
+    background: #fff; border-radius: 20px; padding: 10px 10px 4px;
+    border: 2px solid #ffc2e0; box-shadow: 0 6px 18px rgba(255,20,147,.16);
+  }
+  .sn-dayrow { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .sn-day {
+    position: relative; overflow: hidden; cursor: pointer;
+    font-size: 15px; font-weight: 900; color: #fff; padding: 5px 14px; border-radius: 999px;
+    background: linear-gradient(120deg,#ff1493,#ff45b0 55%,#c33bff);
+    box-shadow: 0 3px 10px rgba(255,20,147,.35);
+  }
+  .sn-day input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .sn-arrow {
+    width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid #ffc2e0;
+    background: #fff; color: #ff1493; font-size: 20px; font-weight: 900; line-height: 1; cursor: pointer;
+  }
+  .sn-arrow:disabled { opacity: .3; cursor: default; }
+  .sn-back-today {
+    margin-left: auto; background: none; border: none; color: #d6317f;
+    font-size: 12px; font-weight: 800; text-decoration: underline; cursor: pointer;
+  }
+  .sn-slot {
+    display: grid; grid-template-columns: 22px 1fr; gap: 4px 6px; align-items: center;
+    padding: 8px 2px; border-top: 1.5px dashed #ffd1e8;
+  }
+  .sn-no { font-size: 14px; font-weight: 900; color: #ff1493; text-align: center; }
+  .sn-in {
+    min-width: 0; border: none; outline: none; background: transparent;
+    font-size: 16px; font-weight: 700; color: #4a3140; padding: 4px 2px;
+  }
+  .sn-in::placeholder { color: #e7a9c8; font-weight: 600; }
+  .sn-scores { grid-column: 2; display: flex; gap: 6px; }
+  .sn-sc {
+    flex: 1; height: 32px; max-width: 52px; border-radius: 10px; cursor: pointer;
+    border: 2px solid var(--sc); background: #fff; color: var(--sc);
+    font-size: 15px; font-weight: 900;
+  }
+  .sn-sc.on {
+    background: var(--sc); color: #fff;
+    box-shadow: 0 0 0 2px #fff, 0 0 12px var(--sc);
+  }
+  .sn-tabs { display: flex; gap: 8px; margin: 18px 0 10px; }
+  .sn-tab {
+    flex: 1; padding: 9px 0; border-radius: 999px; cursor: pointer;
+    border: 2px solid #ff1493; background: #fff; color: #ff1493; font-size: 14px; font-weight: 900;
+  }
+  .sn-tab.on {
+    color: #fff; background: linear-gradient(120deg,#ff1493,#ff00aa 60%,#c33bff);
+    box-shadow: 0 4px 14px rgba(255,20,147,.4);
+  }
+  .sn-filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  .sn-f {
+    display: inline-flex; align-items: baseline; gap: 4px; padding: 5px 11px; border-radius: 999px;
+    border: 2px solid var(--sc); background: #fff; color: var(--sc);
+    font-size: 13px; font-weight: 900; cursor: pointer;
+  }
+  .sn-f small { font-size: 10.5px; font-weight: 800; opacity: .75; }
+  .sn-f.on { background: var(--sc); color: #fff; box-shadow: 0 0 12px var(--sc); }
+  .sn-fclear {
+    background: none; border: none; color: #c58fb0; font-size: 12px;
+    text-decoration: underline; cursor: pointer;
+  }
+  .sn-mhead { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 8px; }
+  .sn-mlabel { font-size: 20px; font-weight: 900; color: #ff1493; letter-spacing: .04em; }
+  .sn-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .sn-dow { text-align: center; font-size: 11px; font-weight: 900; color: #c058a0; }
+  .sn-cell {
+    position: relative; min-height: 84px; min-width: 0; cursor: pointer;
+    display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 3px 2px 4px;
+    border-radius: 10px; border: 1.5px solid #ffd1e8; background: #fff;
+  }
+  .sn-cell.has { border-color: #ff9fd0; background: #fff4fa; }
+  .sn-cell.today .sn-dn { color: #fff; background: #ff1493; border-radius: 999px; padding: 0 6px; }
+  .sn-cell.sel { border: 2.5px solid #ff1493; box-shadow: 0 0 10px rgba(255,20,147,.45); }
+  .sn-cell.dim { opacity: .3; }
+  .sn-dn { align-self: center; font-size: 12px; font-weight: 900; color: #a4517f; }
+  .sn-ct {
+    flex: 1; font-size: 9.5px; line-height: 1.25; font-weight: 800; color: var(--sc);
+    text-align: left; overflow-wrap: anywhere; word-break: break-all;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .sn-ct.sn-s1, .sn-ct.sn-s2 { color: #6a3fd6; }
+  .sn-pips { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; margin-top: auto; }
+  .sn-pip { width: 6px; height: 6px; border-radius: 50%; background: var(--sc); box-shadow: 0 0 4px var(--sc); }
+  .sn-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .sn-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
+  .sn-gday {
+    align-self: flex-start; background: none; border: none; cursor: pointer; padding: 2px 4px;
+    font-size: 13px; font-weight: 900; color: #d6317f;
+  }
+  .sn-li {
+    display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer;
+    background: #fff; border: 1.5px solid #ffd1e8; border-radius: 14px; padding: 8px 10px;
+  }
+  .sn-badge {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+    display: grid; place-items: center; color: #fff; font-size: 14px; font-weight: 900;
+    background: var(--sc); box-shadow: 0 0 8px var(--sc);
+  }
+  .sn-lt { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; color: #4a3140; overflow-wrap: anywhere; }
+  .sn-ld { flex-shrink: 0; font-size: 11px; font-weight: 800; color: #c58fb0; }
+  .sn-none { text-align: center; font-size: 13px; color: #c58fb0; padding: 18px 0; }
+  .sn-more {
+    margin: 4px auto 0; background: #fff; border: 1.5px solid #ffc2e0; border-radius: 999px;
+    color: #d6317f; font-size: 12.5px; font-weight: 800; padding: 7px 16px; cursor: pointer;
+  }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; }
     .todo-react, .todo-row.completing, .todo-row.completing .todo-check { animation: none !important; }

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import {
   get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID, DECL_KEY,
   FUTURE_SEED_KEY, FUTURE_ROOM_ID, NOW_SEED_KEY, NOW_ROOM_ID, ALBUM_SEED_KEY, ALBUM_ROOM_ID,
+  SMART_SEED_KEY, SMART_ROOM_ID,
   START_ROOM_KEY,
   MARKS_KEY, DEFAULT_MARKS, doneLogKey, BACKUP_KEY
 } from "./storage.js";
@@ -28,6 +29,7 @@ const ExpenseRoom = lazy(() => import("./ExpenseRoom.jsx"));
 const ChallengeRoom = lazy(() => import("./ChallengeRoom.jsx"));
 const FutureRoom = lazy(() => import("./FutureRoom.jsx"));
 const AlbumRoom = lazy(() => import("./AlbumRoom.jsx"));
+const SmartRoom = lazy(() => import("./SmartRoom.jsx"));
 
 const EMOJI_PICKS = [
   "💗", "🩷", "💛", "🩵", "💜", "🤍", "🖤", "🌸", "🌷", "🎀",
@@ -119,6 +121,26 @@ export default function App() {
     }
   };
 
+  /* スマートノートルームを一度だけ用意する。消したら復活させない */
+  const seedSmartRoom = async (list) => {
+    try {
+      if (await get(SMART_SEED_KEY)) return list;
+      if (list.some((r) => r.type === "smart")) {
+        await set(SMART_SEED_KEY, true);
+        return list;
+      }
+      const next = [...list, {
+        id: SMART_ROOM_ID, type: "smart", name: "スマートノート", emoji: "📝",
+        createdAt: Date.now(), lastAt: 0, preview: ""
+      }];
+      await set(ROOMS_KEY, next);
+      await set(SMART_SEED_KEY, true);
+      return next;
+    } catch (e) {
+      return list;
+    }
+  };
+
   /* なうルームを一度だけ用意する。一覧のいちばん前に置く。
      一度でも作ったら印を残すので、あとで消しても勝手に復活しない。 */
   const seedNowRoom = async (list) => {
@@ -149,7 +171,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const loaded = await seedNowRoom(await seedAlbumRoom(await seedFutureRoom(await loadRooms())));
+        const loaded = await seedNowRoom(await seedSmartRoom(await seedAlbumRoom(await seedFutureRoom(await loadRooms()))));
         /* 起動時に出すルーム。設定していればそれを、無ければ「なう」→日記→一覧 */
         const startId = await get(START_ROOM_KEY);
         if (startId) setStartRoomId(startId);
@@ -400,6 +422,13 @@ export default function App() {
             hits.push({ snippet: `${cn(e.categoryId)} ¥${e.amount}${e.memo ? " " + e.memo : ""}`, date: keyToDisp(e.dateKey) });
           }
         }
+      } else if (r.type === "smart") {
+        const its = data && Array.isArray(data.items) ? data.items : [];
+        for (const x of its) {
+          if ((x.text + keyToDisp(x.dateKey)).toLowerCase().includes(q)) {
+            hits.push({ snippet: `${x.score ? x.score + "点 " : ""}${x.text}`, date: keyToDisp(x.dateKey) });
+          }
+        }
       } else {
         const ms = data && Array.isArray(data.messages) ? data.messages : [];
         const nameOf = (id) => r.members?.find((m) => m.id === id)?.name || "";
@@ -435,7 +464,7 @@ export default function App() {
       showToast("ルーム名を入れてね");
       return;
     }
-    const defaultEmoji = { diary: "💗", todo: "✅", darelog: "🌗", expense: "💰", challenge: "🏁", talk: "🩷" }[modal.type] || "🩷";
+    const defaultEmoji = { diary: "💗", todo: "✅", darelog: "🌗", expense: "💰", challenge: "🏁", smart: "📝", talk: "🩷" }[modal.type] || "🩷";
     // だれログは初期メンバーを用意（記録のハードルをゼロに）
     const initMembers = modal.type === "darelog"
       ? [
@@ -739,6 +768,8 @@ export default function App() {
               ? <FutureRoom key={room.id} {...common} />
             : room.type === "album"
               ? <AlbumRoom key={room.id} {...common} />
+            : room.type === "smart"
+              ? <SmartRoom key={room.id} {...common} />
               : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
       content = (
         <SwipeBack key={room.id} onBack={() => setView({ screen: "home" })}>
@@ -1015,6 +1046,11 @@ export default function App() {
                 disabled={modal.mode === "edit"}
                 onClick={() => setModal((o) => ({ ...o, type: "album" }))}
               >📔 絵日記<small>書いた日記の画像</small></button>
+              <button
+                className={"type-chip" + (modal.type === "smart" ? " on" : "")}
+                disabled={modal.mode === "edit"}
+                onClick={() => setModal((o) => ({ ...o, type: "smart" }))}
+              >📝 スマートノート<small>やったこと5個に点数</small></button>
             </div>
             {modal.mode === "edit" && (
               <>

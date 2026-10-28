@@ -45,6 +45,8 @@ export const albumFullKey = (roomId, pageId) => `albumfull-v1:${roomId}:${pageId
 export const albumThumbKey = (roomId, pageId) => `albumthumb-v1:${roomId}:${pageId}`;
 export const ALBUM_SEED_KEY = "albumseed-v1";
 export const ALBUM_ROOM_ID = "album-main";
+export const SMART_SEED_KEY = "smartseed-v1";
+export const SMART_ROOM_ID = "smart-main";
 
 /* なうルーム: 「何時何分に何してた」をつぶやくルーム。起動時に開く。
    投稿は { posts: [{id, dateKey, time, text, at}] } としてルーム本文に持つ。
