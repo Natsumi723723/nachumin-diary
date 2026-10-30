@@ -161,6 +161,35 @@ export const css = `
     background: rgba(255,255,255,.85); color: #e0148c;
     box-shadow: 0 1px 4px rgba(255,20,147,.28);
   }
+  /* ---------- ✨ なうのふりかえり ---------- */
+  .rf-panel { max-height: 86vh; display: flex; flex-direction: column; }
+  .rf-make {
+    display: flex; flex-direction: column; align-items: center; gap: 3px; width: 100%;
+    padding: 13px 0; border-radius: 18px; border: none; cursor: pointer; color: #fff;
+    font-size: 17px; font-weight: 900;
+    background: linear-gradient(120deg,#ff1493,#ff00aa 55%,#c33bff);
+    box-shadow: 0 0 0 2px #fff, 0 0 18px rgba(255,0,170,.55);
+  }
+  .rf-make small { font-size: 11.5px; font-weight: 800; opacity: .9; }
+  .rf-make:disabled { flex-direction: row; justify-content: center; gap: 8px; opacity: .85; cursor: default; }
+  .rf-note { font-size: 11px; color: #a4517f; text-align: center; margin: 7px 0 10px; }
+  .rf-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+  .rf-card {
+    background: #fff; border: 2px solid #ffc2e0; border-radius: 16px; padding: 10px 12px;
+    box-shadow: 0 4px 14px rgba(255,20,147,.14);
+  }
+  .rf-range {
+    display: inline-flex; align-items: baseline; gap: 6px; margin-bottom: 6px;
+    padding: 3px 11px; border-radius: 999px; color: #fff; font-size: 13px; font-weight: 900;
+    background: linear-gradient(120deg,#ff1493,#c33bff);
+  }
+  .rf-range small { font-size: 10.5px; opacity: .85; }
+  .rf-text { font-size: 14px; line-height: 1.7; color: #3d1f33; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .rf-acts { display: flex; justify-content: flex-end; gap: 12px; margin-top: 6px; }
+  .rf-acts button {
+    background: none; border: none; color: #d6317f; font-size: 12px; font-weight: 800;
+    text-decoration: underline; cursor: pointer; padding: 4px 2px;
+  }
   /* ---------- 💎 名言 ---------- */
   .wd-count {
     margin-left: auto; flex-shrink: 0; display: flex; align-items: baseline; gap: 3px;

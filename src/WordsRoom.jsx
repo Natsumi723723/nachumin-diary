@@ -5,7 +5,8 @@ import Pressable from "./Pressable.jsx";
 import ContextMenu from "./ContextMenu.jsx";
 import ConfirmDialog from "./ConfirmDialog.jsx";
 import useKbGap from "./useKbGap.js";
-import { getReadPass, setReadPass, readWordsFromImage } from "./readWords.js";
+import { readWordsFromImage } from "./readWords.js";
+import PassDialog from "./PassDialog.jsx";
 import { pushSupported, currentSub, enablePush, disablePush, testPush } from "./push.js";
 
 /* 💎 名言ルーム: 響いたフレーズを書き留めて、一覧でバーっと見返す。それだけ。
@@ -28,7 +29,7 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
   const [bell, setBell] = useState(null);       // 通知パネル {on, busy}
   const [reading, setReading] = useState(false); // 📷 読み取り中
   const [cols, setCols] = useState(Number(room.wordsCols) === 3 ? 3 : 2); // 基本2列
-  const [passAsk, setPassAsk] = useState(null);  // 合言葉の入力 {value, file}
+  const [passAsk, setPassAsk] = useState(null);  // 合言葉の入力 {wrong, resolve}
   const fileRef = useRef(null);
   const scrollRef = useRef(null);
   const barRef = useRef(null);
@@ -91,14 +92,14 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
     setBell((b) => ({ ...b, busy: false }));
   };
 
+  // 合言葉が要るときだけダイアログを出して、入力を待つ
+  const askPass = (wrong) => new Promise((resolve) => setPassAsk({ wrong, resolve }));
+
   /* 📷 画像 → 入力欄へ。保存はせず、直してから↑で書き留める */
-  const readImage = async (file, passOverride) => {
-    const pass = passOverride || (await getReadPass());
-    if (!pass) { setPassAsk({ value: "", file }); return; }
+  const readImage = async (file) => {
     setReading(true);
     try {
-      const r = await readWordsFromImage(file, pass);
-      if (passOverride) await setReadPass(passOverride);
+      const r = await readWordsFromImage(file, askPass);
       if (!r.text) { showToast("言葉が見つからなかったよ"); return; }
       setDraft(r.text);
       if (r.from) setFrom(r.from);
@@ -110,18 +111,13 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
       });
       showToast("読み取ったよ。直してから↑で書き留めてね");
     } catch (e) {
-      if (e.message === "pass") {
-        await setReadPass(null);
-        setPassAsk({ value: "", file, wrong: true });
-      } else {
-        // 合言葉は通っている（上限・電波などの別の理由）ので覚えておく
-        if (passOverride) await setReadPass(passOverride);
-        showToast({
-          limit: "今日の読み取りは上限（30枚）に達しました",
-          image: "この画像は読めませんでした",
-          net: "つながりませんでした。電波を確認してね"
-        }[e.message] || "読み取りに失敗しました");
-      }
+      if (e.message === "cancel") return;
+      showToast({
+        limit: "今日の読み取りは上限（30枚）に達しました",
+        image: "この画像は読めませんでした",
+        net: "つながりませんでした。電波を確認してね",
+        pass: "合言葉が合いませんでした"
+      }[e.message] || "読み取りに失敗しました");
     } finally {
       setReading(false);
     }
@@ -348,27 +344,11 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
       )}
 
       {passAsk && (
-        <div className="overlay" onClick={() => setPassAsk(null)}>
-          <div className="panel" onClick={(e) => e.stopPropagation()}>
-            <h3>📷 合言葉</h3>
-            <div className="wd-bell-note">
-              {passAsk.wrong ? "合言葉がちがうみたい。もう一度入れてね。" : "画像の読み取りに使う合言葉を入れてね。"}<br />
-              このスマホに覚えるので、入れるのは最初の1回だけ。
-            </div>
-            <input
-              className="f-input" type="password" autoFocus autoComplete="off"
-              value={passAsk.value}
-              onChange={(e) => setPassAsk((o) => ({ ...o, value: e.target.value }))}
-            />
-            <div className="panel-btns">
-              <button
-                className="p-copy" disabled={!passAsk.value.trim()}
-                onClick={() => { const { file, value } = passAsk; setPassAsk(null); readImage(file, value.trim()); }}
-              >読み取る</button>
-              <button className="p-close" onClick={() => setPassAsk(null)}>もどる</button>
-            </div>
-          </div>
-        </div>
+        <PassDialog
+          wrong={passAsk.wrong}
+          onSubmit={(v) => { passAsk.resolve(v); setPassAsk(null); }}
+          onCancel={() => { passAsk.resolve(null); setPassAsk(null); }}
+        />
       )}
 
       {confirm && (

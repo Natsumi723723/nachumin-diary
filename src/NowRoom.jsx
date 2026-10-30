@@ -9,6 +9,8 @@ import ContextMenu from "./ContextMenu.jsx";
 import ConfirmDialog from "./ConfirmDialog.jsx";
 import useKbGap from "./useKbGap.js";
 import linkify from "./linkify.jsx";
+import PassDialog from "./PassDialog.jsx";
+import { callAiWithPass } from "./ai.js";
 
 /* 🕐 なうルーム: ひとりツイッター。「いま何してる」を時刻つきでつぶやき続ける。
    - 起動したら最初に開くルーム。開いたらすぐ書けることを最優先にする
@@ -16,6 +18,7 @@ import linkify from "./linkify.jsx";
    - 起動を軽くするため、最初は今日と昨日だけ描画する。過去は「前の日を見る」で足す */
 
 const PAGE_DAYS = 7;       // 「前の日を見る」1回で足す日数
+const REFLECT_DAYS = 7;    // 💗 ふりかえりの対象（今日を含む直近7日）
 const GALLERY_STEP = 150;  // ギャラリーで一度に出すカード数
 
 // その日の投稿を時刻順（29時制）に並べる。同時刻は投稿順
@@ -44,17 +47,28 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
   const [view, setView] = useState(room.nowView === "gallery" ? "gallery" : "time");
   const [cols, setCols] = useState(Number(room.nowCols) === 3 ? 3 : 2);
   const [galLimit, setGalLimit] = useState(GALLERY_STEP);
+  const [reports, setReports] = useState([]);   // 💗 ふりかえり [{id, from, to, count, text, at}]
+  const [reflect, setReflect] = useState(null); // ふりかえり画面 {busy}
+  const [passAsk, setPassAsk] = useState(null);
   const scrollRef = useRef(null);
   const barRef = useRef(null);
   const taRef = useRef(null);
-  const kbGap = useKbGap(!editing);
+  // posts 以外のキー（ふりかえり等）。保存のたびに一緒に書き戻して消さない
+  const restRef = useRef({});
+  const postsRef = useRef([]);
+  const kbGap = useKbGap(!editing && !reflect);
   const today = todayKey();
 
   useEffect(() => {
     (async () => {
       try {
         const v = await get(roomDataKey(room.id));
-        if (v && Array.isArray(v.posts)) setPosts(v.posts);
+        if (v && typeof v === "object") {
+          const { posts: ps, ...rest } = v;
+          restRef.current = rest;
+          if (Array.isArray(rest.reports)) setReports(rest.reports);
+          if (Array.isArray(ps)) { postsRef.current = ps; setPosts(ps); }
+        }
       } catch (e) { /* 初回 */ } finally { setLoaded(true); }
     })();
   }, [room.id]);
@@ -75,9 +89,10 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
   useEffect(() => { if (loaded && view === "time") scrollToEnd(false); }, [loaded, view]);
 
   const persist = async (next) => {
+    postsRef.current = next;
     setPosts(next);
     try {
-      await set(roomDataKey(room.id), { posts: next });
+      await set(roomDataKey(room.id), { ...restRef.current, posts: next });
       const last = [...next].sort((a, b) => (a.at || 0) - (b.at || 0)).pop();
       onMeta({
         preview: last ? `${last.time} ${last.text.split("\n")[0]}`.slice(0, 40) : "",
@@ -86,6 +101,54 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
     } catch (e) {
       showToast("保存に失敗しました。ストレージを確認してね");
     }
+  };
+
+  /* 💗 ふりかえり。保存先はなうと同じルーム本文（まるごとバックアップにも入る） */
+  const saveReports = async (list) => {
+    restRef.current = { ...restRef.current, reports: list };
+    setReports(list);
+    try {
+      await set(roomDataKey(room.id), { ...restRef.current, posts: postsRef.current });
+    } catch (e) {
+      showToast("保存に失敗しました。ストレージを確認してね");
+    }
+  };
+
+  const reflectFrom = addDays(todayKey(), -(REFLECT_DAYS - 1));
+  const reflectPosts = posts
+    .filter((p) => p.dateKey >= reflectFrom && p.dateKey <= todayKey())
+    .sort((a, b) => (a.dateKey < b.dateKey ? -1 : a.dateKey > b.dateKey ? 1 : byTime(a, b)));
+
+  const askPass = (wrong) => new Promise((resolve) => setPassAsk({ wrong, resolve }));
+
+  const makeReport = async () => {
+    if (!reflectPosts.length) { showToast("この7日のなうがまだないよ"); return; }
+    setReflect({ busy: true });
+    const to = todayKey();
+    try {
+      const j = await callAiWithPass("reflect", {
+        from: reflectFrom, to,
+        posts: reflectPosts.map((p) => ({ dateKey: p.dateKey, time: p.time, text: p.text }))
+      }, askPass);
+      if (!j.text) throw new Error("ai");
+      await saveReports([{ id: uid(), from: reflectFrom, to, count: reflectPosts.length, text: j.text, at: Date.now() }, ...reports]);
+    } catch (e) {
+      if (e.message !== "cancel") {
+        showToast({
+          limit: "今日のふりかえりは上限に達しました",
+          net: "つながりませんでした。電波を確認してね",
+          pass: "合言葉が合いませんでした"
+        }[e.message] || "ふりかえりを作れませんでした");
+      }
+    }
+    setReflect({ busy: false });
+  };
+
+  const askDeleteReport = (r) => {
+    setConfirm({
+      message: `${keyToDisp(r.from).slice(5)}〜${keyToDisp(r.to).slice(5)} のふりかえりを削除しますか？`,
+      onConfirm: () => { saveReports(reports.filter((x) => x.id !== r.id)); setConfirm(null); }
+    });
   };
 
   const post = () => {
@@ -173,12 +236,16 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
           <div className="hd-title">{room.name}</div>
           <div className="hd-sub">{loaded ? `今日 ${todayCount}件` : "Nachumin Lifelog"}</div>
         </div>
+        <button
+          className="now-view" aria-label="ふりかえり"
+          onClick={() => setReflect({ busy: false })}
+          style={{ marginLeft: "auto" }}
+        >✨</button>
         {/* 時系列 ⇄ ギャラリー */}
         <button
           className={"now-view" + (view === "gallery" ? " on" : "")}
           aria-label={view === "gallery" ? "時系列で見る" : "ギャラリーで見る"}
           onClick={() => setViewMode(view === "gallery" ? "time" : "gallery")}
-          style={{ marginLeft: "auto" }}
         >{view === "gallery" ? "🕐" : "▦"}</button>
         {/* 日記へ1タップ（今日のなうがどう並んだかをすぐ見られるように） */}
         {onOpenDiary && (
@@ -264,7 +331,7 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
       )}
 
       {/* 入力欄。開いたらすぐ書けるように、ほかの操作は置かない */}
-      {!editing && (
+      {!editing && !reflect && (
         <div className="bar bar-fixed now-bar" ref={barRef} style={{ bottom: kbGap }}>
           <div className="in-row">
             <textarea
@@ -318,6 +385,49 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
             </div>
           </div>
         </div>
+      )}
+
+      {reflect && (
+        <div className="overlay" onClick={() => !reflect.busy && setReflect(null)}>
+          <div className="panel rf-panel" onClick={(e) => e.stopPropagation()}>
+            <h3>✨ なうのふりかえり</h3>
+            <button className="rf-make" disabled={reflect.busy} onClick={makeReport}>
+              {reflect.busy
+                ? <><span className="wd-cam-spin" /> ふりかえり中…</>
+                : <>💗 この7日をふりかえる<small>{keyToDisp(reflectFrom).slice(5)}〜今日・{reflectPosts.length}件</small></>}
+            </button>
+            <div className="rf-note">押したときだけ、この7日のなうをAIに送ってまとめます（保存はされません）</div>
+            <div className="rf-list">
+              {reports.length === 0 && <div className="now-empty">まだふりかえりはありません</div>}
+              {reports.map((r) => (
+                <div key={r.id} className="rf-card">
+                  <div className="rf-range">
+                    {keyToDisp(r.from).slice(5)}〜{keyToDisp(r.to).slice(5)}<small>{r.count}件</small>
+                  </div>
+                  <div className="rf-text">{r.text}</div>
+                  <div className="rf-acts">
+                    <button onClick={async () => {
+                      const ok = await copyText(r.text);
+                      showToast(ok ? "コピーしました🩷" : "コピーできませんでした");
+                    }}>コピー</button>
+                    <button onClick={() => askDeleteReport(r)}>削除</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="panel-btns">
+              <button className="p-close" disabled={reflect.busy} onClick={() => setReflect(null)}>もどる</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {passAsk && (
+        <PassDialog
+          wrong={passAsk.wrong}
+          onSubmit={(v) => { passAsk.resolve(v); setPassAsk(null); }}
+          onCancel={() => { passAsk.resolve(null); setPassAsk(null); }}
+        />
       )}
 
       {confirm && (
