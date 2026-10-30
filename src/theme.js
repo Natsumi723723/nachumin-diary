@@ -171,25 +171,34 @@ export const css = `
   }
   .wd-count b { font-size: 18px; font-weight: 900; line-height: 1; }
   .wd-count span { font-size: 11px; font-weight: 800; opacity: .85; }
-  .wd-scroll { flex: 1; overflow-y: auto; padding: 10px 12px 0; display: flex; flex-direction: column; gap: 9px; }
+  .wd-scroll { flex: 1; overflow-y: auto; padding: 8px 10px 0; }
+  .wd-grid { column-gap: 7px; }
+  .wd-grid.cols-2 { column-count: 2; }
+  .wd-grid.cols-3 { column-count: 3; }
   .wd-card {
-    position: relative; overflow: hidden; flex-shrink: 0;
-    background: #fff; border: 2px solid #ffc2e0; border-radius: 18px;
-    padding: 12px 14px 12px 20px;
+    position: relative; overflow: hidden;
+    break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid;
+    display: block; margin: 0 0 7px;
+    background: #fff; border: 2px solid #ffc2e0; border-radius: 16px;
+    padding: 10px 10px 10px 15px;
     box-shadow: 0 5px 16px rgba(255,20,147,.16);
     -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
     -webkit-tap-highlight-color: transparent;
   }
   .wd-card::before {
-    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 7px;
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
     background: linear-gradient(180deg,#ff1493,#ff00aa 50%,#c33bff);
     box-shadow: 0 0 10px rgba(255,0,170,.7);
   }
   .wd-text {
-    font-size: 17px; line-height: 1.55; font-weight: 900; color: #3d1f33;
+    font-size: 15px; line-height: 1.5; font-weight: 900; color: #3d1f33;
     white-space: pre-wrap; overflow-wrap: anywhere; letter-spacing: .01em;
   }
-  .wd-from { margin-top: 5px; text-align: right; font-size: 12px; font-weight: 800; color: #d6317f; }
+  .wd-from { margin-top: 4px; text-align: right; font-size: 11px; font-weight: 800; color: #d6317f; overflow-wrap: anywhere; }
+  .wd-grid.cols-3 .wd-card { padding: 8px 7px 8px 11px; border-radius: 12px; border-width: 1.5px; }
+  .wd-grid.cols-3 .wd-card::before { width: 4px; }
+  .wd-grid.cols-3 .wd-text { font-size: 12.5px; line-height: 1.45; }
+  .wd-grid.cols-3 .wd-from { font-size: 10px; }
   .wd-card.pop { animation: now-pop .8s cubic-bezier(.3,1.5,.5,1); }
   .wd-count { margin-left: 0; }
   .wd-bell-note { font-size: 13px; line-height: 1.7; color: #6b4a5e; margin: 4px 0 14px; }

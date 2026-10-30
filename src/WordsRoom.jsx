@@ -27,6 +27,7 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
   const [barH, setBarH] = useState(76);
   const [bell, setBell] = useState(null);       // 通知パネル {on, busy}
   const [reading, setReading] = useState(false); // 📷 読み取り中
+  const [cols, setCols] = useState(Number(room.wordsCols) === 3 ? 3 : 2); // 基本2列
   const [passAsk, setPassAsk] = useState(null);  // 合言葉の入力 {value, file}
   const fileRef = useRef(null);
   const scrollRef = useRef(null);
@@ -186,6 +187,8 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
     });
   };
 
+  const setColCount = (n) => { setCols(n); onMeta({ wordsCols: n }); };
+
   const list = [...words].sort((a, b) => (b.at || 0) - (a.at || 0));
   const menuWord = menu && words.find((w) => w.id === menu.id);
 
@@ -207,9 +210,25 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
       {pinned}
 
       <div className="wd-scroll" ref={scrollRef} style={{ paddingBottom: barH + 12 }}>
+        {list.length > 0 && (
+          <div className="now-gal-bar">
+            <div className="now-gal-cols">
+              {[2, 3].map((n) => (
+                <button
+                  key={n}
+                  className={"now-gal-col" + (cols === n ? " on" : "")}
+                  aria-label={`${n}列にする`}
+                  onClick={() => setColCount(n)}
+                >{n}列</button>
+              ))}
+            </div>
+          </div>
+        )}
         {loaded && list.length === 0 && (
           <div className="now-empty">響いた言葉を下から書き留めてね💎</div>
         )}
+        {/* 段組みにすると、長さがばらばらでも上から詰まる */}
+        <div className={"wd-grid cols-" + cols}>
         {list.map((w) => (
           <Pressable
             key={w.id}
@@ -220,6 +239,7 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
             {w.from && <div className="wd-from">— {w.from}</div>}
           </Pressable>
         ))}
+        </div>
       </div>
 
       {/* 入力欄。書きはじめたら「誰の言葉？」が出る */}
