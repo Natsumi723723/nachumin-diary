@@ -3,9 +3,9 @@ import { toReadableBase64 } from "./imageUtil.js";
 import { callAiWithPass } from "./ai.js";
 
 /* 失敗は Error の message: image / pass / limit / net / ai / cancel */
-export async function readWordsFromImage(file, askPass) {
+export async function readWordsFromImage(file, askPass, kind = "words") {
   let image;
   try { image = await toReadableBase64(file); } catch (e) { throw new Error("image"); }
-  const j = await callAiWithPass("read", { image }, askPass);
+  const j = await callAiWithPass("read", { image, kind }, askPass);
   return { text: j.text || "", from: j.from || "" };
 }

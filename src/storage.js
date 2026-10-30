@@ -49,6 +49,8 @@ export const SMART_SEED_KEY = "smartseed-v1";
 export const SMART_ROOM_ID = "smart-main";
 export const WORDS_SEED_KEY = "wordsseed-v1";
 export const WORDS_ROOM_ID = "words-main";
+export const PRAISE_SEED_KEY = "praiseseed-v1";
+export const PRAISE_ROOM_ID = "praise-main";
 
 /* なうルーム: 「何時何分に何してた」をつぶやくルーム。起動時に開く。
    投稿は { posts: [{id, dateKey, time, text, at}] } としてルーム本文に持つ。

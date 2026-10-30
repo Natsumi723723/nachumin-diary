@@ -10,13 +10,27 @@ import PassDialog from "./PassDialog.jsx";
 import { pushSupported, currentSub, enablePush, disablePush, testPush } from "./push.js";
 
 /* 💎 名言ルーム: 響いたフレーズを書き留めて、一覧でバーっと見返す。それだけ。
+   👑 褒め褒めリスト（type "praise"）も同じ部品。文言だけ変える。毎朝の通知は名言だけ
    - 新しい順に上から並べる。日付は出さない（言葉だけを見る）
    - 「誰の言葉か」は任意。書きはじめたときだけ欄が出る
    データ: room-data-v1:<id> = { words: [{ id, text, from, at }] } */
 
 const GOAL = 1000;
 
+const TEXT = {
+  words: {
+    sub: "わたしだけの名言", empty: "響いた言葉を下から書き留めてね💎", placeholder: "響いた言葉",
+    from: "誰の言葉？（なくてもOK）", fromLabel: "誰の言葉（なくてもOK）", edit: "💎 名言を直す", none: "言葉が見つからなかったよ"
+  },
+  praise: {
+    sub: "褒められたこと、忘れない", empty: "褒められた言葉を下から書き留めてね👑", placeholder: "褒められた言葉",
+    from: "誰から？（なくてもOK）", fromLabel: "誰から（なくてもOK）", edit: "👑 褒め言葉を直す", none: "褒め言葉が見つからなかったよ"
+  }
+};
+
 export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
+  const kind = room.type === "praise" ? "praise" : "words";
+  const T = TEXT[kind];
   const [words, setWords] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [draft, setDraft] = useState("");
@@ -99,8 +113,8 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
   const readImage = async (file) => {
     setReading(true);
     try {
-      const r = await readWordsFromImage(file, askPass);
-      if (!r.text) { showToast("言葉が見つからなかったよ"); return; }
+      const r = await readWordsFromImage(file, askPass, kind);
+      if (!r.text) { showToast(T.none); return; }
       setDraft(r.text);
       if (r.from) setFrom(r.from);
       requestAnimationFrame(() => {
@@ -195,9 +209,11 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
         <span style={{ fontSize: 20 }}>{room.emoji}</span>
         <div style={{ minWidth: 0 }}>
           <div className="hd-title">{room.name}</div>
-          <div className="hd-sub">{loaded ? "わたしだけの名言" : "Nachumin Lifelog"}</div>
+          <div className="hd-sub">{loaded ? T.sub : "Nachumin Lifelog"}</div>
         </div>
-        <button className="now-view" aria-label="毎朝の通知" onClick={openBell} style={{ marginLeft: "auto" }}>🔔</button>
+        {kind === "words"
+          ? <button className="now-view" aria-label="毎朝の通知" onClick={openBell} style={{ marginLeft: "auto" }}>🔔</button>
+          : <span style={{ marginLeft: "auto" }} />}
         <div className="wd-count" aria-label={`${words.length}個`}>
           <b>{words.length}</b><span>/ {GOAL}</span>
         </div>
@@ -221,7 +237,7 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
           </div>
         )}
         {loaded && list.length === 0 && (
-          <div className="now-empty">響いた言葉を下から書き留めてね💎</div>
+          <div className="now-empty">{T.empty}</div>
         )}
         {/* 段組みにすると、長さがばらばらでも上から詰まる */}
         <div className={"wd-grid cols-" + cols}>
@@ -244,7 +260,7 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
           {draft.trim() && (
             <input
               className="wd-from-in"
-              placeholder="誰の言葉？（なくてもOK）"
+              placeholder={T.from}
               enterKeyHint="send"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
@@ -271,7 +287,7 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
             />
             <textarea
               ref={taRef} className="ta" rows={1}
-              placeholder={reading ? "読み取り中…" : "響いた言葉"}
+              placeholder={reading ? "読み取り中…" : T.placeholder}
               enterKeyHint="send"
               value={draft} onChange={autoGrow} onKeyDown={onKeyDown}
             />
@@ -300,14 +316,14 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
       {editing && (
         <div className="overlay" onClick={() => setEditing(null)}>
           <div className="panel" onClick={(e) => e.stopPropagation()}>
-            <h3>💎 名言を直す</h3>
+            <h3>{T.edit}</h3>
             <div className="f-label">言葉</div>
             <textarea
               autoFocus style={{ minHeight: 90 }}
               value={editing.text}
               onChange={(e) => setEditing((o) => ({ ...o, text: e.target.value }))}
             />
-            <div className="f-label">誰の言葉（なくてもOK）</div>
+            <div className="f-label">{T.fromLabel}</div>
             <input
               className="f-input"
               value={editing.from}
