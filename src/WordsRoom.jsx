@@ -28,7 +28,7 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
   const [barH, setBarH] = useState(76);
   const [bell, setBell] = useState(null);       // 通知パネル {on, busy}
   const [reading, setReading] = useState(false); // 📷 読み取り中
-  const [cols, setCols] = useState(Number(room.wordsCols) === 3 ? 3 : 2); // 基本2列
+  const [cols, setCols] = useState([1, 2, 3].includes(Number(room.wordsCols)) ? Number(room.wordsCols) : 2); // 基本2列
   const [passAsk, setPassAsk] = useState(null);  // 合言葉の入力 {wrong, resolve}
   const fileRef = useRef(null);
   const scrollRef = useRef(null);
@@ -209,7 +209,7 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
         {list.length > 0 && (
           <div className="now-gal-bar">
             <div className="now-gal-cols">
-              {[2, 3].map((n) => (
+              {[1, 2, 3].map((n) => (
                 <button
                   key={n}
                   className={"now-gal-col" + (cols === n ? " on" : "")}

@@ -202,6 +202,10 @@ export const css = `
   .wd-count span { font-size: 11px; font-weight: 800; opacity: .85; }
   .wd-scroll { flex: 1; overflow-y: auto; padding: 8px 10px 0; }
   .wd-grid { column-gap: 7px; }
+  .wd-grid.cols-1 { column-count: 1; }
+  .wd-grid.cols-1 .wd-card { padding: 12px 14px 12px 19px; border-radius: 18px; }
+  .wd-grid.cols-1 .wd-text { font-size: 17px; line-height: 1.55; }
+  .wd-grid.cols-1 .wd-from { font-size: 12px; }
   .wd-grid.cols-2 { column-count: 2; }
   .wd-grid.cols-3 { column-count: 3; }
   .wd-card {
