@@ -203,6 +203,18 @@ export const css = `
     background: linear-gradient(120deg,#ff1493,#ff00aa 55%,#c33bff);
     box-shadow: 0 0 0 2px #fff, 0 0 18px rgba(255,0,170,.6);
   }
+  .wd-cam {
+    flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%; cursor: pointer;
+    border: 2px solid #ff1493; background: #fff; font-size: 19px; line-height: 1;
+    display: grid; place-items: center; box-shadow: 0 0 10px rgba(255,20,147,.3);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wd-cam:disabled { cursor: default; }
+  .wd-cam-spin {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 3px solid #ffc2e0; border-top-color: #ff1493; animation: wd-spin .8s linear infinite;
+  }
+  @keyframes wd-spin { to { transform: rotate(360deg); } }
   .wd-from-in {
     display: block; width: 100%; box-sizing: border-box; margin-bottom: 7px;
     border: 1.5px solid #ffc2e0; border-radius: 999px; background: #fff;

@@ -71,3 +71,15 @@ export const sizeLabel = (bytes) => {
   if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)}MB`;
   return `${(n / 1024 / 1024 / 1024).toFixed(2)}GB`;
 };
+
+/* 📷 名言の読み取り用: 長辺1200pxのJPEGをbase64で返す（AIに渡す量＝料金を抑える） */
+export async function toReadableBase64(file) {
+  const img = await load(file);
+  const { canvas } = draw(img, 1200);
+  if (img.close) img.close();
+  const blob = await toBlob(canvas, 0.85);
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  let s = "";
+  for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+  return btoa(s);
+}

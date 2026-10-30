@@ -5,6 +5,7 @@ import Pressable from "./Pressable.jsx";
 import ContextMenu from "./ContextMenu.jsx";
 import ConfirmDialog from "./ConfirmDialog.jsx";
 import useKbGap from "./useKbGap.js";
+import { getReadPass, setReadPass, readWordsFromImage } from "./readWords.js";
 import { pushSupported, currentSub, enablePush, disablePush, testPush } from "./push.js";
 
 /* 💎 名言ルーム: 響いたフレーズを書き留めて、一覧でバーっと見返す。それだけ。
@@ -25,6 +26,9 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
   const [justPosted, setJustPosted] = useState(null);
   const [barH, setBarH] = useState(76);
   const [bell, setBell] = useState(null);       // 通知パネル {on, busy}
+  const [reading, setReading] = useState(false); // 📷 読み取り中
+  const [passAsk, setPassAsk] = useState(null);  // 合言葉の入力 {value, file}
+  const fileRef = useRef(null);
   const scrollRef = useRef(null);
   const barRef = useRef(null);
   const taRef = useRef(null);
@@ -84,6 +88,42 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
       showToast("送れませんでした");
     }
     setBell((b) => ({ ...b, busy: false }));
+  };
+
+  /* 📷 画像 → 入力欄へ。保存はせず、直してから↑で書き留める */
+  const readImage = async (file, passOverride) => {
+    const pass = passOverride || (await getReadPass());
+    if (!pass) { setPassAsk({ value: "", file }); return; }
+    setReading(true);
+    try {
+      const r = await readWordsFromImage(file, pass);
+      if (passOverride) await setReadPass(passOverride);
+      if (!r.text) { showToast("言葉が見つからなかったよ"); return; }
+      setDraft(r.text);
+      if (r.from) setFrom(r.from);
+      requestAnimationFrame(() => {
+        const el = taRef.current;
+        if (!el) return;
+        el.style.height = "auto";
+        el.style.height = Math.min(el.scrollHeight, 140) + "px";
+      });
+      showToast("読み取ったよ。直してから↑で書き留めてね");
+    } catch (e) {
+      if (e.message === "pass") {
+        await setReadPass(null);
+        setPassAsk({ value: "", file, wrong: true });
+      } else {
+        // 合言葉は通っている（上限・電波などの別の理由）ので覚えておく
+        if (passOverride) await setReadPass(passOverride);
+        showToast({
+          limit: "今日の読み取りは上限（30枚）に達しました",
+          image: "この画像は読めませんでした",
+          net: "つながりませんでした。電波を確認してね"
+        }[e.message] || "読み取りに失敗しました");
+      }
+    } finally {
+      setReading(false);
+    }
   };
 
   const persist = async (next) => {
@@ -201,9 +241,21 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
             />
           )}
           <div className="in-row">
+            <button
+              className="wd-cam" aria-label="画像から読み取る" disabled={reading}
+              onClick={() => fileRef.current?.click()}
+            >{reading ? <span className="wd-cam-spin" /> : "📷"}</button>
+            <input
+              ref={fileRef} type="file" accept="image/*" hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = ""; // 同じ画像をもう一度選べるように
+                if (f) readImage(f);
+              }}
+            />
             <textarea
               ref={taRef} className="ta" rows={1}
-              placeholder="響いた言葉"
+              placeholder={reading ? "読み取り中…" : "響いた言葉"}
               enterKeyHint="send"
               value={draft} onChange={autoGrow} onKeyDown={onKeyDown}
             />
@@ -270,6 +322,30 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
             <div className="panel-btns">
               {bell.on && <button className="p-copy" disabled={bell.busy} onClick={sendTest}>いま1通ためす</button>}
               <button className="p-close" onClick={() => setBell(null)}>もどる</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {passAsk && (
+        <div className="overlay" onClick={() => setPassAsk(null)}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>📷 合言葉</h3>
+            <div className="wd-bell-note">
+              {passAsk.wrong ? "合言葉がちがうみたい。もう一度入れてね。" : "画像の読み取りに使う合言葉を入れてね。"}<br />
+              このスマホに覚えるので、入れるのは最初の1回だけ。
+            </div>
+            <input
+              className="f-input" type="password" autoFocus autoComplete="off"
+              value={passAsk.value}
+              onChange={(e) => setPassAsk((o) => ({ ...o, value: e.target.value }))}
+            />
+            <div className="panel-btns">
+              <button
+                className="p-copy" disabled={!passAsk.value.trim()}
+                onClick={() => { const { file, value } = passAsk; setPassAsk(null); readImage(file, value.trim()); }}
+              >読み取る</button>
+              <button className="p-close" onClick={() => setPassAsk(null)}>もどる</button>
             </div>
           </div>
         </div>
