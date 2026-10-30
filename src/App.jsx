@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import {
   get, set, loadRooms, ROOMS_KEY, roomDataKey, trashKey, DIARY_ROOM_ID, DECL_KEY,
   FUTURE_SEED_KEY, FUTURE_ROOM_ID, NOW_SEED_KEY, NOW_ROOM_ID, ALBUM_SEED_KEY, ALBUM_ROOM_ID,
-  SMART_SEED_KEY, SMART_ROOM_ID,
+  SMART_SEED_KEY, SMART_ROOM_ID, WORDS_SEED_KEY, WORDS_ROOM_ID,
   START_ROOM_KEY,
   MARKS_KEY, DEFAULT_MARKS, doneLogKey, BACKUP_KEY
 } from "./storage.js";
@@ -30,6 +30,7 @@ const ChallengeRoom = lazy(() => import("./ChallengeRoom.jsx"));
 const FutureRoom = lazy(() => import("./FutureRoom.jsx"));
 const AlbumRoom = lazy(() => import("./AlbumRoom.jsx"));
 const SmartRoom = lazy(() => import("./SmartRoom.jsx"));
+const WordsRoom = lazy(() => import("./WordsRoom.jsx"));
 
 const EMOJI_PICKS = [
   "💗", "🩷", "💛", "🩵", "💜", "🤍", "🖤", "🌸", "🌷", "🎀",
@@ -141,6 +142,26 @@ export default function App() {
     }
   };
 
+  /* 名言ルームを一度だけ用意する。消したら復活させない */
+  const seedWordsRoom = async (list) => {
+    try {
+      if (await get(WORDS_SEED_KEY)) return list;
+      if (list.some((r) => r.type === "words")) {
+        await set(WORDS_SEED_KEY, true);
+        return list;
+      }
+      const next = [...list, {
+        id: WORDS_ROOM_ID, type: "words", name: "名言", emoji: "💎",
+        createdAt: Date.now(), lastAt: 0, preview: ""
+      }];
+      await set(ROOMS_KEY, next);
+      await set(WORDS_SEED_KEY, true);
+      return next;
+    } catch (e) {
+      return list;
+    }
+  };
+
   /* なうルームを一度だけ用意する。一覧のいちばん前に置く。
      一度でも作ったら印を残すので、あとで消しても勝手に復活しない。 */
   const seedNowRoom = async (list) => {
@@ -171,7 +192,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const loaded = await seedNowRoom(await seedSmartRoom(await seedAlbumRoom(await seedFutureRoom(await loadRooms()))));
+        const loaded = await seedNowRoom(await seedWordsRoom(await seedSmartRoom(await seedAlbumRoom(await seedFutureRoom(await loadRooms())))));
         /* 起動時に出すルーム。設定していればそれを、無ければ「なう」→日記→一覧 */
         const startId = await get(START_ROOM_KEY);
         if (startId) setStartRoomId(startId);
@@ -422,6 +443,13 @@ export default function App() {
             hits.push({ snippet: `${cn(e.categoryId)} ¥${e.amount}${e.memo ? " " + e.memo : ""}`, date: keyToDisp(e.dateKey) });
           }
         }
+      } else if (r.type === "words") {
+        const ws = data && Array.isArray(data.words) ? data.words : [];
+        for (const w of ws) {
+          if ((w.text + " " + (w.from || "")).toLowerCase().includes(q)) {
+            hits.push({ snippet: w.from ? `${w.text} — ${w.from}` : w.text, date: "" });
+          }
+        }
       } else if (r.type === "smart") {
         const its = data && Array.isArray(data.items) ? data.items : [];
         for (const x of its) {
@@ -464,7 +492,7 @@ export default function App() {
       showToast("ルーム名を入れてね");
       return;
     }
-    const defaultEmoji = { diary: "💗", todo: "✅", darelog: "🌗", expense: "💰", challenge: "🏁", smart: "📝", talk: "🩷" }[modal.type] || "🩷";
+    const defaultEmoji = { diary: "💗", todo: "✅", darelog: "🌗", expense: "💰", challenge: "🏁", smart: "📝", words: "💎", talk: "🩷" }[modal.type] || "🩷";
     // だれログは初期メンバーを用意（記録のハードルをゼロに）
     const initMembers = modal.type === "darelog"
       ? [
@@ -770,6 +798,8 @@ export default function App() {
               ? <AlbumRoom key={room.id} {...common} />
             : room.type === "smart"
               ? <SmartRoom key={room.id} {...common} />
+            : room.type === "words"
+              ? <WordsRoom key={room.id} {...common} />
               : <TalkRoom key={room.id} {...common} onRoomChange={(patch) => updateRoom(room.id, patch)} />;
       content = (
         <SwipeBack key={room.id} onBack={() => setView({ screen: "home" })}>
@@ -1051,6 +1081,11 @@ export default function App() {
                 disabled={modal.mode === "edit"}
                 onClick={() => setModal((o) => ({ ...o, type: "smart" }))}
               >📝 スマートノート<small>やったこと5個に点数</small></button>
+              <button
+                className={"type-chip" + (modal.type === "words" ? " on" : "")}
+                disabled={modal.mode === "edit"}
+                onClick={() => setModal((o) => ({ ...o, type: "words" }))}
+              >💎 名言<small>響いた言葉を一覧で</small></button>
             </div>
             {modal.mode === "edit" && (
               <>

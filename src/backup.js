@@ -47,7 +47,8 @@ export function summarizeBackup(obj) {
     : t === "future" ? "opened"
     : t === "now" ? "posts"
     : t === "album" ? "pages"
-    : t === "smart" ? "items" : null);
+    : t === "smart" ? "items"
+    : t === "words" ? "words" : null);
   for (const r of obj.rooms || []) {
     const d = obj.data ? obj.data[r.id] : undefined;
     if (!d) continue;
@@ -117,6 +118,11 @@ function metaFromData(room, data) {
       preview: last ? `${last.score ? last.score + "点 " : ""}${last.text}`.slice(0, 40) : "",
       lastAt: room.lastAt || (last ? Date.now() : 0)
     };
+  }
+  if (room.type === "words") {
+    const ws = (data && data.words) || [];
+    const last = [...ws].sort((a, b) => (a.at || 0) - (b.at || 0)).pop();
+    return { preview: last ? last.text.split("\n")[0].slice(0, 40) : "", lastAt: room.lastAt || (last ? Date.now() : 0) };
   }
   if (room.type === "now") {
     const ps = (data && data.posts) || [];
@@ -234,7 +240,8 @@ export async function restoreAll(obj) {
       : r.type === "future" ? "opened"
       : r.type === "now" ? "posts"
       : r.type === "album" ? "pages"
-      : r.type === "smart" ? "items" : null;
+      : r.type === "smart" ? "items"
+      : r.type === "words" ? "words" : null;
     const sigOf = (x) => arrKey === "messages" ? `${x.dateKey} ${x.memberId} ${x.text}`
       : arrKey === "todos" ? `${x.dateKey} ${x.text}`
       : arrKey === "records" ? `${x.dateKey} ${x.slot} ${x.memberId}`

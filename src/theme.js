@@ -161,6 +161,42 @@ export const css = `
     background: rgba(255,255,255,.85); color: #e0148c;
     box-shadow: 0 1px 4px rgba(255,20,147,.28);
   }
+  /* ---------- 💎 名言 ---------- */
+  .wd-count {
+    margin-left: auto; flex-shrink: 0; display: flex; align-items: baseline; gap: 3px;
+    padding: 5px 12px; border-radius: 999px; color: #fff;
+    background: linear-gradient(120deg,#ff1493,#ff00aa 55%,#c33bff);
+    box-shadow: 0 0 0 2px #fff, 0 0 14px rgba(255,0,170,.55);
+    font-variant-numeric: tabular-nums;
+  }
+  .wd-count b { font-size: 18px; font-weight: 900; line-height: 1; }
+  .wd-count span { font-size: 11px; font-weight: 800; opacity: .85; }
+  .wd-scroll { flex: 1; overflow-y: auto; padding: 10px 12px 0; display: flex; flex-direction: column; gap: 9px; }
+  .wd-card {
+    position: relative; overflow: hidden; flex-shrink: 0;
+    background: #fff; border: 2px solid #ffc2e0; border-radius: 18px;
+    padding: 12px 14px 12px 20px;
+    box-shadow: 0 5px 16px rgba(255,20,147,.16);
+    -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wd-card::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 7px;
+    background: linear-gradient(180deg,#ff1493,#ff00aa 50%,#c33bff);
+    box-shadow: 0 0 10px rgba(255,0,170,.7);
+  }
+  .wd-text {
+    font-size: 17px; line-height: 1.55; font-weight: 900; color: #3d1f33;
+    white-space: pre-wrap; overflow-wrap: anywhere; letter-spacing: .01em;
+  }
+  .wd-from { margin-top: 5px; text-align: right; font-size: 12px; font-weight: 800; color: #d6317f; }
+  .wd-card.pop { animation: now-pop .8s cubic-bezier(.3,1.5,.5,1); }
+  .wd-from-in {
+    display: block; width: 100%; box-sizing: border-box; margin-bottom: 7px;
+    border: 1.5px solid #ffc2e0; border-radius: 999px; background: #fff;
+    padding: 7px 14px; font-size: 16px; font-weight: 700; color: #4a3140; outline: none;
+  }
+  .wd-from-in::placeholder { color: #e7a9c8; }
   @media (prefers-reduced-motion: reduce) {
     .hd-home::after, .app-title { animation: none; }
   }
