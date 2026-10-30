@@ -44,7 +44,8 @@ self.addEventListener("push", (event) => {
     const [w, notice] = await Promise.all([pickWord(), fetchNotice()]);
     if (notice) {
       await self.registration.showNotification(notice.title, {
-        body: notice.body, icon: "icon-192.png", badge: "icon-192.png", tag: "notice"
+        body: notice.body, icon: "icon-192.png", badge: "icon-192.png", tag: "notice",
+        silent: true // 音は鳴らさない（本人の希望）
       });
     }
     const title = w ? w.text : "💎 今日の名言";
@@ -54,6 +55,7 @@ self.addEventListener("push", (event) => {
       icon: "icon-192.png",
       badge: "icon-192.png",
       tag: "words-morning",
+      silent: true, // 音は鳴らさない（本人の希望）
       data: { roomId: w ? w.roomId : "words-main" }
     });
   })());
