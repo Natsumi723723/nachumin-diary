@@ -5,6 +5,7 @@ import Pressable from "./Pressable.jsx";
 import ContextMenu from "./ContextMenu.jsx";
 import ConfirmDialog from "./ConfirmDialog.jsx";
 import useKbGap from "./useKbGap.js";
+import { pushSupported, currentSub, enablePush, disablePush, testPush } from "./push.js";
 
 /* 💎 名言ルーム: 響いたフレーズを書き留めて、一覧でバーっと見返す。それだけ。
    - 新しい順に上から並べる。日付は出さない（言葉だけを見る）
@@ -23,6 +24,7 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
   const [confirm, setConfirm] = useState(null);
   const [justPosted, setJustPosted] = useState(null);
   const [barH, setBarH] = useState(76);
+  const [bell, setBell] = useState(null);       // 通知パネル {on, busy}
   const scrollRef = useRef(null);
   const barRef = useRef(null);
   const taRef = useRef(null);
@@ -44,6 +46,45 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
     ro.observe(barRef.current);
     return () => ro.disconnect();
   }, [editing]);
+
+  const openBell = async () => {
+    let on = false;
+    try { on = !!(await currentSub()); } catch (e) { /* 未対応 */ }
+    setBell({ on, busy: false });
+  };
+
+  const toggleBell = async () => {
+    if (!pushSupported()) {
+      showToast("ホーム画面に追加したアプリから開いてね");
+      return;
+    }
+    setBell((b) => ({ ...b, busy: true }));
+    try {
+      if (bell.on) {
+        await disablePush();
+        setBell({ on: false, busy: false });
+        showToast("毎朝の名言をオフにしました");
+      } else {
+        await enablePush();
+        setBell({ on: true, busy: false });
+        showToast("毎朝7時に名言が届きます💎");
+      }
+    } catch (e) {
+      setBell((b) => ({ ...b, busy: false }));
+      showToast(e.message === "denied" ? "設定アプリで通知を許可してね" : "うまくいきませんでした。電波を確認してね");
+    }
+  };
+
+  const sendTest = async () => {
+    setBell((b) => ({ ...b, busy: true }));
+    try {
+      await testPush();
+      showToast("テストを送りました。数秒で届くよ");
+    } catch (e) {
+      showToast("送れませんでした");
+    }
+    setBell((b) => ({ ...b, busy: false }));
+  };
 
   const persist = async (next) => {
     setWords(next);
@@ -117,6 +158,7 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
           <div className="hd-title">{room.name}</div>
           <div className="hd-sub">{loaded ? "わたしだけの名言" : "Nachumin Lifelog"}</div>
         </div>
+        <button className="now-view" aria-label="毎朝の通知" onClick={openBell} style={{ marginLeft: "auto" }}>🔔</button>
         <div className="wd-count" aria-label={`${words.length}個`}>
           <b>{words.length}</b><span>/ {GOAL}</span>
         </div>
@@ -207,6 +249,27 @@ export default function WordsRoom({ room, onBack, onMeta, showToast, pinned }) {
               <button className="p-copy" onClick={saveEdit}>保存</button>
               <button className="p-del" onClick={() => askDelete(editing.id)}>削除</button>
               <button className="p-close" onClick={() => setEditing(null)}>もどる</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bell && (
+        <div className="overlay" onClick={() => setBell(null)}>
+          <div className="panel" onClick={(e) => e.stopPropagation()}>
+            <h3>🔔 毎朝の名言</h3>
+            <div className="wd-bell-note">
+              毎朝7時に、書き溜めた名言から1つ選んで通知します。<br />
+              言葉はこのスマホの中だけで選ぶので、外には出ません。
+            </div>
+            <button
+              className={"wd-bell-toggle" + (bell.on ? " on" : "")}
+              disabled={bell.busy}
+              onClick={toggleBell}
+            >{bell.busy ? "…" : bell.on ? "💎 オン中（タップでオフ）" : "🔔 オンにする"}</button>
+            <div className="panel-btns">
+              {bell.on && <button className="p-copy" disabled={bell.busy} onClick={sendTest}>いま1通ためす</button>}
+              <button className="p-close" onClick={() => setBell(null)}>もどる</button>
             </div>
           </div>
         </div>

@@ -11,6 +11,8 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["apple-touch-icon.png"],
+      // 毎朝の名言プッシュの受け口（public/push-sw.js）
+      workbox: { importScripts: ["push-sw.js"] },
       manifest: {
         name: "Nachumin Lifelog",
         short_name: "Nachumin Lifelog",

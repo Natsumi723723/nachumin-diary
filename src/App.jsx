@@ -196,7 +196,11 @@ export default function App() {
         /* 起動時に出すルーム。設定していればそれを、無ければ「なう」→日記→一覧 */
         const startId = await get(START_ROOM_KEY);
         if (startId) setStartRoomId(startId);
-        const startRoom = (startId && loaded.find((r) => r.id === startId))
+        /* 通知タップなどで ?open=<roomId> が付いていれば、それを最優先で開く。
+           URLから消さない（直後にSW更新の自動リロードが走ると、消していたら別のルームが開いてしまう） */
+        const openId = new URLSearchParams(location.search).get("open");
+        const startRoom = (openId && loaded.find((r) => r.id === openId))
+          || (startId && loaded.find((r) => r.id === startId))
           || loaded.find((r) => r.type === "now" && !r.hidden)
           || loaded.find((r) => r.id === DIARY_ROOM_ID);
         if (startRoom) setView({ screen: "room", roomId: startRoom.id });

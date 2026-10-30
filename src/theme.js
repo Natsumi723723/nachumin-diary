@@ -191,6 +191,18 @@ export const css = `
   }
   .wd-from { margin-top: 5px; text-align: right; font-size: 12px; font-weight: 800; color: #d6317f; }
   .wd-card.pop { animation: now-pop .8s cubic-bezier(.3,1.5,.5,1); }
+  .wd-count { margin-left: 0; }
+  .wd-bell-note { font-size: 13px; line-height: 1.7; color: #6b4a5e; margin: 4px 0 14px; }
+  .wd-bell-toggle {
+    display: block; width: 100%; padding: 14px 0; border-radius: 999px; cursor: pointer;
+    border: 2.5px solid #ff1493; background: #fff; color: #ff1493;
+    font-size: 18px; font-weight: 900; margin-bottom: 12px;
+  }
+  .wd-bell-toggle.on {
+    border-color: transparent; color: #fff;
+    background: linear-gradient(120deg,#ff1493,#ff00aa 55%,#c33bff);
+    box-shadow: 0 0 0 2px #fff, 0 0 18px rgba(255,0,170,.6);
+  }
   .wd-from-in {
     display: block; width: 100%; box-sizing: border-box; margin-bottom: 7px;
     border: 1.5px solid #ffc2e0; border-radius: 999px; background: #fff;
