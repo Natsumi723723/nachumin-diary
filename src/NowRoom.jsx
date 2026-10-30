@@ -34,6 +34,28 @@ const fromInputTime = (v) => {
   return m ? `${Number(m[1])}:${m[2]}` : "";
 };
 
+/* ふりかえり本文を見出しごとに分ける。見出しは絵文字で始まる行（AIが付ける # や ** は外す） */
+const HEAD_RE = /^(💗|🕐|🔁|✨|🌙|🚀)\s*(.+)$/u;
+function reportSections(text) {
+  const secs = [];
+  let cur = null;
+  for (const raw of String(text || "").split("\n")) {
+    const line = raw.replace(/^#+\s*/, "").replace(/\*\*/g, "").trim();
+    if (!line) continue;
+    const m = HEAD_RE.exec(line);
+    if (m && line.length <= 24) {
+      cur = { head: line, lines: [] };
+      secs.push(cur);
+      continue;
+    }
+    if (!cur) { cur = { head: "", lines: [] }; secs.push(cur); }
+    const b = /^([-・•]|\d+[.)])\s*/.exec(line);
+    cur.lines.push(b ? { bullet: true, text: line.slice(b[0].length) } : { text: line });
+  }
+  return secs;
+}
+const rangeLabel = (r) => `${keyToDisp(r.from).slice(5)}〜${keyToDisp(r.to).slice(5)}`;
+
 export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpenDiary }) {
   const [posts, setPosts] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -120,6 +142,7 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
     .sort((a, b) => (a.dateKey < b.dateKey ? -1 : a.dateKey > b.dateKey ? 1 : byTime(a, b)));
 
   const askPass = (wrong) => new Promise((resolve) => setPassAsk({ wrong, resolve }));
+  const openReport = reflect?.openId ? reports.find((r) => r.id === reflect.openId) : null;
 
   const makeReport = async () => {
     if (!reflectPosts.length) { showToast("この7日のなうがまだないよ"); return; }
@@ -131,7 +154,10 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
         posts: reflectPosts.map((p) => ({ dateKey: p.dateKey, time: p.time, text: p.text }))
       }, askPass);
       if (!j.text) throw new Error("ai");
-      await saveReports([{ id: uid(), from: reflectFrom, to, count: reflectPosts.length, text: j.text, at: Date.now() }, ...reports]);
+      const id = uid();
+      await saveReports([{ id, from: reflectFrom, to, count: reflectPosts.length, text: j.text, at: Date.now() }, ...reports]);
+      setReflect({ busy: false, openId: id });
+      return;
     } catch (e) {
       if (e.message !== "cancel") {
         showToast({
@@ -146,8 +172,8 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
 
   const askDeleteReport = (r) => {
     setConfirm({
-      message: `${keyToDisp(r.from).slice(5)}〜${keyToDisp(r.to).slice(5)} のふりかえりを削除しますか？`,
-      onConfirm: () => { saveReports(reports.filter((x) => x.id !== r.id)); setConfirm(null); }
+      message: `${rangeLabel(r)} のふりかえりを削除しますか？`,
+      onConfirm: () => { saveReports(reports.filter((x) => x.id !== r.id)); setConfirm(null); setReflect({ busy: false }); }
     });
   };
 
@@ -388,37 +414,57 @@ export default function NowRoom({ room, onBack, onMeta, showToast, pinned, onOpe
       )}
 
       {reflect && (
-        <div className="overlay" onClick={() => !reflect.busy && setReflect(null)}>
-          <div className="panel rf-panel" onClick={(e) => e.stopPropagation()}>
-            <h3>✨ なうのふりかえり</h3>
-            <button className="rf-make" disabled={reflect.busy} onClick={makeReport}>
-              {reflect.busy
-                ? <><span className="wd-cam-spin" /> ふりかえり中…</>
-                : <>💗 この7日をふりかえる<small>{keyToDisp(reflectFrom).slice(5)}〜今日・{reflectPosts.length}件</small></>}
-            </button>
-            <div className="rf-note">押したときだけ、この7日のなうをAIに送ってまとめます（保存はされません）</div>
-            <div className="rf-list">
-              {reports.length === 0 && <div className="now-empty">まだふりかえりはありません</div>}
-              {reports.map((r) => (
-                <div key={r.id} className="rf-card">
-                  <div className="rf-range">
-                    {keyToDisp(r.from).slice(5)}〜{keyToDisp(r.to).slice(5)}<small>{r.count}件</small>
-                  </div>
-                  <div className="rf-text">{r.text}</div>
-                  <div className="rf-acts">
-                    <button onClick={async () => {
-                      const ok = await copyText(r.text);
-                      showToast(ok ? "コピーしました🩷" : "コピーできませんでした");
-                    }}>コピー</button>
-                    <button onClick={() => askDeleteReport(r)}>削除</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="panel-btns">
-              <button className="p-close" disabled={reflect.busy} onClick={() => setReflect(null)}>もどる</button>
+        <div className="rf-screen">
+          <div className="hd">
+            <button
+              className="back-btn" aria-label="もどる" disabled={reflect.busy}
+              onClick={() => (reflect.openId ? setReflect({ busy: false }) : setReflect(null))}
+            >‹</button>
+            <span style={{ fontSize: 20 }}>✨</span>
+            <div style={{ minWidth: 0 }}>
+              <div className="hd-title">なうのふりかえり</div>
+              <div className="hd-sub">{openReport ? rangeLabel(openReport) : `${reports.length}件たまってる`}</div>
             </div>
           </div>
+
+          {openReport ? (
+            <div className="rf-scroll">
+              {reportSections(openReport.text).map((sec, i) => (
+                <section key={i} className={"rf-sec" + (i === 0 ? " lead" : "")}>
+                  {sec.head && <h4 className="rf-head">{sec.head}</h4>}
+                  {sec.lines.map((l, j) => (
+                    l.bullet
+                      ? <div key={j} className="rf-li">{l.text}</div>
+                      : <p key={j} className="rf-p">{l.text}</p>
+                  ))}
+                </section>
+              ))}
+              <div className="rf-acts">
+                <button onClick={async () => {
+                  const ok = await copyText(openReport.text);
+                  showToast(ok ? "コピーしました🩷" : "コピーできませんでした");
+                }}>コピー</button>
+                <button onClick={() => askDeleteReport(openReport)}>削除</button>
+              </div>
+            </div>
+          ) : (
+            <div className="rf-scroll">
+              <button className="rf-make" disabled={reflect.busy} onClick={makeReport}>
+                {reflect.busy
+                  ? <><span className="wd-cam-spin" /> ふりかえり中…（30秒くらい）</>
+                  : <>💗 この7日をふりかえる<small>{keyToDisp(reflectFrom).slice(5)}〜今日・{reflectPosts.length}件</small></>}
+              </button>
+              <div className="rf-note">できたふりかえりはこのスマホに保存されて、下からいつでも見返せます</div>
+              {reports.length === 0 && <div className="now-empty">まだふりかえりはありません</div>}
+              {reports.map((r) => (
+                <button key={r.id} className="rf-tile" onClick={() => setReflect({ busy: false, openId: r.id })}>
+                  <span className="rf-range">{rangeLabel(r)}<small>{r.count}件</small></span>
+                  <span className="rf-tile-lead">{reportSections(r.text)[0]?.lines[0]?.text || ""}</span>
+                  <span className="rf-tile-arw">›</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

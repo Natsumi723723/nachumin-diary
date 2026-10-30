@@ -161,34 +161,69 @@ export const css = `
     background: rgba(255,255,255,.85); color: #e0148c;
     box-shadow: 0 1px 4px rgba(255,20,147,.28);
   }
-  /* ---------- ✨ なうのふりかえり ---------- */
-  .rf-panel { max-height: 86vh; display: flex; flex-direction: column; }
+  /* ---------- ✨ なうのふりかえり（全画面で読む） ---------- */
+  .rf-screen {
+    position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column;
+    background: linear-gradient(180deg,#fff0f8 0%,#ffe3f2 100%);
+  }
+  .rf-scroll {
+    flex: 1; overflow-y: auto; padding: 12px 14px calc(28px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; gap: 12px;
+  }
   .rf-make {
     display: flex; flex-direction: column; align-items: center; gap: 3px; width: 100%;
-    padding: 13px 0; border-radius: 18px; border: none; cursor: pointer; color: #fff;
-    font-size: 17px; font-weight: 900;
+    padding: 15px 0; border-radius: 20px; border: none; cursor: pointer; color: #fff;
+    font-size: 18px; font-weight: 900;
     background: linear-gradient(120deg,#ff1493,#ff00aa 55%,#c33bff);
-    box-shadow: 0 0 0 2px #fff, 0 0 18px rgba(255,0,170,.55);
+    box-shadow: 0 0 0 2px #fff, 0 0 20px rgba(255,0,170,.55);
   }
-  .rf-make small { font-size: 11.5px; font-weight: 800; opacity: .9; }
-  .rf-make:disabled { flex-direction: row; justify-content: center; gap: 8px; opacity: .85; cursor: default; }
-  .rf-note { font-size: 11px; color: #a4517f; text-align: center; margin: 7px 0 10px; }
-  .rf-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-  .rf-card {
-    background: #fff; border: 2px solid #ffc2e0; border-radius: 16px; padding: 10px 12px;
-    box-shadow: 0 4px 14px rgba(255,20,147,.14);
+  .rf-make small { font-size: 12px; font-weight: 800; opacity: .9; }
+  .rf-make:disabled { flex-direction: row; justify-content: center; gap: 8px; opacity: .9; cursor: default; font-size: 15px; }
+  .rf-note { font-size: 11.5px; color: #a4517f; text-align: center; margin-top: -4px; }
+  .rf-tile {
+    display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; align-items: center; text-align: left;
+    background: #fff; border: 2px solid #ffc2e0; border-radius: 18px; padding: 12px 14px; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(255,20,147,.14); -webkit-tap-highlight-color: transparent;
   }
+  .rf-tile .rf-range { grid-column: 1; justify-self: start; }
+  .rf-tile-lead {
+    grid-column: 1; font-size: 14.5px; line-height: 1.6; font-weight: 700; color: #3d1f33;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .rf-tile-arw { grid-column: 2; grid-row: 1 / span 2; font-size: 26px; font-weight: 900; color: #ff1493; }
   .rf-range {
-    display: inline-flex; align-items: baseline; gap: 6px; margin-bottom: 6px;
-    padding: 3px 11px; border-radius: 999px; color: #fff; font-size: 13px; font-weight: 900;
+    display: inline-flex; align-items: baseline; gap: 6px;
+    padding: 3px 12px; border-radius: 999px; color: #fff; font-size: 13px; font-weight: 900;
     background: linear-gradient(120deg,#ff1493,#c33bff);
   }
   .rf-range small { font-size: 10.5px; opacity: .85; }
-  .rf-text { font-size: 14px; line-height: 1.7; color: #3d1f33; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .rf-acts { display: flex; justify-content: flex-end; gap: 12px; margin-top: 6px; }
+  .rf-sec {
+    background: #fff; border: 2px solid #ffd1e8; border-radius: 20px; padding: 14px 16px;
+    box-shadow: 0 4px 14px rgba(255,20,147,.12);
+  }
+  .rf-sec.lead {
+    border: none; color: #fff;
+    background: linear-gradient(135deg,#ff1493 0%,#ff00aa 50%,#b42cf0 100%);
+    box-shadow: 0 0 0 2px #fff, 0 6px 22px rgba(255,0,170,.45);
+  }
+  .rf-head { margin: 0 0 8px; font-size: 16px; font-weight: 900; color: #e0157f; letter-spacing: .02em; }
+  .rf-sec.lead .rf-head { color: #fff; }
+  .rf-p { margin: 0 0 6px; font-size: 15px; line-height: 1.9; color: #3d1f33; overflow-wrap: anywhere; }
+  .rf-sec.lead .rf-p { color: #fff; font-size: 16.5px; font-weight: 800; line-height: 1.8; }
+  .rf-li {
+    position: relative; padding-left: 16px; margin: 0 0 6px;
+    font-size: 15px; line-height: 1.85; color: #3d1f33; overflow-wrap: anywhere;
+  }
+  .rf-li::before {
+    content: ""; position: absolute; left: 2px; top: .75em; width: 7px; height: 7px; border-radius: 50%;
+    background: #ff1493; box-shadow: 0 0 6px rgba(255,20,147,.7);
+  }
+  .rf-sec.lead .rf-li { color: #fff; }
+  .rf-sec.lead .rf-li::before { background: #fff; }
+  .rf-acts { display: flex; justify-content: center; gap: 24px; margin-top: 4px; }
   .rf-acts button {
-    background: none; border: none; color: #d6317f; font-size: 12px; font-weight: 800;
-    text-decoration: underline; cursor: pointer; padding: 4px 2px;
+    background: none; border: none; color: #d6317f; font-size: 13px; font-weight: 800;
+    text-decoration: underline; cursor: pointer; padding: 6px 4px;
   }
   /* ---------- 💎 名言 ---------- */
   .wd-count {
