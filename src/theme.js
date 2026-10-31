@@ -382,7 +382,16 @@ export const css = `
     font-family: inherit;
   }
   .panel-note { font-size: 11px; color: #b06992; margin: 0; }
+  /* ボタンの並びは全画面共通のきまり:
+     左 = 削除（右手の親指から遠い＝誤爆しにくい）
+     中 = 閉じる / もどる / DL など
+     右 = 保存・追加・実行（いちばん押しやすい）
+     JSX側の順番は変えず、CSSのorderだけで揃える */
   .panel-btns { display: flex; gap: 8px; }
+  .panel-btns .p-del { order: 0; }
+  .panel-btns .p-dl,
+  .panel-btns .p-close { order: 1; }
+  .panel-btns .p-copy { order: 2; }
   .panel-btns button {
     flex: 1; border: none; border-radius: 999px; padding: 10px 0;
     font-size: 13px; font-weight: 700; cursor: pointer;
